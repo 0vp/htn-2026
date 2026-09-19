@@ -1,0 +1,70 @@
+{
+  "date": "2026-09-19",
+  "device": "iPhone 17 Pro",
+  "method": "Four 25-second native WebRTC runs, scan off/on/on/off, identical generated 48 kHz mono PCM repeated every 6.657 seconds. Real LiDAR capture and production room uploads when scanning is on. Physical microphone DSP bypassed.",
+  "limitations": [
+    "Two runs per condition; no statistical causal claim.",
+    "Stationary phone had limited AR tracking: scan-on uploaded 11 and 23 frames, not continuous maximum-rate scanning.",
+    "Remote RTCP loss reports can lag the end of a run.",
+    "Initial batch excluded: fixture slept after processing rather than using absolute deadlines, delivering audio about 20% too slowly. Corrected batch capture and wall-clock durations match within 0.2%."
+  ],
+  "result": "Loss occurred with scanning disabled; scanning is not necessary to reproduce the transport failure. Both zero-loss runs preserved all words in four repeated sentences.",
+  "runs": [
+    {
+      "trial": 0,
+      "scanning": false,
+      "frames": 0,
+      "MB": 0.0,
+      "capture_seconds": 24.52000000000107,
+      "wall_seconds": 24.520842790603638,
+      "packets_sent": 1276,
+      "lost": 12,
+      "max_interval_loss": 0.1171875,
+      "rtt_median_ms": 81.54299999999999,
+      "rtt_max_ms": 212.891,
+      "transcript": "Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden beside the green chair Take the blue bottle from the wooden table and place it beside the green chair"
+    },
+    {
+      "trial": 1,
+      "scanning": true,
+      "frames": 11,
+      "MB": 3.574163,
+      "capture_seconds": 24.25000000000104,
+      "wall_seconds": 24.29381489753723,
+      "packets_sent": 1235,
+      "lost": 1,
+      "max_interval_loss": 0.0078125,
+      "rtt_median_ms": 81.9935,
+      "rtt_max_ms": 150.772,
+      "transcript": "Take the blue bottle from the wooden the green chair Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair"
+    },
+    {
+      "trial": 2,
+      "scanning": true,
+      "frames": 23,
+      "MB": 7.244348,
+      "capture_seconds": 24.420000000001068,
+      "wall_seconds": 24.459692001342773,
+      "packets_sent": 1236,
+      "lost": 0,
+      "max_interval_loss": 0,
+      "rtt_median_ms": 73.502,
+      "rtt_max_ms": 93.124,
+      "transcript": " Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair Take the blue bottle from the wooden table and place it beside the green chair"
+    },
+    {
+      "trial": 3,
+      "scanning": false,
+      "frames": 0,
+      "MB": 0.0,
+      "capture_seconds": 24.36000000000104,
+      "wall_seconds": 24.365664958953857,
+      "packets_sent": 1228,
+      "lost": 0,
+      "max_interval_loss": 0,
+      "rtt_median_ms": 70.663,
+      "rtt_max_ms": 77.82,
+      "transcript": "Take the blue bottle from the wooden table and place it beside the green chairTake the blue bottle from the wooden table and place it beside the green chairTake the blue bottle from the wooden table and place it beside the green chairTake the blue bottle from the wooden table and place it beside the green chair"
+    }
+  ]
+}

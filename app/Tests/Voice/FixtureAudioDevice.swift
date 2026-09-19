@@ -28,6 +28,7 @@ final class FixtureAudioDevice: NSObject, RTCAudioDevice {
         lock.lock(); defer { lock.unlock() }
         self.delegate = delegate; isInitialized = true
         let worker = Thread { [weak self] in self?.pump() }
+        worker.qualityOfService = .userInteractive
         self.worker = worker; worker.start()
         return true
     }
@@ -46,6 +47,7 @@ final class FixtureAudioDevice: NSObject, RTCAudioDevice {
     private func pump() {
         var offset = 0
         var tick = 0
+        var nextTick = ProcessInfo.processInfo.systemUptime
         while !Thread.current.isCancelled {
             lock.lock()
             if let delegate {
@@ -73,7 +75,11 @@ final class FixtureAudioDevice: NSObject, RTCAudioDevice {
             }
             lock.unlock()
             tick += 1
-            Thread.sleep(forTimeInterval: 0.01)
+            // Absolute deadlines include callback work; sleeping 10 ms *after* that
+            // work slowed the fixture and starved transport on a physical phone.
+            nextTick += 0.01
+            let remaining = nextTick - ProcessInfo.processInfo.systemUptime
+            if remaining > 0 { Thread.sleep(forTimeInterval: remaining) }
         }
     }
 }
