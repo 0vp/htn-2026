@@ -18,6 +18,7 @@ class Options:
     adaptive_speculation: bool = False
     batched_speculation: bool = False
     head_gemv: bool = False
+    residual_norm: bool = False
 
     def __post_init__(self):
         if self.norms not in ('none', 'hidden', 'all'):
@@ -47,6 +48,9 @@ VARIANTS = {
     'graph_folded': Options(direct=True, static=True, graph=True, native_prefill=True, folded_gqa=True),
     'graph_fused': Options(norms='all', direct=True, static=True, graph=True,
                            native_prefill=True, folded_gqa=True, packed=True, swiglu=True),
+    'graph_residual': Options(norms='all', direct=True, static=True, graph=True,
+                              native_prefill=True, folded_gqa=True, packed=True,
+                              swiglu=True, residual_norm=True),
     'graph_norms': Options(norms='all', direct=True, static=True, graph=True),
     'swiglu': Options(swiglu=True),
     'packed': Options(packed=True),

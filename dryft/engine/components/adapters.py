@@ -4,6 +4,7 @@ from kernels.rmsnorm import rms_norm
 from kernels.swiglu import swiglu
 from kernels.decode_attention import decode_attention
 from kernels.gemv import SmallBatchLinear
+from components.blocks import residual_block
 from transformers.models.qwen3.modeling_qwen3 import apply_rotary_pos_emb
 
 
@@ -81,6 +82,8 @@ def install(model, options):
     if options.norms != 'none':
         base.norm = FusedNorm(base.norm)
     for layer in base.layers:
+        if options.residual_norm:
+            layer.forward = MethodType(residual_block, layer)
         if options.norms != 'none':
             layer.input_layernorm = FusedNorm(layer.input_layernorm)
             layer.post_attention_layernorm = FusedNorm(layer.post_attention_layernorm)
