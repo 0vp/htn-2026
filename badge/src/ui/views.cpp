@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 
 #include "../link/robot_link.h"
 #include "draw.h"
@@ -134,6 +135,34 @@ void winchView(LGFX_Sprite &g, const UiModel &m) {
       else g.drawRect(x, y + 11, 10, 10, HAIRLINE);
     }
   }
+}
+
+void autoView(LGFX_Sprite &g, const UiModel &m) {
+  const Telemetry &t = robotlink::telemetry();
+  const bool agent = strcmp(t.owner, "agent") == 0;
+
+  // Who is driving, as the robot reports it.
+  panel(g, 10, TOP, 186, PANEL_H);
+  label(g, "AGENT", 18, TOP + 8, INK_60);
+  pixel(g, agent ? "DRIVING" : "IDLE", 18, TOP + 26, 2, agent ? BLUE : INK_35);
+  const bool supervising = m.controller->supervising();
+  const bool confirmed = supervising && t.supervised;
+  g.fillRect(18, TOP + 56, 7, 7, confirmed ? theme::OK : (supervising ? WARN : INK_35));
+  label(g, confirmed ? "SUPERVISED BY BADGE" : (supervising ? "WAITING FOR ROBOT" : "NOT SUPERVISED"), 30, TOP + 56,
+        INK);
+  label(g, supervising ? "PRESS ANY BUTTON TO STOP" : "HOLD START TO ALLOW", 18, TOP + 76, INK_60);
+  if (!supervising) label(g, "THE AGENT TO DRIVE", 18, TOP + 88, INK_60);
+
+  // Wheel output the robot is applying right now.
+  panel(g, 202, TOP, 108, PANEL_H);
+  label(g, "WHEELS", 210, TOP + 8, INK_60);
+  column(g, 224, TOP + 24, 16, 60, t.dutyLeft);
+  column(g, 270, TOP + 24, 16, 60, t.dutyRight);
+  char text[12];
+  snprintf(text, sizeof text, "%+.1f", t.dutyLeft);
+  pixel(g, text, 232, TOP + 92, 1, INK, Align::Centre);
+  snprintf(text, sizeof text, "%+.1f", t.dutyRight);
+  pixel(g, text, 278, TOP + 92, 1, INK, Align::Centre);
 }
 
 void setupView(LGFX_Sprite &g, const UiModel &m) {

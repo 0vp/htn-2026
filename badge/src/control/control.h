@@ -13,7 +13,7 @@
  *   winch[i]          -1 reel in, 0 hold, 1 pay out (N20 via TB6612FNG)
  *   armed             false until the operator arms; nothing moves while false
  */
-enum class Mode : uint8_t { Drive, Arm, Winch, Count };
+enum class Mode : uint8_t { Drive, Arm, Winch, Auto, Count };
 
 enum Joint : uint8_t { Shoulder, Elbow, Wrist, JointCount };
 
@@ -48,6 +48,7 @@ class Controller {
    *   Drive        D-pad drives while held, A cycles the speed limit
    *   Arm          Left/Right picks a joint, Up/Down moves it, A re-centres it
    *   Winch        Left/Right picks a winch, Up reels in, Down pays out, A stops all
+   *   Auto         armed, the badge only supervises and the agent drives; any button is an E-STOP
    */
   void update(const ButtonState &input, float dt, bool linkUp);
 
@@ -55,6 +56,8 @@ class Controller {
   void disarm();
 
   bool canMove() const { return state_.armed && !state_.estop; }
+  /** Armed in AUTO: packets are a supervision heartbeat for the agent, not drive commands. */
+  bool supervising() const { return mode_ == Mode::Auto && canMove(); }
   WheelDuty mix() const;
 
   /** Writes the JSON command packet; returns its length (0 if `size` was too small). */

@@ -16,6 +16,11 @@ struct Telemetry {
   int robotRssi = 0;
   bool hasPose = false;
   float poseX = 0, poseZ = 0, poseYaw = 0;
+  // Who controls the robot ("none", "human", "agent"), AUTO supervision and applied duty.
+  char owner[8] = "none";
+  bool supervised = false;
+  bool robotEstop = false;
+  float dutyLeft = 0, dutyRight = 0;
   uint32_t updatedMs = 0;
 };
 

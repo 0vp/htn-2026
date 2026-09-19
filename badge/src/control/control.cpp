@@ -5,7 +5,7 @@
 
 namespace {
 
-const char *const MODE_NAMES[] = {"DRIVE", "ARM", "WINCH"};
+const char *const MODE_NAMES[] = {"DRIVE", "ARM", "WINCH", "AUTO"};
 const char *const JOINT_NAMES[] = {"shoulder", "elbow", "wrist"};
 const int JOINT_LIMITS[JointCount][2] = {{-90, 90}, {-120, 120}, {-90, 90}};
 const float SPEED_STEPS[] = {0.25f, 0.5f, 0.75f, 1.0f};
@@ -46,6 +46,14 @@ void Controller::disarm() {
 }
 
 void Controller::update(const ButtonState &in, float dt, bool linkUp) {
+  // While the agent drives, any new button edge (START, HOME and the slide included) stops it.
+  // Holding START from arming isn't an edge, so it doesn't trip this.
+  if (supervising() && (in.pressed || in.released & (1u << static_cast<uint8_t>(Button::Aux1)))) {
+    state_.estop = true;
+    disarm();
+    startConsumed_ = true;
+    return;
+  }
   if (in.wasPressed(Button::B)) {
     state_.estop = true;
     disarm();
@@ -143,10 +151,11 @@ size_t Controller::packet(char *out, size_t size, uint32_t seq, uint64_t timeMs)
       "{\"type\":\"command\",\"seq\":%lu,\"t\":%llu,\"estop\":%s,\"armed\":%s,"
       "\"drive\":{\"left\":%.3f,\"right\":%.3f},"
       "\"arm\":{\"shoulder\":%d,\"elbow\":%d,\"wrist\":%d},"
-      "\"winch\":[%d,%d,%d],\"goal\":null,\"source\":\"badge\"}",
+      "\"winch\":[%d,%d,%d],\"goal\":null,\"source\":\"badge\",\"auto\":%s}",
       static_cast<unsigned long>(seq), static_cast<unsigned long long>(timeMs), state_.estop ? "true" : "false",
       state_.armed ? "true" : "false", drive.left, drive.right, static_cast<int>(lroundf(state_.arm[Shoulder])),
       static_cast<int>(lroundf(state_.arm[Elbow])), static_cast<int>(lroundf(state_.arm[Wrist])),
-      live ? state_.winch[0] : 0, live ? state_.winch[1] : 0, live ? state_.winch[2] : 0);
+      live ? state_.winch[0] : 0, live ? state_.winch[1] : 0, live ? state_.winch[2] : 0,
+      mode_ == Mode::Auto ? "true" : "false");
   return n > 0 && static_cast<size_t>(n) < size ? n : 0;
 }

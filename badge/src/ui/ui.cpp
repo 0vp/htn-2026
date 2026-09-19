@@ -37,6 +37,8 @@ const char *modeHint(Mode mode) {
       return "D-PAD DRIVE  A SPEED";
     case Mode::Arm:
       return "L/R JOINT  U/D MOVE";
+    case Mode::Auto:
+      return "AGENT DRIVES";
     default:
       return "L/R WINCH  U IN  D OUT";
   }
@@ -51,6 +53,10 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
     block = Block::Signal;
     word = "E-STOP";
     detail = m.linkOpen ? "HOLD START TO CLEAR" : "WAITING FOR ROBOT";
+  } else if (m.controller->supervising()) {
+    block = Block::Ok;
+    word = "AUTO";
+    detail = "ANY BUTTON STOPS";
   } else if (s.armed) {
     block = Block::Ok;
     word = "ARMED";
@@ -165,6 +171,9 @@ void render(const UiModel &m) {
         break;
       case Mode::Arm:
         armView(g, m);
+        break;
+      case Mode::Auto:
+        autoView(g, m);
         break;
       default:
         winchView(g, m);

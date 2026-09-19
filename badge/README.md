@@ -12,10 +12,11 @@ control socket for both the dashboard and the badge.
 | **B** | E-STOP — latches, disarms, zeroes all motion |
 | **START** (hold 1 s) | Arm and clear E-STOP; only while the robot link is up |
 | **START** (tap while armed) | Disarm |
-| **HOME** | Next mode: DRIVE → ARM → WINCH |
+| **HOME** | Next mode: DRIVE → ARM → WINCH → AUTO |
 | DRIVE | D-pad drives (arcade mix, ramped); **A** cycles speed limit 25/50/75/100 % |
 | ARM | Left/Right picks shoulder/elbow/wrist; Up/Down moves 45°/s within limits; **A** re-centres |
 | WINCH | Left/Right picks winch 1–3; Up reels in (-1), Down pays out (+1) while held |
+| AUTO | Hold START to let the agent drive (the badge only supervises); **any button** is an E-STOP |
 
 LEDs: orange pulse = no link, blue = linked + safe, green = armed, red pulse = E-STOP.
 The badge disarms itself if the link drops. The robot must still stop on its own if

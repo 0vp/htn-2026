@@ -58,7 +58,7 @@ void printHelp() {
       "  lcd flip                    rotate the screen 180 degrees (applies after reboot)\n"
       "  buttons                     toggle printing raw shift-register bytes\n"
       "  shot                        dump the screen as hex (tools/badge_shot.py)\n"
-      "  mode <drive|arm|winch>       switch the screen's mode\n"
+      "  mode <drive|arm|winch|auto>  switch the screen's mode\n"
       "  datapin <gpio>              74HC165 QH pin (7 or 8)\n"
       "  map <A B Home Down Left Right Up Aux1>   shift position of each button\n"
       "  polarity <low|high>         level of a pressed button\n"
@@ -105,8 +105,12 @@ bool handle(String cmdLine) {
     Serial.println("saved; reboot to apply");
   } else if (cmd == "mode") {
     const String which = nextToken(cmdLine);
-    modeRequest = which == "drive" ? 0 : (which == "arm" ? 1 : (which == "winch" ? 2 : -1));
-    if (modeRequest < 0) Serial.println("mode drive|arm|winch");
+    const char *const names[] = {"drive", "arm", "winch", "auto"};
+    modeRequest = -1;
+    for (int i = 0; i < 4; i++) {
+      if (which == names[i]) modeRequest = i;
+    }
+    if (modeRequest < 0) Serial.println("mode drive|arm|winch|auto");
   } else if (cmd == "shot") {
     shotRequested = true;
   } else if (cmd == "buttons") {

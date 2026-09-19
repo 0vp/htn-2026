@@ -111,6 +111,13 @@ void merge(JsonDocument &doc) {
     latest.poseZ = pose[2] | 0.0f;
     latest.poseYaw = pose[3] | 0.0f;
   }
+  if (doc["control"].is<JsonObjectConst>()) {
+    strlcpy(latest.owner, doc["control"]["owner"] | "none", sizeof latest.owner);
+    latest.supervised = doc["control"]["supervised"] | false;
+    latest.robotEstop = doc["control"]["estop"] | false;
+  }
+  readFloat(doc["duty"]["left"], latest.dutyLeft);
+  readFloat(doc["duty"]["right"], latest.dutyRight);
   latest.updatedMs = millis();
 }
 
@@ -125,6 +132,8 @@ void onMessage(const uint8_t *payload, size_t length) {
   filter["winchPos"] = true;
   filter["limits"] = true;
   filter["pose"] = true;
+  filter["control"] = true;
+  filter["duty"] = true;
   JsonDocument doc;
   if (deserializeJson(doc, payload, length, DeserializationOption::Filter(filter)) == DeserializationError::Ok) {
     merge(doc);
