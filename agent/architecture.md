@@ -42,10 +42,25 @@ object positions. They are navigation targets, not detected physical objects.
 Link lengths (40/35/10 cm), masses, motor limits, friction and tentacle stiffness
 are assumptions awaiting hardware measurements. The tentacles approximate a
 continuum structure with five rigid segments each. Curl/uncurl is tested, but
-contact grasps and release are not validated: agent pick/place are disabled.
+simulator grasp/release is validated for the rigid block fixture. Simulation
+pick/place are enabled for that scope; physical tentacle manipulation is not.
+A bounded target-relative approach and measured Cartesian endpoint servo correct
+alignment and load error. Local secant calibration reports residual and excitation;
+unexcited directions are not claimed calibrated. Narrow corridors can still block
+manipulation even after successful position-only navigation.
 The historical ideal-base/parallel-gripper delivery results do not transfer to
 this hardware model. Current challenges and results are under
-`be/benchmarks/simulation/tentacle/`.
+`be/benchmarks/simulation/feedback/`. Earlier hardware-model results remain in
+`be/benchmarks/simulation/tentacle/` as historical evidence.
+
+`read_feedback` exposes measured simulation motion, joints, contact forces, hand
+position, controller error and phase during actions. A bounded monitor uses
+Codex `turn/steer` to coalesce simulation phase changes into the active turn while
+the controller continues. These are marked untrusted observations. Hardware reports
+remain explicitly unverified and are not automatically injected as actuator events.
+The simulator still advances during actions and holds between skills; this is not
+a wall-clock real-time or moving-hazard validation. π0.5 is researched, not installed
+or trained for this custom robot.
 
 Run the controller suite or a fresh real Astra episode with saved receipts and replay:
 
@@ -110,7 +125,7 @@ shell, file viewing/editing, web search, delegation, plugins, host skill prompts
 and inherited MCP servers for this run without changing the user's saved settings.
 The official source and its licenses remain intact.
 
-The agent registers eight room tools. Astra's model catalog additionally requires
+The agent registers nine room tools. Astra's model catalog additionally requires
 Codex's sandboxed JavaScript `exec`/`wait` wrapper; its host stays enabled so
 dynamic tool calls work. The runtime also exposes clock and clarification helpers.
 The wrapper has no shell, file, or network API; its callable tools are checked by
@@ -129,7 +144,7 @@ accuracy or physical robot validation.
 
 With `HTN_ROBOT_URL` (e.g. `ws://172.20.10.12:81`) and `HTN_ROBOT_TOKEN` set, the
 launcher also registers `robot_status`, `drive`, `turn`, `set_arm`, `run_winch` and
-`stop` (`be/src/htn_backend/agent/motion`) alongside the eight room tools. They talk to the robot base directly
+`stop` (`be/src/htn_backend/agent/motion`) alongside the nine room tools. They talk to the robot base directly
 from the laptop over its WebSocket, never through the server, and:
 
 - only move while a human has the badge in AUTO mode and armed; the robot drops

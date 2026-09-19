@@ -23,6 +23,17 @@ def router(state):
     def telemetry(room_id: RoomID, body: Report):
         return scene.robot_state.publish(room_id, body)
 
+    @routes.get("/{room_id}/robot/feedback")
+    def feedback(room_id: RoomID):
+        reports = scene.robot_state.read(room_id)
+        return dict(
+            execution_domain="hardware_telemetry",
+            reports=reports,
+            source="Reported telemetry, not authenticated actuator feedback",
+            available=bool(reports),
+            physical_success=None,
+        )
+
     @routes.get("/{room_id}/scene")
     def read_scene(room_id: RoomID):
         return scene.read(room_id)

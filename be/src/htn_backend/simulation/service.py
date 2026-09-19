@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Response
 
 from ..robotics.actions import SkillRequest
+from .control.feedback import measure
 from .controller import Controller
 from .mechanics.vision import camera_metadata, exploration_targets, visible_objects
 from .world import World
@@ -34,6 +35,9 @@ class Simulation:
         self.revision, self.sequence, self.active = 1, 0, None
         self.last_capture = -1.0
         self.snapshot = {}
+        self.feedback = {}
+        self.feedback_sequence = 0
+        self.last_action = None
         self.beliefs, self.evidence = {}, {}
         self.executor.submit(self.initialize, seed, layout).result(timeout=30)
 
@@ -47,6 +51,12 @@ class Simulation:
 
     def publish(self, force=False):
         w = self.world
+        with self.lock:
+            self.feedback_sequence += 1
+            self.feedback = measure(w, self.feedback_sequence)
+            self.feedback["action_id"] = self.active or self.last_action
+            if self.snapshot:
+                self.snapshot["robot"]["feedback"] = copy.deepcopy(self.feedback)
         if not force and w.data.time - self.last_capture < 0.75:
             return
         image = w.image()
@@ -114,21 +124,27 @@ class Simulation:
                 coordinate_system="right_handed_y_up_meters",
                 observation=observation,
                 objects=objects,
-                robot=dict(pose=observation["robot_pose"], held_object=w.held),
+                robot=dict(
+                    pose=observation["robot_pose"],
+                    held_object=w.held,
+                    feedback=copy.deepcopy(self.feedback),
+                ),
                 capabilities=dict(
                     observe=True,
                     search=True,
                     inspect=True,
                     navigate=True,
-                    pick=False,
-                    place=False,
+                    pick=True,
+                    place=True,
+                    pick_includes_local_approach=True,
+                    manipulation_scope="simulated rigid block; not arbitrary objects or hardware",
                     stop=True,
                 ),
                 geometry_contract="Visible simulator labels/poses; known static obstacle map. "
                 "No learned perception, pose noise, or SLAM under test. "
                 "Last-seen poses can be stale.",
                 blockers=[
-                    "Tentacle grasp and release are not validated; pick/place disabled",
+                    "Narrow approach corridors can block manipulation; see action feedback",
                     "Single steering wheel cannot independently command chassis heading",
                 ],
                 active_action=self.active,
@@ -161,8 +177,10 @@ class Simulation:
                 obj["object_id"] for obj in self.snapshot["objects"]
             }:
                 raise HTTPException(404, "Unknown simulation target")
-            if request.skill in {"pick", "place"}:
-                raise HTTPException(409, "Tentacle manipulation is not validated")
+            if request.skill == "pick" and request.object_id != "blue_block":
+                raise HTTPException(422, "Target is outside the validated simulator grasp scope")
+            if request.skill == "place" and request.object_id not in self.world.tables:
+                raise HTTPException(422, "Target is not a simulator support surface")
             ident = uuid.uuid4().hex
             receipt = dict(
                 action_id=ident,
@@ -187,6 +205,7 @@ class Simulation:
             else:
                 self.world.cancelled = False
             self.active = ident
+            self.world.phase = request.skill
             self.snapshot["active_action"] = ident
             self.executor.submit(self.execute, ident, request)
             return copy.deepcopy(receipt)
@@ -210,6 +229,7 @@ class Simulation:
             )
         finally:
             self.world.stop()
+        self.world.phase = state
         with self.lock:
             receipt = self.receipts[ident]
             receipt.update(
@@ -223,6 +243,7 @@ class Simulation:
                     collision_steps=self.world.collisions,
                 ),
             )
+            self.last_action = ident
             if self.active == ident:
                 self.active = None
             self.revision += 1
@@ -257,6 +278,11 @@ def create_app(seed=0, layout="detour"):
     @app.get("/health")
     def health():
         return dict(status="ok", execution_domain="simulation", room_id=ROOM)
+
+    @app.get(prefix + "/robot/feedback")
+    def feedback():
+        with app.state.sim.lock:
+            return copy.deepcopy(app.state.sim.feedback)
 
     @app.get(prefix + "/scene")
     def read_scene():
@@ -316,7 +342,9 @@ def create_app(seed=0, layout="detour"):
         with app.state.sim.lock:
             if action_id not in app.state.sim.receipts:
                 raise HTTPException(404, "Unknown simulation action")
-            return copy.deepcopy(app.state.sim.receipts[action_id])
+            result = copy.deepcopy(app.state.sim.receipts[action_id])
+            result["live_feedback"] = copy.deepcopy(app.state.sim.feedback)
+            return result
 
     @app.get("/snapshot")
     def snapshot():

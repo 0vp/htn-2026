@@ -39,6 +39,12 @@ class Receipt(Empty):
 
 
 TOOLS = {
+    "read_feedback": (
+        Empty,
+        "Read current joint/motion/contact feedback, controller error, calibration and phase "
+        "when available. Check source, timing and execution domain; reports alone do not "
+        "prove physical success. The controller continues without waiting for the agent.",
+    ),
     "list_views": (
         History,
         "List sparse historical camera views retained after raw cleanup. "
@@ -130,7 +136,9 @@ class RobotTools:
             if name not in TOOLS:
                 raise ValueError("Unknown robot tool")
             args = TOOLS[name][0].model_validate(arguments)
-            if name == "read_scene":
+            if name == "read_feedback":
+                content = [self.text(self.get("/robot/feedback"))]
+            elif name == "read_scene":
                 content = [self.text(self.get("/scene"))]
             elif name == "find_objects":
                 content = [self.text(self.get("/scene/search", params={"q": args.query}))]
@@ -151,7 +159,7 @@ class RobotTools:
                 if obj is None:
                     raise ValueError("Object not in current scene")
                 content = [self.text({"revision": scene["revision"], "object": obj})]
-                if obj["evidence_url"]:
+                if obj.get("evidence_url"):
                     content.append(
                         self.image(f"/objects/{quote(args.object_id, safe='')}/evidence.jpg")
                     )

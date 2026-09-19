@@ -79,7 +79,7 @@ def matrix():
         limitations=[
             "Uncalibrated assumed geometry, masses, motor limits and contact friction",
             "Single steering contact does not independently control chassis yaw",
-            "Tentacle grasp not validated; agent pick/place endpoints disabled",
+            "Manipulation validates only the simulated rigid block, not physical tentacles",
             "Single small rigid block and tuned contact parameters",
             "Static obstacles, perfect localization and object identities",
             "Not a perception, SLAM, physical hardware or model fine-tuning result",

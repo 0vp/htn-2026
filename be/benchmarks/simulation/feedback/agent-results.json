@@ -1,0 +1,120 @@
+[
+  {
+    "challenge": "astra_delivery",
+    "model": "gpt-6-astra",
+    "seed": 20,
+    "layout": "open",
+    "command": "In simulation, move the blue block to the delivery table. Navigate to the block, then request pick: the simulator pick skill performs final approach alignment. Use live feedback and verify receipts and final support before claiming success. Stop and report if any stage fails.",
+    "wall_time_s": 59.47943254199345,
+    "answer": "Completed in simulation. All action receipts succeeded; final placement verified the blue block released, supported, and at rest on the delivery table. Feedback showed an empty gripper and no collisions. No physical-world execution occurred.",
+    "physical_hardware_connected": false,
+    "actions": [
+      {
+        "skill": "navigate",
+        "object_id": "blue_block",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "navigation_feedback_checked",
+          "held_object": null,
+          "wall_time_s": 3.1947369999834336,
+          "collision_steps": 0
+        }
+      },
+      {
+        "skill": "pick",
+        "object_id": "blue_block",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "lift_and_retained_contact_verified",
+          "held_object": "blue_block",
+          "wall_time_s": 7.573952667007688,
+          "collision_steps": 0
+        }
+      },
+      {
+        "skill": "navigate",
+        "object_id": "delivery_table",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "navigation_feedback_checked",
+          "held_object": "blue_block",
+          "wall_time_s": 4.956113790976815,
+          "collision_steps": 0
+        }
+      },
+      {
+        "skill": "place",
+        "object_id": "delivery_table",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "released_object_support_and_rest_verified",
+          "held_object": null,
+          "wall_time_s": 10.246350417030044,
+          "collision_steps": 0
+        }
+      }
+    ],
+    "metrics": {
+      "simulation_time_s": 228.40000000036247,
+      "path_length_m": 8.334208632290071,
+      "collision_steps": 0
+    }
+  },
+  {
+    "challenge": "astra_pickup",
+    "model": "gpt-6-astra",
+    "seed": 17,
+    "layout": "open",
+    "command": "In simulation, navigate to the blue block, then pick it up. The pick controller handles final alignment. Monitor live feedback and verify the final receipt, retained contact and lift before reporting success. Stop after pickup; do not place it.",
+    "wall_time_s": 32.284142500022426,
+    "answer": "Simulation succeeded: navigated to and picked up the blue block. Final receipt and feedback confirm retained bilateral contact and a 26.5 cm lift, with no collisions. Stopped after pickup; still holding it, not placed.",
+    "physical_hardware_connected": false,
+    "actions": [
+      {
+        "skill": "navigate",
+        "object_id": "blue_block",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "navigation_feedback_checked",
+          "held_object": null,
+          "wall_time_s": 3.3650992079637945,
+          "collision_steps": 0
+        }
+      },
+      {
+        "skill": "pick",
+        "object_id": "blue_block",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "lift_and_retained_contact_verified",
+          "held_object": "blue_block",
+          "wall_time_s": 7.814610707981046,
+          "collision_steps": 0
+        }
+      }
+    ],
+    "metrics": {
+      "simulation_time_s": 109.14999999992702,
+      "path_length_m": 6.238519575355897,
+      "collision_steps": 0
+    }
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "episode": "astra_pickup",
+  "events": [
+    "[feedback: navigate \u2014 sent]",
+    "[feedback: completed \u2014 sent]",
+    "[feedback: approach_staging \u2014 sent]",
+    "[feedback: approach_corridor \u2014 sent]",
+    "[feedback: target_relative_alignment \u2014 sent]",
+    "[feedback: pregrasp \u2014 sent]",
+    "[feedback: grasp_descent \u2014 sent]",
+    "[feedback: lift_verification \u2014 sent]",
+    "[feedback: completed \u2014 sent]"
+  ]
+}

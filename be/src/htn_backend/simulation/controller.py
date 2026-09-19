@@ -4,7 +4,10 @@ import math
 
 import numpy as np
 
-from .planning import line_clear, plan
+from .control.approach import footprint_clear, rotation
+from .control.arm import move_hand
+from .control.manipulation import pick, place
+from .planning import clear, line_clear, plan
 from .world import angle
 
 
@@ -15,6 +18,7 @@ class Controller:
 
     def execute(self, skill, object_id):
         w = self.world
+        w.phase = skill
         if skill == "stop":
             return w.stop(), "base_velocity_checked"
         if w.cancelled:
@@ -32,15 +36,43 @@ class Controller:
             )
             return success, "navigation_feedback_checked" if success else self.failure
         if skill == "pick":
-            return self.pick(object_id)
+            return pick(self, object_id)
         if skill == "place":
-            return self.place(object_id)
+            return place(self, object_id)
         return False, "unsupported_skill"
 
     def navigate(self, target, radius=0.65):
         w = self.world
         self.failure = "goal_pose_tolerance_not_reached"
-        w.settle_arm(0.55 if w.held else 0.4, 0.05 if w.held else 0, 0.065 if w.held else 0)
+        if w.held:
+            success, detail = move_hand(w, 0.19, 0.88, 1)
+            if not success or not w.grasp_contacts():
+                self.failure = detail if not success else "grasp_lost"
+                return False
+        else:
+            w.settle_arm(0.4, 0, 0)
+        if not clear(w.pose[:2], w.obstacles):
+            # Fine manipulation poses use an oriented envelope. Back out until the
+            # conservative global planner's circular envelope is valid again.
+            w.phase = "retreat_to_navigation_clearance"
+            for _ in range(300):
+                if clear(w.pose[:2], w.obstacles):
+                    w.stop()
+                    break
+                if w.cancelled or not footprint_clear(w.pose, w.obstacles):
+                    self.failure = "retreat_clearance_lost"
+                    w.stop()
+                    return False
+                w.drive_world(*(-rotation(w.pose[2])[:, 0] * 0.07), 0)
+                w.step(0.05)
+                if w.collisions:
+                    self.failure = "retreat_environment_contact"
+                    w.stop()
+                    return False
+            else:
+                self.failure = "retreat_not_converged"
+                w.stop()
+                return False
         candidates = []
         # Try all reachable approach directions; no scene-specific approach point.
         for theta in np.linspace(-math.pi, math.pi, 24, endpoint=False):
@@ -67,7 +99,10 @@ class Controller:
                 if distance < 0.05:
                     break
                 error = angle(math.atan2(delta[1], delta[0]) - w.pose[2])
-                velocity = min(0.12, distance * 0.5)
+                velocity = min(0.12, max(0.04, distance * 0.5))
+                w.control_feedback = dict(
+                    position_error_m=float(distance), waypoint=waypoint.tolist()
+                )
                 direction = delta / distance
                 if not line_clear(
                     w.pose[:2], w.pose[:2] + direction * velocity * 0.15, w.obstacles
@@ -95,81 +130,3 @@ class Controller:
         if not stopped:
             self.failure = "base_failed_to_settle"
         return bool(stopped and np.linalg.norm(w.pose[:2] - goal) < 0.06)
-
-    def arm_target(self, position):
-        w = self.world
-        delta = position[:2] - w.pose[:2]
-        heading = math.atan2(delta[1], delta[0])
-        if abs(angle(heading - w.pose[2])) > 0.06:
-            return None
-        reach = float(np.linalg.norm(delta) - 0.14)
-        lift = float(position[2] - 0.33 + 0.025)
-        if not (0 <= reach <= 0.6 and 0 <= lift <= 0.65):
-            return None
-        return lift, reach
-
-    def pick(self, object_id):
-        w = self.world
-        if object_id != "blue_block":
-            return False, "object_not_graspable"
-        if w.held:
-            return False, "gripper_occupied"
-        target = self.arm_target(w.block)
-        if target is None:
-            return False, "target_outside_arm_workspace: navigate to object first"
-        lift, reach = target
-        initial = w.block.copy()
-        # Approach above the object, then descend with uncurled tentacles.
-        for command in (
-            (lift + 0.13, 0, 0),
-            (lift + 0.13, reach, 0),
-            (lift, reach, 0),
-            (lift, reach, 0.065),
-        ):
-            if not w.settle_arm(*command):
-                return False, "cancelled"
-        if not w.grasp_contacts():
-            w.settle_arm(lift + 0.13, reach, 0)
-            return False, "bilateral_gripper_contact_not_found"
-        w.settle_arm(lift + 0.15, reach, 0.065, seconds=2)
-        lifted = w.block[2] - initial[2] > 0.10 and w.grasp_contacts()
-        if lifted:
-            w.held = object_id
-        return bool(lifted), (
-            "lift_and_bilateral_contact_checked" if lifted else "grasp_lost_or_lift_too_small"
-        )
-
-    def place(self, object_id):
-        w = self.world
-        if not w.held:
-            return False, "gripper_empty"
-        table = w.tables.get(object_id)
-        if table is None:
-            return False, "target_is_not_a_support_surface"
-        # Place on the reachable near edge of the requested support surface.
-        direction = w.pose[:2] - np.array(table[:2])
-        direction /= max(np.linalg.norm(direction), 1e-9)
-        position = np.array([*(np.array(table[:2]) + direction * 0.28), table[2] + 0.04])
-        if np.linalg.norm(position[:2] - w.pose[:2]) > 0.74:
-            return False, "surface_unreachable: navigate to support surface first"
-        w.settle_arm(0.55, 0.05, 0.065)
-        target = self.arm_target(position)
-        if target is None:
-            return False, "surface_outside_arm_workspace"
-        lift, reach = target
-        w.settle_arm(lift + 0.15, reach, 0.065)
-        w.settle_arm(lift + 0.03, reach, 0.065)
-        w.settle_arm(lift + 0.03, reach, 0)
-        w.settle_arm(lift + 0.18, reach, 0, seconds=2)
-        position = w.block
-        supported = (
-            abs(position[0] - table[0]) < 0.42
-            and abs(position[1] - table[1]) < 0.47
-            and abs(position[2] - table[2] - 0.035) < 0.015
-        )
-        w.held = None
-        return bool(supported), (
-            "released_object_support_height_checked"
-            if supported
-            else "released_object_not_stably_supported"
-        )

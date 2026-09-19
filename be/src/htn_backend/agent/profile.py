@@ -30,6 +30,10 @@ Report blocked actions as not executed. Inspect is historical evidence retrieval
 When execution_domain is simulation, check simulation_success and report simulated results
 explicitly. physical_success stays false in simulation; it is not a simulated failure.
 The local controller owns motors, collision stopping, and command expiry; you select goals.
+During actions, read_feedback reports measured motion, contact, phase and error when available.
+Use feedback and the final receipt before claiming progress. A lost grasp, tracking failure,
+stale observation or large calibration residual means reconsider the action. Do not treat
+successful base position arrival as a verified grasp pose. Never bypass reported capabilities.
 """
 
 # Keep coding, discovery and host integrations out of the robot's context. These

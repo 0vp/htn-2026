@@ -8,7 +8,7 @@ pytest.importorskip("mujoco")
 from htn_backend.simulation.service import ROOM, create_app
 
 
-def test_initial_occlusion_no_oracle_pose_or_evidence_and_manipulation_disabled():
+def test_initial_occlusion_no_oracle_pose_or_evidence_and_manipulation_scope():
     with TestClient(create_app()) as client:
         prefix = f"/v1/rooms/{ROOM}"
         scene = client.get(prefix + "/scene").json()
@@ -23,7 +23,8 @@ def test_initial_occlusion_no_oracle_pose_or_evidence_and_manipulation_disabled(
             scene_revision=scene["revision"],
         )
         assert client.post(prefix + "/actions", json=request).status_code == 404
-        assert not scene["capabilities"]["pick"] and not scene["capabilities"]["place"]
+        assert scene["capabilities"]["pick"] and scene["capabilities"]["place"]
+        assert "simulated rigid block" in scene["capabilities"]["manipulation_scope"]
         assert (
             client.post(
                 prefix + "/actions",
@@ -34,7 +35,7 @@ def test_initial_occlusion_no_oracle_pose_or_evidence_and_manipulation_disabled(
                     "object_id": "viewpoint_1",
                 },
             ).status_code
-            == 409
+            == 422
         )
         observation = client.get(prefix + "/observations/latest").json()
         assert observation["view"] == "body-mounted robot POV"

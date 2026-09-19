@@ -8,6 +8,7 @@ import tempfile
 
 import httpx
 
+from .feedback.stream import stream
 from .motion.link import RobotLink
 from .motion.skills import Motion
 from .motion.tools import INSTRUCTIONS as MOTION_INSTRUCTIONS
@@ -16,7 +17,7 @@ from .protocol import AppServer
 from .tools import RobotTools, definitions
 
 
-async def run_turn(server, thread_id, text, emit=print):
+async def run_turn(server, thread_id, text, emit=print, feedback_backend=None, prefix=None):
     turn = await server.request(
         "turn/start",
         {
@@ -28,6 +29,11 @@ async def run_turn(server, thread_id, text, emit=print):
     )
     turn_id = turn["turn"]["id"]
     final = []
+    monitor = (
+        asyncio.create_task(stream(server, thread_id, turn_id, feedback_backend, prefix, emit))
+        if feedback_backend and prefix
+        else None
+    )
     try:
         async with asyncio.timeout(180):
             while True:
@@ -58,6 +64,10 @@ async def run_turn(server, thread_id, text, emit=print):
         except Exception:
             pass
         raise
+    finally:
+        if monitor:
+            monitor.cancel()
+            await asyncio.gather(monitor, return_exceptions=True)
 
 
 async def run(room_id, prompt, backend, binary, motion=None):
@@ -79,7 +89,13 @@ async def run(room_id, prompt, backend, binary, motion=None):
                 thread = await server.request("thread/start", params)
                 if thread.get("model", MODEL) != MODEL:
                     raise RuntimeError("App-server did not select the requested Astra model")
-                return await run_turn(server, thread["thread"]["id"], prompt)
+                return await run_turn(
+                    server,
+                    thread["thread"]["id"],
+                    prompt,
+                    feedback_backend=backend,
+                    prefix=tools.prefix,
+                )
             finally:
                 await server.close()
 

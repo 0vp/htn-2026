@@ -71,16 +71,29 @@ class World:
         if speed < 1e-6:
             self.data.ctrl[self.act["wheel"]] = 0
             return
-        steering = angle(math.atan2(vy, vx) - self.pose[2])
-        if abs(steering) > math.pi / 2:
-            speed = -speed
-            steering = angle(steering - math.copysign(math.pi, steering))
-        self.command_speed = float(np.clip(speed, -0.25, 0.25))
-        self.command_steering = float(np.clip(steering, -1.5, 1.5))
+        direction = angle(math.atan2(vy, vx) - self.pose[2])
+        measured_steering = self.data.joint("steering").qpos[0]
+        # Choose the closest equivalent rolling direction. Hysteresis through
+        # actuator travel cost prevents forward/reverse chatter around 90 degrees.
+        candidates = []
+        for sign, desired in ((1, direction), (-1, angle(direction - math.pi))):
+            steering = float(np.clip(desired, -1.5, 1.5))
+            mismatch = abs(angle(desired - steering))
+            if mismatch < 0.5:
+                cost = (steering - measured_steering) ** 2 + 0.8 * mismatch**2
+                candidates.append((cost, sign, steering))
+        if not candidates:
+            self.data.ctrl[self.act["wheel"]] = 0
+            return
+        _, sign, steering = min(candidates)
+        self.command_speed = float(np.clip(sign * speed, -0.25, 0.25))
+        self.command_steering = steering
         self.data.ctrl[self.act["steering"]] = self.command_steering
         # Let the steering joint align before applying traction.
         error = abs(self.data.joint("steering").qpos[0] - self.command_steering)
-        self.data.ctrl[self.act["wheel"]] = self.command_speed / 0.095 if error < 0.12 else 0
+        self.data.ctrl[self.act["wheel"]] = (
+            self.command_speed / 0.095 * math.cos(error) ** 2 if error < 0.3 else 0
+        )
 
     def step(self, seconds=0.05):
         for _ in range(round(seconds / self.model.opt.timestep)):
