@@ -1,10 +1,11 @@
 """Independent experiment switches; keep baseline as the default."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
 class Options:
     norms: str = 'none'
+    norm_warps: int = 0
     direct: bool = False
     gqa: bool = False
     folded_gqa: bool = False
@@ -18,8 +19,11 @@ class Options:
     adaptive_speculation: bool = False
     batched_speculation: bool = False
     head_gemv: bool = False
+    residual_norm: bool = False
 
     def __post_init__(self):
+        if self.norm_warps not in (0, 4, 8, 16):
+            raise ValueError('Norm warps must be automatic (0), 4, 8 or 16')
         if self.norms not in ('none', 'hidden', 'all'):
             raise ValueError('Unknown norm replacement mode')
         if self.static and not self.direct:
@@ -47,6 +51,9 @@ VARIANTS = {
     'graph_folded': Options(direct=True, static=True, graph=True, native_prefill=True, folded_gqa=True),
     'graph_fused': Options(norms='all', direct=True, static=True, graph=True,
                            native_prefill=True, folded_gqa=True, packed=True, swiglu=True),
+    'graph_residual': Options(norms='all', direct=True, static=True, graph=True,
+                              native_prefill=True, folded_gqa=True, packed=True,
+                              swiglu=True, residual_norm=True),
     'graph_norms': Options(norms='all', direct=True, static=True, graph=True),
     'swiglu': Options(swiglu=True),
     'packed': Options(packed=True),
@@ -58,4 +65,5 @@ VARIANTS = {
     'combined': Options(norms='all', direct=True, gqa=True, static=True,
                         graph=True, swiglu=True, packed=True),
 }
-ACTIVE = 'graph_folded'
+VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
+ACTIVE = 'graph_residual'

@@ -4,17 +4,19 @@ from kernels.rmsnorm import rms_norm
 from kernels.swiglu import swiglu
 from kernels.decode_attention import decode_attention
 from kernels.gemv import SmallBatchLinear
+from components.blocks import residual_block
 from transformers.models.qwen3.modeling_qwen3 import apply_rotary_pos_emb
 
 
 class FusedNorm(torch.nn.Module):
-    def __init__(self, reference):
+    def __init__(self, reference, warps=0):
         super().__init__()
         self.weight = reference.weight
         self.variance_epsilon = reference.variance_epsilon
+        self.warps = warps
 
     def forward(self, x):
-        return rms_norm(x, self.weight, self.variance_epsilon)
+        return rms_norm(x, self.weight, self.variance_epsilon, num_warps=self.warps or None)
 
 
 def attention(self, hidden_states, position_embeddings, attention_mask, past_key_value=None,
@@ -79,14 +81,17 @@ def install(model, options):
     if options.head_gemv:
         model.lm_head = SmallBatchLinear(model.lm_head)
     if options.norms != 'none':
-        base.norm = FusedNorm(base.norm)
+        base.norm = FusedNorm(base.norm, options.norm_warps)
     for layer in base.layers:
+        if options.residual_norm:
+            layer.forward = MethodType(residual_block, layer)
         if options.norms != 'none':
-            layer.input_layernorm = FusedNorm(layer.input_layernorm)
-            layer.post_attention_layernorm = FusedNorm(layer.post_attention_layernorm)
+            layer.input_layernorm = FusedNorm(layer.input_layernorm, options.norm_warps)
+            layer.post_attention_layernorm = FusedNorm(layer.post_attention_layernorm, options.norm_warps)
         attn = layer.self_attn
         if options.norms == 'all':
-            attn.q_norm, attn.k_norm = FusedNorm(attn.q_norm), FusedNorm(attn.k_norm)
+            attn.q_norm = FusedNorm(attn.q_norm, options.norm_warps)
+            attn.k_norm = FusedNorm(attn.k_norm, options.norm_warps)
         if options.packed:
             attn.qkv_sizes = tuple(m.out_features for m in (attn.q_proj, attn.k_proj, attn.v_proj))
             attn.packed_qkv = packed_linear((attn.q_proj, attn.k_proj, attn.v_proj))

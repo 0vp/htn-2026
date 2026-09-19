@@ -86,3 +86,29 @@ next experiment, already implemented as graph_hybrid. Graph_folded then tests
 avoiding KV repetition; graph_norms tests fusion. These measurements do not
 uniquely identify a kernel bottleneck and do not establish the 2000 TPS goal.
 The actual results have been sent to Fable for the next research iteration.
+
+## Ranked graph improvements
+
+- Native-prefill graph: **286.813834 official TPS**, all gates passed, run
+  `3277a3b4-5f4c-4759-aa15-3b140329cad2`.
+- Combined graph_fused: **571.446130 official TPS**, all gates passed, run
+  `727ff60a-59a2-4e44-b44f-d7f63fd7427c`, commit `da6004c`.
+
+graph_fused combines native prefill, folded GQA decode, packed QKV/gate-up,
+all RMSNorm replacements and fused SwiGLU. Public B1/B4/B16 TPOT was
+6.396 / 9.213 / 7.063 ms; paired native ratios were 0.287 / 0.389 / 0.297.
+Public B16 throughput reached 1956.80 TPS, but that is NOT the official score
+and does not achieve the 2000 official TPS goal. Peak run memory was 26.89 GB.
+
+The next incremental graph_residual candidate retains that configuration and
+fuses the post-attention residual addition with RMSNorm. The residual sum is
+rounded to BF16 before the FP32 variance, and normalized values are rounded
+again before multiplying the learned weight. Local archive/tooling checks
+passed; its GPU correctness and performance remain pending.
+
+Folded attention with native prefill, without the other fusions, passed at
+**412.6689999 official TPS**, run `bb32171a-a5da-40f4-86fb-4eeb31493e75`.
+Public B1/B4/B16 TPOT was 9.274 / 12.030 / 10.280 ms, with paired native
+ratios 0.332 / 0.394 / 0.362. The combined graph_fused remains the winner.
+A frontend-only push triggered another run of the identical engine tree;
+that duplicate was canceled before resuming the residual-fusion candidate.

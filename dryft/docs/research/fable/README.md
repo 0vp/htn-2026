@@ -79,3 +79,14 @@ and resulting cost attributions are discarded. Norm fusion remains worth
 testing because of our own paired measurements. The prioritized graph_fused
 candidate combines native prefill, folded heads, all norms, packed projections
 and SwiGLU; standalone candidates remain queued for attribution if needed.
+# Follow-up fusion review
+
+Confirmed another response from `claude-fable-5-1`, stored locally in
+`results/claude-fable-next-fusion.json`. It reviewed the residual norm's BF16
+boundaries and recommended combining Q/K per-head norm and RoPE next.
+The proposed kernel must round normalized values, learned-weight products,
+both RoPE products, and their final sum at the same boundaries as eager.
+FP32 reduction order remains a validation concern; this review is not GPU proof.
+Its estimated millisecond savings and claims about rsqrt lowering were not
+measured or independently established. Profile or benchmark before relying on
+them. Start with norm/RoPE fusion before coupling it to static cache writes.
