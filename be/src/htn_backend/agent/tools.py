@@ -9,12 +9,21 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..robotics.actions import SkillRequest
+from ..robotics.grounding import RegionRequest
 from .motion import tools as motion_tools
 from .motion.skills import Motion
 
 
 class Empty(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class Observe(Empty):
+    sequence: int | None = Field(default=None, ge=1)
+
+
+class History(Empty):
+    before: int = Field(default=2**63 - 1, ge=1, le=2**63 - 1)
 
 
 class Search(Empty):
@@ -30,17 +39,30 @@ class Receipt(Empty):
 
 
 TOOLS = {
+    "list_views": (
+        History,
+        "List sparse historical camera views retained after raw cleanup. "
+        "Inspect them with observe(sequence). These are not live frames.",
+    ),
+    "ground_region": (
+        RegionRequest,
+        "Project a tight normalized bounding box from an observed "
+        "upright image into measured depth. Supply that image sequence. Returns surface support "
+        "and uncertainty, NOT a verified object identity, full pose or grasp.",
+    ),
     "read_scene": (
         Empty,
         "Read room objects, processing state, uncertainty and robot capabilities.",
     ),
     "observe": (
-        Empty,
-        "Get latest uploaded camera image and its timing. Receipt time is not capture freshness.",
+        Observe,
+        "Get the latest available image, or a specific observation sequence, with timing. "
+        "It may be a historical retained view. Receipt time is not capture freshness.",
     ),
     "find_objects": (
         Search,
-        "Search observed object labels using lexical search; not open-vocabulary visual search.",
+        "Search object labels and SigLIP 2 visual evidence. "
+        "Results are candidates, not confirmed identities.",
     ),
     "inspect_object": (
         Inspect,
@@ -111,8 +133,13 @@ class RobotTools:
                 content = [self.text(self.get("/scene"))]
             elif name == "find_objects":
                 content = [self.text(self.get("/scene/search", params={"q": args.query}))]
+            elif name == "list_views":
+                content = [
+                    self.text(self.get("/observations/history", params={"before": args.before}))
+                ]
             elif name == "observe":
-                observation = self.get("/observations/latest")
+                suffix = str(args.sequence) if args.sequence is not None else "latest"
+                observation = self.get(f"/observations/{suffix}")
                 content = [self.text(observation)]
                 if observation["rgb_available"]:
                     sequence = int(observation["sequence"])
@@ -127,6 +154,12 @@ class RobotTools:
                     content.append(
                         self.image(f"/objects/{quote(args.object_id, safe='')}/evidence.jpg")
                     )
+            elif name == "ground_region":
+                response = self.client.post(
+                    self.prefix + "/observations/ground", json=args.model_dump()
+                )
+                response.raise_for_status()
+                content = [self.text(response.json())]
             elif name == "action_status":
                 content = [self.text(self.get(f"/actions/{args.action_id}"))]
             else:

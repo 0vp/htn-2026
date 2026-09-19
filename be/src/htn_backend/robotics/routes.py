@@ -3,8 +3,11 @@
 from fastapi import APIRouter, Query, Request, Response
 
 from ..api.models import DeviceID, RoomID
+from ..retrieval.client import search as retrieve
 from .actions import Actions, SkillRequest
+from .grounding import RegionRequest, ground
 from .scene import Scene
+from .telemetry import Report
 
 
 def router(state):
@@ -12,17 +15,33 @@ def router(state):
     scene = Scene(state)
     actions = Actions(scene)
 
+    @routes.post("/{room_id}/observations/ground")
+    def ground_region(room_id: RoomID, body: RegionRequest):
+        return ground(state, room_id, body)
+
+    @routes.post("/{room_id}/robot/telemetry")
+    def telemetry(room_id: RoomID, body: Report):
+        return scene.robot_state.publish(room_id, body)
+
     @routes.get("/{room_id}/scene")
     def read_scene(room_id: RoomID):
         return scene.read(room_id)
 
     @routes.get("/{room_id}/scene/search")
     def search(room_id: RoomID, q: str = Query(min_length=1, max_length=256)):
-        return scene.search(room_id, q)
+        return retrieve(scene, room_id, q)
 
     @routes.get("/{room_id}/observations/latest")
     def observe(room_id: RoomID, device_id: DeviceID | None = None):
         return scene.observations.latest(room_id, device_id)
+
+    @routes.get("/{room_id}/observations/history")
+    def history(room_id: RoomID, before: int = Query(default=2**63 - 1, ge=1, le=2**63 - 1)):
+        return scene.observations.history(room_id, before)
+
+    @routes.get("/{room_id}/observations/{sequence}")
+    def view(room_id: RoomID, sequence: int):
+        return scene.observations.metadata(room_id, sequence)
 
     @routes.get("/{room_id}/observations/{sequence}/image.jpg")
     def image(room_id: RoomID, sequence: int, request: Request):

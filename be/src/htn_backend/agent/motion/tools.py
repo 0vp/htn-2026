@@ -39,6 +39,19 @@ class RunWinch(Empty):
     seconds: float = Field(gt=0, le=3)
 
 
+INSTRUCTIONS = """
+
+Motion tools (drive, turn, set_arm, run_winch, stop) move the real robot base, arm and winches.
+They only work while a human supervises with the badge in AUTO mode and armed.
+Call robot_status first; if can_move is false, explain the blockers and ask the user.
+Move in short steps, then observe or read robot_status before the next step.
+The robot has no obstacle sensing: if you are unsure what is in front of it, do not drive.
+Distances and angles are estimated from time, not measured. Say so when you report them.
+A completed result means the command ran for its duration, not that a place was reached.
+Any badge button stops you and only a human can clear it. Never retry around a stop.
+Call stop whenever something looks wrong.
+"""
+
 MOTION_TOOLS = {
     "robot_status": (
         Empty,
