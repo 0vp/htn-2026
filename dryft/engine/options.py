@@ -56,4 +56,4 @@ VARIANTS = {
     'combined': Options(norms='all', direct=True, gqa=True, static=True,
                         graph=True, swiglu=True, packed=True),
 }
-ACTIVE = 'graph'
+ACTIVE = 'graph_hybrid'
