@@ -14,13 +14,28 @@
 namespace {
 
 constexpr uint8_t NO_OWNER = 0xFF;
+/**
+ * Clients send commands at 20 Hz. TCP writes to a dead client block for up to 10 s once the
+ * send buffer fills, so only send to clients heard from recently and drop silent ones.
+ */
+constexpr uint32_t QUIET_SKIP_MS = 1000;
+constexpr uint32_t QUIET_DROP_MS = 2500;
 
-WebSocketsServer socket(config::CONTROL_PORT);
+/** Exposes the library's close-without-writing, so dropping a dead client can't block. */
+class ControlServer : public WebSocketsServer {
+ public:
+  using WebSocketsServer::WebSocketsServer;
+  void drop(uint8_t num) { clientDisconnect(&_clients[num]); }
+};
+
+ControlServer socket(config::CONTROL_PORT);
 Command latest;
 uint8_t owner = NO_OWNER;
 uint32_t ownerLastMs = 0;
 bool latched = true;  // boot in E-STOP: an operator must arm deliberately
 uint8_t clients = 0;
+uint32_t lastHeard[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
+bool connectedClient[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
 // Guards owner/latest/ownerLastMs/latched between the network and actuator tasks.
 portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
 
@@ -61,13 +76,16 @@ void onCommand(uint8_t client, const Command &c) {
 }
 
 void onEvent(uint8_t client, WStype_t type, uint8_t *payload, size_t length) {
+  if (client < WEBSOCKETS_SERVER_CLIENT_MAX) lastHeard[client] = millis();
   switch (type) {
     case WStype_CONNECTED:
       clients++;
+      connectedClient[client] = true;
       Serial.printf("client %u connected from %s\n", client, socket.remoteIP(client).toString().c_str());
       break;
     case WStype_DISCONNECTED:
-      if (clients) clients--;
+      if (connectedClient[client] && clients) clients--;
+      connectedClient[client] = false;
       Serial.printf("client %u disconnected\n", client);
       if (client == owner) release("disconnected");
       break;
@@ -97,6 +115,13 @@ void begin() {
 
 void loop() {
   socket.loop();
+  const uint32_t now = millis();
+  for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+    if (connectedClient[i] && now - lastHeard[i] > QUIET_DROP_MS) {
+      Serial.printf("client %u silent; dropping\n", i);
+      socket.drop(i);
+    }
+  }
   if (owner != NO_OWNER && millis() - ownerLastMs > config::RELEASE_OWNER_MS) release("silent");
 }
 
@@ -111,7 +136,10 @@ bool estopLatched() { return latched; }
 uint8_t clientCount() { return clients; }
 
 void broadcast(const char *json, size_t length) {
-  if (clients) socket.broadcastTXT(json, length);
+  const uint32_t now = millis();
+  for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
+    if (connectedClient[i] && now - lastHeard[i] <= QUIET_SKIP_MS) socket.sendTXT(i, json, length);
+  }
 }
 
 }  // namespace server
