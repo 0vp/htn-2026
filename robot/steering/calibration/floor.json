@@ -94,5 +94,44 @@
     "encoder_ticks": 1,
     "supervised": false
   },
-  "status": "partial_command_and_encoder_validation_not_metric_calibration"
+  "status": "partial_command_and_encoder_validation_not_metric_calibration",
+  "reference_power_trial": {
+    "duty": 0.3,
+    "requested_seconds": 0.7,
+    "ramp_seconds_to_target": 0.6,
+    "peak_reported_duty": 0.3,
+    "error": "Write timeout",
+    "start_uptime_ms": 614911,
+    "last_before_disconnect": {
+      "uptime_ms": 615567,
+      "motor_duty": 0.3,
+      "encoder_ticks": -66
+    },
+    "reconnected_stop_disarm_sent": true,
+    "recovery_samples": 41,
+    "recovery_last": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "uptime_ms": 653317,
+      "reset_reason": 9,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": -274,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "encoder_delta_through_recovery": -275,
+    "visual_observation": "Small chassis position change visible after pulse; no metric displacement claimed",
+    "interpretation": "Drive rotation increases at reference-like power, but intermittent USB failure persists with continuous controller uptime. No further drive pulses sent."
+  }
 }
