@@ -9,7 +9,7 @@ import time
 import numpy as np
 
 from ...mapping.hydra.packet import MAX_PACKET, pack, unpack
-from .calibration import prepare
+from .calibration import InsufficientDepth, prepare
 from .instances import InstanceCatalog
 
 
@@ -19,6 +19,8 @@ class EsamClient:
         self.process = None
         self.failed = False
         self.catalog = InstanceCatalog()
+        self.window_frames = 0
+        self.reset_pending = False
 
     def transfer(self, fd, deadline, *, data=None, size=0):
         result, offset = bytearray(), 0
@@ -41,9 +43,22 @@ class EsamClient:
         return bytes(result)
 
     def integrate(self, frame, detections, *, reset_window=False):
-        arrays = prepare(frame)
         if self.failed:
             raise RuntimeError("ESAM worker failed; replay required")
+        self.reset_pending |= reset_window
+        try:
+            arrays = prepare(frame)
+        except InsufficientDepth:
+            objects, surfaces = self.catalog.snapshot()
+            return (
+                objects,
+                surfaces,
+                {
+                    "esam_ms": 0.0,
+                    "window_frames": self.window_frames,
+                    "skipped_depth": True,
+                },
+            )
         cold = self.process is None
         try:
             if cold:
@@ -53,7 +68,7 @@ class EsamClient:
                 os.set_blocking(self.process.stdin.fileno(), False)
                 os.set_blocking(self.process.stdout.fileno(), False)
             deadline = time.monotonic() + (180 if cold else 30)
-            arrays["reset"] = np.array(reset_window)
+            arrays["reset"] = np.array(self.reset_pending)
             self.transfer(self.process.stdin.fileno(), deadline, data=pack(**arrays))
             header = self.transfer(self.process.stdout.fileno(), deadline, size=4)
             size = struct.unpack("<I", header)[0]
@@ -61,6 +76,8 @@ class EsamClient:
                 raise ValueError("ESAM response exceeds memory bound")
             result = unpack(self.transfer(self.process.stdout.fileno(), deadline, size=size))
             objects, surfaces = self.catalog.update(frame, detections, result)
+            self.window_frames = int(result["window_frames"])
+            self.reset_pending = False
             return (
                 objects,
                 surfaces,

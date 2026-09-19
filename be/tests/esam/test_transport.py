@@ -24,6 +24,17 @@ def test_worker_exit_is_sticky_and_does_not_publish_objects():
         client.integrate(frame, detections)
 
 
+def test_temporarily_missing_depth_keeps_map_without_starting_worker():
+    frame, detections, result = scene()
+    client = EsamClient(command("raise SystemExit(1)"))
+    client.catalog.update(frame, detections, result)
+    frame.confidence[:] = 0
+    objects, _, timing = client.integrate(frame, detections)
+    assert len(objects) == 4
+    assert timing["skipped_depth"]
+    assert client.process is None and not client.failed
+
+
 def test_oversized_response_is_rejected_before_allocation():
     frame, detections, _ = scene()
     client = EsamClient(
@@ -58,7 +69,10 @@ sys.stdout.buffer.flush()
 """)
     )
     try:
-        objects, surfaces, timing = client.integrate(frame, detections, reset_window=True)
+        frame.confidence[:] = 0
+        client.integrate(frame, detections, reset_window=True)
+        frame.confidence[:] = 2
+        objects, surfaces, timing = client.integrate(frame, detections)
         assert (objects, surfaces) == ([], {})
         assert timing == {"esam_ms": 42.0, "window_frames": 1}
     finally:

@@ -9,6 +9,10 @@ from ...mapping.hydra.packet import Y_TO_Z
 from ..orientation import upright_quarter_turns
 
 
+class InsufficientDepth(ValueError):
+    """A valid capture has too little measured geometry for instance inference."""
+
+
 def prepare(frame):
     h = frame.header
     if not frame.rgb_jpeg:
@@ -26,7 +30,7 @@ def prepare(frame):
         & (frame.depth <= 5.0)
     )
     if valid.sum() < 20:
-        raise ValueError("ESAM requires at least 20 valid depth samples")
+        raise InsufficientDepth("ESAM requires at least 20 valid depth samples")
     pose = np.array(h.camera_to_world).reshape(4, 4, order="F").copy()
     if h.camera_convention == "arkit":
         pose = pose @ np.diag([1, -1, -1, 1])
