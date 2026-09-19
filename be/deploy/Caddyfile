@@ -1,0 +1,8 @@
+{$HTN_HOST} {
+    request_body {
+        max_size 14MB
+    }
+    reverse_proxy 127.0.0.1:8790
+    header Cache-Control "no-store"
+    header X-Content-Type-Options "nosniff"
+}

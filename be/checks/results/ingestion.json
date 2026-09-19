@@ -1,0 +1,50 @@
+{
+  "room_id": "E69AD8FC",
+  "isolation_room_id": "47DE7C6E",
+  "frames_stored": 100,
+  "bytes_stored": 66184942,
+  "senders": 2,
+  "ack_median_ms": 168.6707079934422,
+  "ack_p95_ms": 471.7794806230812,
+  "elapsed_s": 14.912432709010318,
+  "duplicates_deduplicated": true,
+  "raw_bytes_verified": true,
+  "room_isolation": true,
+  "samples": [
+    {
+      "sequence": 1,
+      "sha256": "4407a8d61d3d2c81c9b10309e12ac572670635de0e7bfb508ae401dc8d812da2",
+      "bytes": 661849,
+      "received_at": 1789792812.5285842,
+      "stored": true,
+      "duplicate": false,
+      "frame_id": 0,
+      "session_id": "phone-a",
+      "epoch": 0,
+      "room_id": "E69AD8FC",
+      "device_id": "phone-a",
+      "ack_ms": 388.5942500201054
+    },
+    {
+      "sequence": 82,
+      "sha256": "33fbdc2c8b42e92da63e824e20e31fd0993bc720d545b6b7c6072e88b765277d",
+      "bytes": 661849,
+      "received_at": 1789792821.6969986,
+      "stored": true,
+      "duplicate": false,
+      "frame_id": 24,
+      "session_id": "phone-b",
+      "epoch": 1,
+      "room_id": "E69AD8FC",
+      "device_id": "phone-b",
+      "ack_ms": 91.51850000489503
+    }
+  ],
+  "scope": "Synthetic RGB-D transport; acknowledgement includes network and commit. No mapping, inference, alignment or physical phone validation.",
+  "restart_survived": true,
+  "verified_frame_hashes_after_restart": 100,
+  "retry_after_restart_deduplicated": true,
+  "verification_transport_retries": 0,
+  "initial_parallel_download_check": "ReadTimeout; complete sequential verification subsequently passed",
+  "unit_tests_passed": 24
+}
