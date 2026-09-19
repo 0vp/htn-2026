@@ -1,6 +1,7 @@
 #include "settings.h"
 
 #include <Preferences.h>
+#include <WiFi.h>
 
 #include "../board.h"
 #include "robot_link.h"
@@ -35,6 +36,7 @@ void printStatus() {
   Serial.printf("wifi ssid: %s (%s)\n", current.ssid.length() ? current.ssid.c_str() : "<unset>",
                 current.password.length() ? "password set" : "open");
   Serial.printf("robot url: %s\n", current.url.length() ? current.url.c_str() : "<unset>");
+  Serial.printf("wifi status code: %d\n", WiFi.status());
   Serial.printf("link: %s, ip %s, sent %lu, received %lu\n", robotlink::statusText(), robotlink::localIp().c_str(),
                 static_cast<unsigned long>(robotlink::sentCount()), static_cast<unsigned long>(robotlink::receivedCount()));
   Serial.printf("lcd invert: %d, flip: %d\n", current.invertLcd, current.flipLcd);
@@ -48,6 +50,7 @@ void printHelp() {
       "commands:\n"
       "  status                      show settings and link state\n"
       "  wifi <ssid> [password]      join a network (quote SSIDs with spaces)\n"
+      "  scan                        list 2.4 GHz networks the badge can see\n"
       "  url <ws://host:port/path>   robot control socket (same as the dashboard's ?control=)\n"
       "  lcd invert <0|1>            fix inverted colours (applies after reboot)\n"
       "  lcd flip                    rotate the screen 180 degrees (applies after reboot)\n"
@@ -71,6 +74,15 @@ bool handle(String cmdLine) {
     settings::save();
     Serial.printf("saved wifi '%s'\n", current.ssid.c_str());
     return true;
+  } else if (cmd == "scan") {
+    WiFi.disconnect();  // A pending join blocks scanning; the link retries afterwards.
+    const int n = WiFi.scanNetworks();
+    for (int i = 0; i < n; i++) {
+      Serial.printf("  %-32s ch%-2d %4d dBm %s\n", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i),
+                    WiFi.encryptionType(i) == WIFI_AUTH_WPA2_ENTERPRISE ? "enterprise" : "");
+    }
+    Serial.printf("%d networks\n", n);
+    WiFi.reconnect();
   } else if (cmd == "url") {
     current.url = nextToken(cmdLine);
     settings::save();
