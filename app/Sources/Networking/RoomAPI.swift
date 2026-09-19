@@ -8,23 +8,6 @@ struct Room: Decodable, Identifiable, Equatable {
     var id: String { room_id }
 }
 
-enum DeviceRole: String, CaseIterable, Identifiable {
-    case head = "Head"
-    case angle = "Angle"
-
-    var id: Self { self }
-    var icon: String { self == .head ? "face.smiling" : "camera.viewfinder" }
-    var detail: String {
-        self == .head ? "Robot face + LiDAR capture" : "Extra angle for map alignment"
-    }
-}
-
-struct RoomSession: Identifiable {
-    let room: Room
-    let role: DeviceRole
-    var id: String { room.id }
-}
-
 struct APIError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -51,20 +34,20 @@ struct RoomAPI {
     func rooms() async throws -> [Room] {
         struct List: Decodable { let rooms: [Room] }
         let result: List = try await request("v1/rooms")
-        return result.rooms.filter { !$0.closed && Self.validCode($0.id) }
+        return result.rooms.filter { !$0.closed }
     }
 
     func create(name: String) async throws -> Room {
         try await request("v1/rooms", body: ["name": name])
     }
 
-    func join(code: String, device: String, role: DeviceRole = .angle) async throws -> Room {
-        guard Self.validCode(code) else { throw APIError(message: "Enter the four-character session code.") }
-        return try await request("v1/rooms/\(code)/join", body: ["device_id": device, "name": role.rawValue])
+    func join(code: String, device: String) async throws -> Room {
+        guard Self.validCode(code) else { throw APIError(message: "Enter an eight-character room code.") }
+        return try await request("v1/rooms/\(code)/join", body: ["device_id": device, "name": "iPhone"])
     }
 
     static func validCode(_ code: String) -> Bool {
-        code.count == 4 && code.allSatisfy { "0123456789ABCDEF".contains($0) }
+        code.count == 8 && code.allSatisfy { "0123456789ABCDEF".contains($0) }
     }
 
     private func request<T: Decodable>(_ path: String, body: [String: String]? = nil) async throws -> T {

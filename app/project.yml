@@ -14,9 +14,7 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: Sources
-      - path: Assets
-        buildPhase: resources
+      - Sources
     settings:
       base:
         INFOPLIST_KEY_NSCameraUsageDescription: Camera and depth capture let you scan a room.

@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */; };
 		1792814C7EB8142083034FFC /* TransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A46E36969B6686A59C20181 /* TransportTests.swift */; };
-		1CCD2FB5134DE14B8C7413DB /* Avatar.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A5EAA8A27A8AA8425485D890 /* Avatar.xcassets */; };
 		29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */; };
 		437699743260A169F0374C58 /* FramePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A57E1EF17145DB4B413531 /* FramePacket.swift */; };
 		4E3EFEBC864BAC864D3C5414 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53AF2FFEE1BFD19DB660679 /* ScanView.swift */; };
@@ -17,7 +16,6 @@
 		588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88A22517007073988C49602 /* PixelBuffers.swift */; };
 		69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */; };
 		744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */; };
-		7EED0C934E3CEB2987758453 /* RobotFaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED142D12905E8F8760B95FF4 /* RobotFaceView.swift */; };
 		99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */; };
 		9E6A548071E6FA4933D2D999 /* RoomFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6FBF161AD662835D743E453 /* RoomFlowTests.swift */; };
 		AD9D6BA0BAB97208A9D87790 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B2C467AFC5D7B12B71E16A /* ContentView.swift */; };
@@ -25,7 +23,6 @@
 		D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E21FD7A85332B934F46E8DB /* RoomAPI.swift */; };
 		DE97CEF071294690A17E79E3 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 405593358D73490118526653 /* CameraPreview.swift */; };
 		E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */; };
-		F026AA9F86428A486DC6FDAA /* AVATAR_PROMPTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 5E7B2D23A2E8ABBB9D043A14 /* AVATAR_PROMPTS.md */; };
 		F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EF0760CAC94289EDAAFC5 /* HTNApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -56,19 +53,16 @@
 		3A46E36969B6686A59C20181 /* TransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportTests.swift; sourceTree = "<group>"; };
 		405593358D73490118526653 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModel.swift; sourceTree = "<group>"; };
-		5E7B2D23A2E8ABBB9D043A14 /* AVATAR_PROMPTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AVATAR_PROMPTS.md; sourceTree = "<group>"; };
 		606790FD5359A8C541B42B2D /* HTNApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HTNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendIntegrationTests.swift; sourceTree = "<group>"; };
 		7E21FD7A85332B934F46E8DB /* RoomAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomAPI.swift; sourceTree = "<group>"; };
 		80A57E1EF17145DB4B413531 /* FramePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacket.swift; sourceTree = "<group>"; };
-		A5EAA8A27A8AA8425485D890 /* Avatar.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Avatar.xcassets; sourceTree = "<group>"; };
 		A6FBF161AD662835D743E453 /* RoomFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomFlowTests.swift; sourceTree = "<group>"; };
 		C88A22517007073988C49602 /* PixelBuffers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBuffers.swift; sourceTree = "<group>"; };
 		CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameStream.swift; sourceTree = "<group>"; };
 		E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureBufferTests.swift; sourceTree = "<group>"; };
 		E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadQueue.swift; sourceTree = "<group>"; };
 		EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
-		ED142D12905E8F8760B95FF4 /* RobotFaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotFaceView.swift; sourceTree = "<group>"; };
 		F53AF2FFEE1BFD19DB660679 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -77,7 +71,6 @@
 		00B811D873B7C1F057C54AE4 = {
 			isa = PBXGroup;
 			children = (
-				FA14D82201405E3612CC022D /* Assets */,
 				53FE87E85C8F1E99E101EB59 /* Config */,
 				05519B5C3A36DAC469765ADC /* Sources */,
 				0B6B17B5030BCF679553FD06 /* Tests */,
@@ -159,7 +152,6 @@
 			isa = PBXGroup;
 			children = (
 				405593358D73490118526653 /* CameraPreview.swift */,
-				ED142D12905E8F8760B95FF4 /* RobotFaceView.swift */,
 				F53AF2FFEE1BFD19DB660679 /* ScanView.swift */,
 			);
 			path = Views;
@@ -181,15 +173,6 @@
 				A6FBF161AD662835D743E453 /* RoomFlowTests.swift */,
 			);
 			path = UITests;
-			sourceTree = "<group>";
-		};
-		FA14D82201405E3612CC022D /* Assets */ = {
-			isa = PBXGroup;
-			children = (
-				5E7B2D23A2E8ABBB9D043A14 /* AVATAR_PROMPTS.md */,
-				A5EAA8A27A8AA8425485D890 /* Avatar.xcassets */,
-			);
-			path = Assets;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -232,7 +215,6 @@
 			buildConfigurationList = D9D1B892AB991BD2DBBEFA05 /* Build configuration list for PBXNativeTarget "HTNApp" */;
 			buildPhases = (
 				45B7FAB74AAFE05B66EFF798 /* Sources */,
-				3B239D578A00DF10BCB2C1AC /* Resources */,
 			);
 			buildRules = (
 			);
@@ -283,18 +265,6 @@
 		};
 /* End PBXProject section */
 
-/* Begin PBXResourcesBuildPhase section */
-		3B239D578A00DF10BCB2C1AC /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F026AA9F86428A486DC6FDAA /* AVATAR_PROMPTS.md in Resources */,
-				1CCD2FB5134DE14B8C7413DB /* Avatar.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		45B7FAB74AAFE05B66EFF798 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -308,7 +278,6 @@
 				744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */,
 				F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */,
 				588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */,
-				7EED0C934E3CEB2987758453 /* RobotFaceView.swift in Sources */,
 				D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */,
 				C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */,
 				69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */,
