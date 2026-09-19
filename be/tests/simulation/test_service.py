@@ -31,7 +31,7 @@ def test_same_agent_tools_and_idempotency_without_physical_success():
         request = dict(
             request_id="navigate",
             skill="navigate",
-            object_id="blue_block",
+            object_id="viewpoint_1",
             scene_revision=scene["revision"],
         )
         result = tools.call("request_skill", request)
@@ -42,6 +42,7 @@ def test_same_agent_tools_and_idempotency_without_physical_success():
         final = completed(client, receipt["action_id"])
         assert final["simulation_success"] is True
         assert final["physical_success"] is False
+        assert "object_position" not in final["result"]
         assert len(client.app.state.sim.receipts) == 1
         assert client.post(path, json={**request, "request_id": "stale"}).status_code == 409
         assert client.get("/v1/rooms/AAAAAAAA/scene").status_code == 404
@@ -54,7 +55,7 @@ def test_stop_cancels_running_action_and_has_measured_simulated_receipt():
         move = client.post(
             path,
             json=dict(
-                request_id="move", skill="navigate", object_id="blue_block", scene_revision=1
+                request_id="move", skill="navigate", object_id="viewpoint_1", scene_revision=1
             ),
         ).json()
         stop = client.post(

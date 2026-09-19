@@ -12,7 +12,7 @@ Open `http://127.0.0.1:8792`, then in another terminal:
 
 ```sh
 uv run --project be --group sim python -m htn_backend.simulation.run \
-  --command "Move the blue block to the delivery table and verify completion."
+  --command "Explore the available viewpoints to find the blue block; report what you saw."
 ```
 
 This launcher checks the server's simulation domain and never constructs the
@@ -22,13 +22,30 @@ The same Codex/Astra harness and room tools issue asynchronous, idempotent actio
 Every receipt distinguishes `simulation_success` from `physical_success: false`.
 The server and receipts are ephemeral; restart for a fresh episode.
 
-The procedural robot has a planar mobile base, lifting/extending arm, and parallel
-gripper. Footprint-inflated A* provides routes; feedback control drives the base.
-MuJoCo contact/friction support the grasp: no grasp welds or action teleports.
-Lift/contact, transport retention, and released support height determine success.
-The displayed wheels are visual: wheel dynamics, slip, and base tipping are absent.
-The agent receives known simulator objects and an overview image. Our actual
-SLAM/detector pipeline and robot RGB-D perception are not evaluated by this suite.
+The current assumed hardware model has one powered front steering wheel, four
+passive spherical ball casters, a shoulder/elbow/wrist arm, and two segmented
+curling tentacles with tendon actuators. Base motion comes from wheel contact;
+there are no planar chassis actuators or grasp welds. The free base can slip and
+tip. A single steering contact does not independently prescribe chassis yaw.
+Footprint-inflated A* uses the known static fixture map; feedback follows position
+and verifies a stopped arrival within 6 cm. Difficult routes can still fail.
+
+The camera is attached to the chassis at approximately 1.2 m height, with a
+65-degree vertical field of view. Observations include measured camera-to-room
+transforms. Simulator segmentation gates labels by actual rendered visibility;
+objects outside the camera or occluded by geometry are not published until seen.
+Last-seen object poses and camera evidence remain explicitly historical. These
+are ideal simulator labels/poses, not our trained detection or SLAM pipeline.
+Exploration waypoints sample the known free-space map, independently of movable
+object positions. They are navigation targets, not detected physical objects.
+
+Link lengths (40/35/10 cm), masses, motor limits, friction and tentacle stiffness
+are assumptions awaiting hardware measurements. The tentacles approximate a
+continuum structure with five rigid segments each. Curl/uncurl is tested, but
+contact grasps and release are not validated: agent pick/place are disabled.
+The historical ideal-base/parallel-gripper delivery results do not transfer to
+this hardware model. Current challenges and results are under
+`be/benchmarks/simulation/tentacle/`.
 
 Run the controller suite or a fresh real Astra episode with saved receipts and replay:
 

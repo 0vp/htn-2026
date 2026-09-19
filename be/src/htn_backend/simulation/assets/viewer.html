@@ -7,10 +7,11 @@ h1{font-size:28px}p{color:#bac5d2}img{width:100%;border-radius:8px;background:#0
 pre{white-space:pre-wrap;font:14px ui-monospace;line-height:1.5}small{color:#e9ba70}
 </style>
 <h1>Mobile manipulation test room</h1>
-<p>MuJoCo simulation · Known object positions · No physical robot connected</p>
-<img src="/camera.jpg" alt="Live simulated robot, tables, obstacle and blue block">
+<p>MuJoCo simulation · Robot POV · No physical robot connected</p>
+<img src="/camera.jpg" alt="Robot-mounted camera view">
 <pre id="status">Connecting…</pre>
-<small>Accelerated physics. This tests task execution, not SLAM or real-world grasp accuracy.</small>
+<small>One powered steering wheel · Four passive ball casters · 3-joint arm with curling tentacles.
+Accelerated approximate physics; grasp calibration and learned perception are not validated.</small>
 <script>
 async function refresh(){
  try{

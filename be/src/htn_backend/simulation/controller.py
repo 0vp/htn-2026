@@ -20,11 +20,15 @@ class Controller:
         if w.cancelled:
             return False, "cancelled"
         if skill == "navigate":
-            target = w.block if object_id == "blue_block" else w.tables.get(object_id)
+            targets = getattr(w, "targets", {**w.tables, "blue_block": w.block})
+            target = targets.get(object_id)
             if target is None:
                 return False, "target_not_found"
             success = self.navigate(
-                np.array(target), radius=0.65 if object_id == "blue_block" else 0.95
+                np.array(target),
+                radius=0
+                if object_id.startswith("viewpoint_")
+                else (0.8 if object_id == "blue_block" else 1.2),
             )
             return success, "navigation_feedback_checked" if success else self.failure
         if skill == "pick":
@@ -60,20 +64,21 @@ class Controller:
                     return False
                 delta = waypoint - w.pose[:2]
                 distance = np.linalg.norm(delta)
-                if distance < 0.025:
+                if distance < 0.05:
                     break
                 error = angle(math.atan2(delta[1], delta[0]) - w.pose[2])
-                velocity = min(0.45, distance * 1.5) * max(0, math.cos(error))
-                if abs(error) > 0.4:
-                    velocity = 0
-                direction = np.array([math.cos(w.pose[2]), math.sin(w.pose[2])])
+                velocity = min(0.12, distance * 0.5)
+                direction = delta / distance
                 if not line_clear(
                     w.pose[:2], w.pose[:2] + direction * velocity * 0.15, w.obstacles
                 ):
                     self.failure = "obstacle_in_local_stopping_path"
                     w.stop()
                     return False
-                w.data.ctrl[:3] = [*(direction * velocity), np.clip(error * 3, -1.5, 1.5)]
+                desired = direction * velocity
+                actual = w.data.joint("base_free").qvel[:2]
+                lateral = actual - direction * np.dot(actual, direction)
+                w.drive_world(*(desired - lateral), np.clip(error * 1.5, -0.5, 0.5))
                 w.step()
                 if w.collisions or (w.held and not w.grasp_contacts()):
                     self.failure = "robot_environment_contact" if w.collisions else "grasp_lost"
@@ -85,19 +90,11 @@ class Controller:
                 self.failure = "navigation_time_budget_exceeded"
                 w.stop()
                 return False
-        heading = math.atan2(*(target[:2] - w.pose[:2])[::-1])
-        for _ in range(200):
-            if w.cancelled:
-                self.failure = "cancelled"
-                w.stop()
-                return False
-            error = angle(heading - w.pose[2])
-            if abs(error) < 0.015:
-                break
-            w.data.ctrl[:3] = [0, 0, np.clip(error * 3, -1.5, 1.5)]
-            w.step()
-        w.stop()
-        return np.linalg.norm(w.pose[:2] - goal) < 0.06
+            w.stop()
+        stopped = w.stop()
+        if not stopped:
+            self.failure = "base_failed_to_settle"
+        return bool(stopped and np.linalg.norm(w.pose[:2] - goal) < 0.06)
 
     def arm_target(self, position):
         w = self.world
@@ -122,7 +119,7 @@ class Controller:
             return False, "target_outside_arm_workspace: navigate to object first"
         lift, reach = target
         initial = w.block.copy()
-        # Approach above the object, then descend with an open parallel gripper.
+        # Approach above the object, then descend with uncurled tentacles.
         for command in (
             (lift + 0.13, 0, 0),
             (lift + 0.13, reach, 0),
@@ -156,17 +153,6 @@ class Controller:
         if np.linalg.norm(position[:2] - w.pose[:2]) > 0.74:
             return False, "surface_unreachable: navigate to support surface first"
         w.settle_arm(0.55, 0.05, 0.065)
-        heading = math.atan2(*(position[:2] - w.pose[:2])[::-1])
-        for _ in range(200):
-            error = angle(heading - w.pose[2])
-            if abs(error) < 0.01:
-                break
-            if w.cancelled:
-                w.stop()
-                return False, "cancelled"
-            w.data.ctrl[:3] = [0, 0, np.clip(error * 3, -1.5, 1.5)]
-            w.step()
-        w.stop()
         target = self.arm_target(position)
         if target is None:
             return False, "surface_outside_arm_workspace"

@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-RADIUS = 0.32  # Includes base, wheels and clearance. Stow arm before navigating.
+RADIUS = 0.48  # Includes base, wheels and clearance. Stow arm before navigating.
 RESOLUTION = 0.1
 
 

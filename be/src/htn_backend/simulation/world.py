@@ -7,6 +7,7 @@ import mujoco
 import numpy as np
 from PIL import Image
 
+from .mechanics.kinematics import arm_ik
 from .model import scene
 
 
@@ -23,12 +24,19 @@ class World:
         self.collisions = 0
         self.trace = []
         self.callback = lambda: None
-        self.data.ctrl[3] = 0.4
+        self.act = {self.model.actuator(i).name: i for i in range(self.model.nu)}
+        initial = arm_ik(0.19, 0.88)
+        for name, value in zip(("shoulder", "elbow", "wrist"), initial, strict=True):
+            self.data.joint(name).qpos[0] = value
+            self.data.ctrl[self.act[name]] = value
+        self.command_speed = 0.0
+        self.command_steering = 0.0
         self.step(1)
 
     @property
     def pose(self):
-        return np.array([*self.data.body("base").xpos[:2], self.data.joint("base_yaw").qpos[0]])
+        matrix = self.data.body("base").xmat.reshape(3, 3)
+        return np.array([*self.data.body("base").xpos[:2], math.atan2(matrix[1, 0], matrix[0, 0])])
 
     @property
     def block(self):
@@ -49,8 +57,30 @@ class World:
     def grasp_contacts(self):
         pairs = self.contacts()
         return all(
-            frozenset(("blue_block", finger)) in pairs for finger in ("left_finger", "right_finger")
+            any(
+                "blue_block" in pair and any(name.startswith(side + "_segment") for name in pair)
+                for pair in pairs
+            )
+            for side in ("left", "right")
         )
+
+    def drive_world(self, vx, vy, omega):
+        # One steering contact cannot independently command chassis yaw. Track
+        # a world translation direction; report the resulting measured yaw.
+        speed = math.hypot(vx, vy)
+        if speed < 1e-6:
+            self.data.ctrl[self.act["wheel"]] = 0
+            return
+        steering = angle(math.atan2(vy, vx) - self.pose[2])
+        if abs(steering) > math.pi / 2:
+            speed = -speed
+            steering = angle(steering - math.copysign(math.pi, steering))
+        self.command_speed = float(np.clip(speed, -0.25, 0.25))
+        self.command_steering = float(np.clip(steering, -1.5, 1.5))
+        self.data.ctrl[self.act["steering"]] = self.command_steering
+        # Let the steering joint align before applying traction.
+        error = abs(self.data.joint("steering").qpos[0] - self.command_steering)
+        self.data.ctrl[self.act["wheel"]] = self.command_speed / 0.095 if error < 0.12 else 0
 
     def step(self, seconds=0.05):
         for _ in range(round(seconds / self.model.opt.timestep)):
@@ -65,43 +95,55 @@ class World:
                 )
             ):
                 self.failed = True
-                self.data.ctrl[:3] = 0
+                self.data.ctrl[self.act["wheel"]] = 0
                 raise RuntimeError("simulation_numerical_instability")
             self.path_length += float(np.linalg.norm(self.pose[:2] - old))
             for pair in self.contacts():
-                if pair & {"base", "lift", "extension", "left_finger", "right_finger"} and any(
-                    n.startswith(("source_", "delivery_", "obstacle_")) for n in pair
+                if any(
+                    n in {"base", "upper_arm", "forearm", "wrist", "palm", "drive_wheel"}
+                    or "_segment_" in n
+                    or n.startswith("caster_")
+                    for n in pair
+                ) and any(
+                    n.startswith(("source_", "delivery_", "obstacle_", "room_wall_")) for n in pair
                 ):
                     self.collisions += 1
         self.trace.append([float(self.data.time), *self.pose.tolist(), *self.block.tolist()])
         self.callback()
 
     def settle_arm(self, lift, reach, grip, seconds=1.2):
-        self.data.ctrl[:3] = 0
-        target = np.array([lift, reach, grip, grip])
-        rate = np.array([0.18, 0.18, 0.10, 0.10])
-        duration = max(seconds, float(np.max(abs(target - self.data.ctrl[3:]) / rate)) + 0.6)
+        self.data.ctrl[self.act["wheel"]] = 0
+        target = arm_ik(0.14 + reach, 0.33 + lift, self.data.body("base").xpos[2] + 0.22)
+        ids = [self.act[n] for n in ("shoulder", "elbow", "wrist")]
+        duration = max(seconds, float(np.max(abs(target - self.data.ctrl[ids]))) / 0.7 + 0.6)
+        curl = float(np.clip(grip / 0.065, 0, 1)) * 3.6
         for _ in range(round(duration / 0.05)):
             if self.cancelled:
                 return False
-            self.data.ctrl[3:] += np.clip(target - self.data.ctrl[3:], -rate * 0.05, rate * 0.05)
+            self.data.ctrl[ids] += np.clip(target - self.data.ctrl[ids], -0.035, 0.035)
+            for side in ("left_curl", "right_curl"):
+                index = self.act[side]
+                self.data.ctrl[index] += np.clip(curl - self.data.ctrl[index], -0.06, 0.06)
             self.step()
         return True
 
     def stop(self):
-        self.data.ctrl[:3] = 0
+        self.data.ctrl[self.act["wheel"]] = 0
         if self.failed:
             return False
-        self.step(0.5)
-        return float(np.linalg.norm(self.data.qvel[self.model.jnt_dofadr[1:4]])) < 0.02
+        for _ in range(60):
+            self.step(0.05)
+            if float(np.linalg.norm(self.data.body("base").cvel)) < 0.02:
+                return True
+        return False
 
-    def image(self):
+    def image(self, overview=False):
         if self.renderer is None:
             self.renderer = mujoco.Renderer(self.model, height=480, width=640)
         camera = mujoco.MjvCamera()
         camera.lookat[:] = [0, 0, 0.3]
         camera.distance, camera.azimuth, camera.elevation = 7, 125, -55
-        self.renderer.update_scene(self.data, camera=camera)
+        self.renderer.update_scene(self.data, camera=camera if overview else "robot_pov")
         image = self.renderer.render()
         buffer = io.BytesIO()
         Image.fromarray(image).save(buffer, format="JPEG", quality=85)

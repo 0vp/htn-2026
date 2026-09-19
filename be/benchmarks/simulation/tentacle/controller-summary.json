@@ -1,0 +1,23 @@
+{
+  "engine": "MuJoCo 3.3.7",
+  "robot": "one powered steering wheel, four passive ball casters, 3R arm, twin tentacles",
+  "input": "oracle object poses and static obstacles",
+  "benchmark": "procedural regression suite, not a public robotics leaderboard",
+  "expected_behavior_rate": 0.3333333333333333,
+  "delivery_success_rate": 0.0,
+  "limitations": [
+    "Uncalibrated assumed geometry, masses, motor limits and contact friction",
+    "Single steering contact does not independently control chassis yaw",
+    "Tentacle grasp not validated; agent pick/place endpoints disabled",
+    "Single small rigid block and tuned contact parameters",
+    "Static obstacles, perfect localization and object identities",
+    "Not a perception, SLAM, physical hardware or model fine-tuning result"
+  ],
+  "navigation_success_by_layout": {
+    "open": 10,
+    "detour": 10,
+    "blocked": 0
+  },
+  "cases_per_layout": 10,
+  "collision_cases": 0
+}

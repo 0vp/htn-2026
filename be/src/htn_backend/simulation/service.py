@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, Response
 
 from ..robotics.actions import SkillRequest
 from .controller import Controller
+from .mechanics.vision import camera_metadata, exploration_targets, visible_objects
 from .world import World
 
 ROOM = "51A00001"
@@ -33,11 +34,14 @@ class Simulation:
         self.revision, self.sequence, self.active = 1, 0, None
         self.last_capture = -1.0
         self.snapshot = {}
+        self.beliefs, self.evidence = {}, {}
         self.executor.submit(self.initialize, seed, layout).result(timeout=30)
 
     def initialize(self, seed, layout):
         self.world = World(seed, layout)
         self.controller = Controller(self.world)
+        self.waypoints = exploration_targets(self.world)
+        self.world.targets = dict(self.waypoints)
         self.world.callback = self.publish
         self.publish(force=True)
 
@@ -47,22 +51,43 @@ class Simulation:
             return
         image = w.image()
         self.last_capture = float(w.data.time)
-        objects = []
-        for name, position in {**w.tables, "blue_block": w.block}.items():
-            label = "blue block" if name == "blue_block" else name.replace("_", " ")
-            objects.append(
-                dict(
-                    object_id=name,
-                    label=label,
-                    center=room_point(position),
-                    state="held" if w.held == name else "observed",
-                    visibility="known",
-                    evidence_url=f"/v1/rooms/{ROOM}/objects/{name}/evidence.jpg",
-                    evidence_source="simulator overview; not an object crop",
-                    source="simulator_ground_truth",
-                    grasp_ready=name == "blue_block",
-                )
+        visible = visible_objects(w)
+        for name, pixels in visible.items():
+            position = w.block if name == "blue_block" else w.tables[name]
+            self.beliefs[name] = dict(
+                object_id=name,
+                label="blue block" if name == "blue_block" else name.replace("_", " "),
+                center=room_point(position),
+                last_seen_simulation_s=float(w.data.time),
+                evidence_url=f"/v1/rooms/{ROOM}/objects/{name}/evidence.jpg",
+                evidence_source="last visible robot POV; full image, not crop",
+                source="visibility_gated_simulator_labels_and_poses",
+                grasp_ready=False,
+                **pixels,
             )
+            self.evidence[name] = image
+            w.targets[name] = position.copy() if hasattr(position, "copy") else list(position)
+        objects = [
+            dict(
+                obj,
+                visibility="visible" if name in visible else "last_seen",
+                state="held" if w.held == name else "observed",
+                age_simulation_s=float(w.data.time) - obj["last_seen_simulation_s"],
+            )
+            for name, obj in self.beliefs.items()
+        ]
+        objects.extend(
+            dict(
+                object_id=name,
+                label=name.replace("_", " "),
+                center=room_point(position),
+                kind="navigation_waypoint",
+                source="known_static_map_sampling",
+                visibility="not_an_object",
+                grasp_ready=False,
+            )
+            for name, position in self.waypoints.items()
+        )
         with self.lock:
             self.sequence += 1
             observation = dict(
@@ -71,8 +96,11 @@ class Simulation:
                 received_at=time.time(),
                 capture_timestamp_s=float(w.data.time),
                 storage_source="simulation",
-                view="fixed overview camera, not robot RGB-D",
-                robot_pose=dict(position=room_point([*w.pose[:2], 0.18]), yaw=float(w.pose[2])),
+                view="body-mounted robot POV",
+                camera=camera_metadata(w),
+                robot_pose=dict(
+                    position=room_point(w.data.body("base").xpos), yaw=float(w.pose[2])
+                ),
                 execution_domain="simulation",
             )
             self.views[self.sequence] = (observation, image)
@@ -92,12 +120,17 @@ class Simulation:
                     search=True,
                     inspect=True,
                     navigate=True,
-                    pick=True,
-                    place=True,
+                    pick=False,
+                    place=False,
                     stop=True,
                 ),
-                geometry_contract="Oracle simulator objects; no SLAM or detection under test",
-                blockers=[],
+                geometry_contract="Visible simulator labels/poses; known static obstacle map. "
+                "No learned perception, pose noise, or SLAM under test. "
+                "Last-seen poses can be stale.",
+                blockers=[
+                    "Tentacle grasp and release are not validated; pick/place disabled",
+                    "Single steering wheel cannot independently command chassis heading",
+                ],
                 active_action=self.active,
                 metrics=dict(
                     simulation_time_s=float(w.data.time),
@@ -128,6 +161,8 @@ class Simulation:
                 obj["object_id"] for obj in self.snapshot["objects"]
             }:
                 raise HTTPException(404, "Unknown simulation target")
+            if request.skill in {"pick", "place"}:
+                raise HTTPException(409, "Tentacle manipulation is not validated")
             ident = uuid.uuid4().hex
             receipt = dict(
                 action_id=ident,
@@ -184,7 +219,6 @@ class Simulation:
                 result=dict(
                     feedback=detail,
                     held_object=self.world.held,
-                    object_position=room_point(self.world.block),
                     wall_time_s=time.monotonic() - started,
                     collision_steps=self.world.collisions,
                 ),
@@ -234,7 +268,7 @@ def create_app(seed=0, layout="detour"):
         terms = q.lower().split()
         return dict(
             revision=scene["revision"],
-            retrieval_mode="simulator_lexical_oracle",
+            retrieval_mode="visible_and_last_seen_simulator_labels",
             objects=[o for o in scene["objects"] if all(t in o["label"] for t in terms)],
         )
 
@@ -261,11 +295,17 @@ def create_app(seed=0, layout="detour"):
     def evidence(object_id: str):
         if object_id not in {o["object_id"] for o in app.state.sim.scene()["objects"]}:
             raise HTTPException(404, "Unknown object")
-        return Response(app.state.sim.view()[1], media_type="image/jpeg")
+        with app.state.sim.lock:
+            image = app.state.sim.evidence.get(object_id)
+        if image is None:
+            raise HTTPException(404, "No visual evidence for this target")
+        return Response(image, media_type="image/jpeg")
 
     @app.post(prefix + "/observations/ground")
     def ground():
-        raise HTTPException(409, "Overview has no robot RGB-D; use labelled simulator positions")
+        raise HTTPException(
+            409, "RGB-only simulated POV; depth-region grounding is not implemented"
+        )
 
     @app.post(prefix + "/actions")
     def submit(body: SkillRequest):

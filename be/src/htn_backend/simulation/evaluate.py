@@ -18,7 +18,12 @@ from .controller import Controller
 from .service import ROOM, create_app
 from .world import World
 
-TASK = "Move the blue block from the source table to the delivery table. Verify the result."
+TASK = (
+    "Explore this room to find the blue block. Start from the robot camera and observed scene. "
+    "Use up to four navigation actions to available viewpoints; observe after each action. "
+    "Reconsider a route if motion fails. Report what you actually saw, where you could not "
+    "look, and whether you can safely pick the block. Do not assume an unseen object is absent."
+)
 
 
 def matrix():
@@ -36,7 +41,10 @@ def matrix():
                     ("navigate", "delivery_table"),
                     ("place", "delivery_table"),
                 ):
-                    success, reason = controller.execute(skill, target)
+                    try:
+                        success, reason = controller.execute(skill, target)
+                    except ValueError as error:
+                        success, reason = False, str(error)
                     stages.append(
                         dict(skill=skill, target=target, success=bool(success), reason=reason)
                     )
@@ -61,6 +69,7 @@ def matrix():
                 world.close()
     return dict(
         engine="MuJoCo 3.3.7",
+        robot="one powered steering wheel, four passive ball casters, 3R arm, twin tentacles",
         input="oracle object poses and static obstacles",
         benchmark="procedural regression suite, not a public robotics leaderboard",
         expected_behavior_rate=sum(r["expected_behavior"] for r in rows) / len(rows),
@@ -68,7 +77,9 @@ def matrix():
         / 20,
         rows=rows,
         limitations=[
-            "Ideal planar velocity-actuated base; wheel slip is not modeled",
+            "Uncalibrated assumed geometry, masses, motor limits and contact friction",
+            "Single steering contact does not independently control chassis yaw",
+            "Tentacle grasp not validated; agent pick/place endpoints disabled",
             "Single small rigid block and tuned contact parameters",
             "Static obstacles, perfect localization and object identities",
             "Not a perception, SLAM, physical hardware or model fine-tuning result",

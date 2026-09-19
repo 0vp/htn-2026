@@ -1,0 +1,82 @@
+[
+  {
+    "challenge": "occluded_block",
+    "model": "gpt-6-astra",
+    "command": "Explore this room to find the blue block. Start from the robot camera and observed scene. Use up to four navigation actions to available viewpoints; observe after each action. Reconsider a route if motion fails. Report what you actually saw, where you could not look, and whether you can safely pick the block. Do not assume an unseen object is absent.",
+    "seed": 17,
+    "layout": "detour",
+    "wall_time_s": 31.92353837500559,
+    "answer": "In simulation, I saw a partially clipped blue block on the brown table, last recorded near (1.20, 0.68, \u22120.42) m.\n\n- Reached viewpoint 1; viewpoint 8\u2019s route stopped for an obstacle, with no collisions reported.\n- Observed after both attempts. The final camera view showed a wall; I could not inspect beyond the blocked route or all hidden areas.\n- I stopped rather than retry that route. Unseen areas remain unknown.\n\nI cannot safely pick it: grasping is unvalidated, pick is disabled, and the block is not grasp-ready.",
+    "physical_hardware_connected": false,
+    "actions": [
+      {
+        "skill": "navigate",
+        "object_id": "viewpoint_1",
+        "state": "completed",
+        "simulation_success": true,
+        "physical_success": false,
+        "reasons": [],
+        "result": {
+          "feedback": "navigation_feedback_checked",
+          "held_object": null,
+          "wall_time_s": 2.3578958340222016,
+          "collision_steps": 0
+        }
+      },
+      {
+        "skill": "navigate",
+        "object_id": "viewpoint_8",
+        "state": "failed",
+        "simulation_success": false,
+        "physical_success": false,
+        "reasons": [
+          "obstacle_in_local_stopping_path"
+        ],
+        "result": {
+          "feedback": "obstacle_in_local_stopping_path",
+          "held_object": null,
+          "wall_time_s": 4.7840587079990655,
+          "collision_steps": 0
+        }
+      }
+    ],
+    "metrics": {
+      "simulation_time_s": 59.45000000002669,
+      "path_length_m": 6.390498617173315,
+      "collision_steps": 0
+    }
+  },
+  {
+    "challenge": "missing_red_mug",
+    "model": "gpt-6-astra",
+    "command": "Look for a red mug. Explore up to two available viewpoints and inspect the robot camera after each movement. Treat failed movement as failed, and distinguish not seen from absent. Do not pick anything.",
+    "seed": 17,
+    "layout": "blocked",
+    "wall_time_s": 20.195625542022754,
+    "answer": "The simulated move to viewpoint 0 failed: navigation timed out. I inspected the robot camera afterward; no red mug was seen, which does not establish absence. I stopped exploration after the failure and picked nothing up.",
+    "physical_hardware_connected": false,
+    "actions": [
+      {
+        "skill": "navigate",
+        "object_id": "viewpoint_0",
+        "state": "failed",
+        "simulation_success": false,
+        "physical_success": false,
+        "reasons": [
+          "navigation_time_budget_exceeded"
+        ],
+        "result": {
+          "feedback": "navigation_time_budget_exceeded",
+          "held_object": null,
+          "wall_time_s": 5.65357166598551,
+          "collision_steps": 0
+        }
+      }
+    ],
+    "metrics": {
+      "simulation_time_s": 82.49999999998913,
+      "path_length_m": 2.468826985745967,
+      "collision_steps": 0
+    }
+  }
+]
