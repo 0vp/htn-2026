@@ -89,3 +89,17 @@ class CoordinatorTests(unittest.TestCase):
         self.assertEqual(verifier.last_stats['accepted'], 0)
         self.assertEqual(verifier.last_stats['committed'], 8)
         self.assertGreater(verifier.last_stats['drafted'], 0)
+
+        class PartialDraft(proposals.SuffixLookup):
+            def propose(self, limit):
+                # One valid token followed by a rejection, even if later
+                # positions could match: only a contiguous prefix may commit.
+                return [(self.history[-1] + 1) % 7, 99, 0][:limit]
+
+        calls.clear()
+        with patch.object(module, 'SuffixLookup', PartialDraft), patch('sys.stderr', new_callable=StringIO):
+            result = list(verifier.generate([[0, 1], [5, 6]], 10))
+        self.assertEqual(result, [[(2 + step) % 7, step % 7] for step in range(10)])
+        self.assertEqual([start for start, _ in calls], [2, 4, 6, 8, 10])
+        self.assertEqual(verifier.last_stats['accepted'], 4)
+        self.assertEqual(verifier.last_stats['committed'], 9)
