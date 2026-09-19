@@ -21,18 +21,25 @@ uint8_t owner = NO_OWNER;
 uint32_t ownerLastMs = 0;
 bool latched = true;  // boot in E-STOP: an operator must arm deliberately
 uint8_t clients = 0;
+// Guards owner/latest/ownerLastMs/latched between the network and actuator tasks.
+portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
 
 void release(const char *why) {
   if (owner == NO_OWNER) return;
-  Serial.printf("control released (client %u, %s)\n", owner, why);
+  const uint8_t was = owner;
+  portENTER_CRITICAL(&lock);
   owner = NO_OWNER;
   latest = Command();
+  portEXIT_CRITICAL(&lock);
+  Serial.printf("control released (client %u, %s)\n", was, why);
 }
 
 void onCommand(uint8_t client, const Command &c) {
   if (c.estop) {
     if (!latched) Serial.printf("E-STOP from client %u\n", client);
+    portENTER_CRITICAL(&lock);
     latched = true;
+    portEXIT_CRITICAL(&lock);
     release("e-stop");
     return;
   }
@@ -46,9 +53,11 @@ void onCommand(uint8_t client, const Command &c) {
     Serial.printf("control taken by client %u\n", client);
   }
   if (client != owner) return;
+  portENTER_CRITICAL(&lock);
   latched = false;
   latest = c;
   ownerLastMs = millis();
+  portEXIT_CRITICAL(&lock);
 }
 
 void onEvent(uint8_t client, WStype_t type, uint8_t *payload, size_t length) {
@@ -91,11 +100,13 @@ void loop() {
   if (owner != NO_OWNER && millis() - ownerLastMs > config::RELEASE_OWNER_MS) release("silent");
 }
 
-bool live() {
-  return owner != NO_OWNER && !latched && millis() - ownerLastMs <= config::FAILSAFE_MS;
+bool snapshot(Command &out) {
+  portENTER_CRITICAL(&lock);
+  const bool fresh = owner != NO_OWNER && !latched && millis() - ownerLastMs <= config::FAILSAFE_MS;
+  out = latest;
+  portEXIT_CRITICAL(&lock);
+  return fresh;
 }
-
-const Command &command() { return latest; }
 bool estopLatched() { return latched; }
 uint8_t clientCount() { return clients; }
 
