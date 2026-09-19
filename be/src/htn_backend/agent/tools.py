@@ -16,6 +16,14 @@ class Empty(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class Observe(Empty):
+    sequence: int | None = Field(default=None, ge=1)
+
+
+class History(Empty):
+    before: int = Field(default=2**63 - 1, ge=1, le=2**63 - 1)
+
+
 class Search(Empty):
     query: str = Field(min_length=1, max_length=256)
 
@@ -29,6 +37,11 @@ class Receipt(Empty):
 
 
 TOOLS = {
+    "list_views": (
+        History,
+        "List sparse historical camera views retained after raw cleanup. "
+        "Inspect them with observe(sequence). These are not live frames.",
+    ),
     "ground_region": (
         RegionRequest,
         "Project a tight normalized bounding box from an observed "
@@ -40,8 +53,9 @@ TOOLS = {
         "Read room objects, processing state, uncertainty and robot capabilities.",
     ),
     "observe": (
-        Empty,
-        "Get latest uploaded camera image and its timing. Receipt time is not capture freshness.",
+        Observe,
+        "Get the latest available image, or a specific observation sequence, with timing. "
+        "It may be a historical retained view. Receipt time is not capture freshness.",
     ),
     "find_objects": (
         Search,
@@ -113,8 +127,13 @@ class RobotTools:
                 content = [self.text(self.get("/scene"))]
             elif name == "find_objects":
                 content = [self.text(self.get("/scene/search", params={"q": args.query}))]
+            elif name == "list_views":
+                content = [
+                    self.text(self.get("/observations/history", params={"before": args.before}))
+                ]
             elif name == "observe":
-                observation = self.get("/observations/latest")
+                suffix = str(args.sequence) if args.sequence is not None else "latest"
+                observation = self.get(f"/observations/{suffix}")
                 content = [self.text(observation)]
                 if observation["rgb_available"]:
                     sequence = int(observation["sequence"])

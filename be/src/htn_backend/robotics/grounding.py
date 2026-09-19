@@ -1,14 +1,11 @@
 """Project an explicitly selected image region into measured RGB-D geometry."""
 
-import json
-
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ..capture.codec import decode
 from ..perception.orientation import upright_quarter_turns
-from ..processing.alignment import stream_key
 from ..storage.database import StoreError
+from .observations import Observations
 
 
 class RegionRequest(BaseModel):
@@ -79,27 +76,12 @@ def project_region(frame, box):
 
 
 def ground(state, room_id, request):
-    with state.store.lock:
-        state.store.require_room(room_id)
-        row = state.store.db.execute(
-            "SELECT sequence,device_id,header,received_at FROM frames "
-            "WHERE room_id=? AND sequence=?",
-            (room_id, request.sequence),
-        ).fetchone()
-        if row is None:
-            raise StoreError(404, "Observation not found in this room")
-        value = dict(row)
-        value["header"] = json.loads(value["header"])
-        frame = decode(state.store.payload(room_id, request.sequence))
-        alignment = state.transforms(room_id).get(stream_key(value), {})
+    frame, observation = Observations(state).load(room_id, request.sequence)
     result = project_region(frame, request.bbox)
-    transform = alignment.get("room_from_local")
+    pose = observation["room_from_camera"]
     center = None
-    if transform is not None:
-        pose = np.array(transform).reshape(4, 4, order="F") @ np.array(
-            frame.header.camera_to_world
-        ).reshape(4, 4, order="F")
-        center = (pose @ np.array([*result["camera_surface_center_m"], 1]))[:3].tolist()
+    if pose is not None:
+        center = (np.array(pose) @ np.array([*result["camera_surface_center_m"], 1]))[:3].tolist()
     return dict(
         **result,
         sequence=request.sequence,
@@ -111,6 +93,7 @@ def ground(state, room_id, request):
         camera_convention=frame.header.camera_convention,
         pose_source="registered capture pose; not loop-corrected or calibrated to robot",
         capture_timestamp_s=frame.header.timestamp_s,
-        received_at=row["received_at"],
+        received_at=observation["received_at"],
+        storage_source=observation["storage_source"],
         requires_reobservation=True,
     )

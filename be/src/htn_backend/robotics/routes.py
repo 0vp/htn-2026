@@ -35,6 +35,14 @@ def router(state):
     def observe(room_id: RoomID, device_id: DeviceID | None = None):
         return scene.observations.latest(room_id, device_id)
 
+    @routes.get("/{room_id}/observations/history")
+    def history(room_id: RoomID, before: int = Query(default=2**63 - 1, ge=1, le=2**63 - 1)):
+        return scene.observations.history(room_id, before)
+
+    @routes.get("/{room_id}/observations/{sequence}")
+    def view(room_id: RoomID, sequence: int):
+        return scene.observations.metadata(room_id, sequence)
+
     @routes.get("/{room_id}/observations/{sequence}/image.jpg")
     def image(room_id: RoomID, sequence: int, request: Request):
         data, digest = scene.observations.image(room_id, sequence)
