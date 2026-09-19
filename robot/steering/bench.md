@@ -1,6 +1,7 @@
 # Fixed drive wheel and separate steering wheel
 
-USB serial is the only controller transport. This firmware does not start Wi-Fi.
+Native USB through the board's OTG connector is the only controller transport.
+Use one cable. This firmware does not start Wi-Fi.
 The motor watchdog runs independently from serial input/output.
 
 This controller uses the confirmed GOOUUU ESP32-S3-CAM wiring: GPIO14 RPWM,
@@ -9,7 +10,7 @@ existing one-shot combined test untouched. GPIO14/47 are never driven together.
 The current robot is shown in [reference photos](../reference/calibration.md).
 
 The firmware boots with zero motor output and the servo at its 90-degree neutral
-pulse. It accepts newline JSON over the USB serial adapter at 115200 baud.
+pulse. It accepts newline JSON over the native USB CDC interface (the host uses 115200 baud as a nominal setting).
 Limits are 30% signed duty, 20 degrees of servo offset, a 30 deg/s servo slew,
 and a 300 ms motor watchdog. Positive steering offset lowers the commanded servo angle from 90 degrees
 (90 minus offset in the known test's angle convention), **not** a
@@ -41,7 +42,7 @@ After this stopped-by-default firmware is installed, start a local bridge:
 
 ```sh
 uv run --project be python -m htn_backend.agent.motion.transport.serial_bridge \
-  /dev/cu.usbserial-10 --supervise
+  /dev/cu.usbmodem101 --supervise
 ```
 
 Do not connect this bridge to the old automatic startup-test firmware: opening
@@ -62,3 +63,9 @@ A stalled skill cannot keep moving through the link's 20Hz heartbeat: active
 commands have a separate 250 ms host lease. Firmware expiry covers a dead bridge.
 Zero duty is electrical command feedback, not proof the chassis has stopped.
 This is a supervised bench integration, not autonomous collision avoidance.
+
+The current build enables native hardware USB CDC (`ARDUINO_USB_CDC_ON_BOOT=1`,
+board USB mode 1). TTL no longer carries the application console. The Mac port
+name can change; identify the Espressif USB device rather than assuming its
+suffix. If no port appears for initial flashing, hold BOOT, tap/release RST,
+then release BOOT. Native-USB validation is in [validation/native-usb.json](validation/native-usb.json).

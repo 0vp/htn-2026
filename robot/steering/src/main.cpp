@@ -56,7 +56,7 @@ String statusJsonImpl(uint32_t now) {
   JsonDocument doc;
   doc["type"] = "telemetry";
   doc["drivetrain"] = "single_steer_v1";
-  doc["transport"] = "usb_serial";
+  doc["transport"] = "usb_native_cdc";
   doc["uptime_ms"] = now;
   doc["reset_reason"] = int(esp_reset_reason());
   doc["motor_duty"] = appliedDuty;
@@ -112,6 +112,7 @@ void setup() {
   attachInterrupt(ENC_A, encoder, CHANGE);
   attachInterrupt(ENC_B, encoder, CHANGE);
   Serial.setTxBufferSize(2048);
+  Serial.setTxTimeoutMs(0);
   Serial.begin(115200);
   stateMutex = xSemaphoreCreateMutex();
   configASSERT(stateMutex);
