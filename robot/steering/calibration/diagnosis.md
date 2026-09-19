@@ -30,3 +30,12 @@ proof of USB or mechanical reliability.
 Use `session.py` instead of repeatedly invoking `pulse.py` for calibration. It
 accepts one bounded JSON request per stdin line, disarms between requests and
 ends on a failed request. It never reconnects and replays active movement.
+
+## Unloaded follow-up
+
+With the chassis inverted and wheels clear of the floor, the 0/-5/+5/0 degree
+command sequence passed. Two 15% duty, 300ms drive pulses produced -61 and +62
+encoder counts, respectively, returning to reported zero duty and disarmed state.
+Uptime remained continuous and neither run reported a USB disconnect. See
+[unloaded.json](unloaded.json). These tests do not measure actual steering angle
+or establish which physical change removed the intermittent failure.

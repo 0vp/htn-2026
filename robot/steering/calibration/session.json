@@ -16,7 +16,7 @@
   "preview_observation": "Cable moved clear by user; refreshed Photo Booth view inspected between pulses; displacement too small to quantify",
   "movement_commands_sent": true,
   "metric_calibration_complete": false,
-  "blocking_observation": "Intermittent USB serial disconnect remains unresolved; observed even without movement. ESP32 uptime remained continuous across latest steering disconnect.",
+  "blocking_observation": "Latest unloaded checks passed. Prior intermittent disconnect cause unresolved; floor-load calibration and physical angle measurements pending.",
   "measurements": {
     "meters_per_tick": null,
     "steering_angle_per_servo_degree": null,
@@ -80,5 +80,6 @@
       "all_drive_duty_zero": true,
       "disconnect": false
     }
-  }
+  },
+  "latest_unloaded_check": "unloaded.json"
 }
