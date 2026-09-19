@@ -38,3 +38,25 @@ See [session evidence](../steering/calibration/session.json).
 For mistakes learned and the procedure to use on another chassis, see
 [base bring-up lessons](base-bringup.md). The latest USB-only results are in
 [wired validation](../steering/validation/wired.json).
+
+## Native USB loaded movement check
+
+Five agent/bridge/controller commands passed over OTG: positive and negative
+30% drive at neutral steering, positive drive with +10 degree servo offset,
+negative drive with -10 degree offset, and zero-drive recentering. Drive commands
+requested 0.65 seconds. All reported zero duty and disarmed afterward; no link
+failure or reboot was observed. A separate one-command 15% watchdog trial first
+reported expired/zero duty at 0.3499 seconds, with last active telemetry at
+0.2986 seconds. This samples electrical output, not mechanical stopping time.
+
+Positive duty consistently decreased raw encoder counts; negative duty increased
+them. Straight commands reported -200 and +348 counts at the stop receipt, with
+unequal actual command durations. Do not treat their ratio as a correction gain.
+Turning tests validate command receipt and motor response, not measured left/right
+yaw or a calibrated steering angle. The dim laptop camera view and unreadable
+scale are insufficient for metric estimates. Geometry and meters/count remain
+unknown until measured dimensions and displacements are supplied. No runtime
+odometry coefficients were invented or enabled.
+
+Results and final stopped state: [movement summary](../steering/validation/movement/summary.json).
+Full controller receipts: [trials](../steering/validation/movement/trials.jsonl).
