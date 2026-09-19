@@ -1,0 +1,24 @@
+{
+  "implementation_commit": "e3a3e05ff1a12fa69c1de508712e8de3a49026a2",
+  "sha256": {
+    "be/src/htn_backend/simulation/control/approach.py": "f390937bb76f8372f435c9aa258e4902e8d93207b7f1db2bb0ce482c58317246",
+    "be/src/htn_backend/simulation/control/arm.py": "c9e8500f70e296c7a3ecbdb756d977ba8ee2265bcc27334face348b0e4db39b5",
+    "be/src/htn_backend/simulation/control/calibration.py": "222d5d9822f3f7c02583fad34413ffb8771dbee0169b46a38741fa22ddbcd017",
+    "be/src/htn_backend/simulation/control/feedback.py": "46e732439699e5c14b422376c990323a9657b00fbf9e287073858d9e4cfa44fb",
+    "be/src/htn_backend/simulation/control/manipulation.py": "30868d3cb8aeb58f65de2332b3fad62706450c9236762d1356a41e3bf7284fa8",
+    "be/src/htn_backend/simulation/controller.py": "8067248b822372daeb62b44d40a7aea5220f99d1d03569e407481d83c0b49c4a",
+    "be/src/htn_backend/simulation/evaluate.py": "18a5fe7a2b5a20818447bfddd48ba13f395800b077ee999dbc3870d08721a9d0",
+    "be/src/htn_backend/simulation/mechanics/kinematics.py": "ef274d90926ef47c7051e72518413625c20446e4ce4ea11924811fce1e83c52f",
+    "be/src/htn_backend/simulation/mechanics/robot.py": "68c09b7b8d87cd19d534a884782d7166e3785ad4c0ef3a562e325963ce5284f6",
+    "be/src/htn_backend/simulation/mechanics/vision.py": "715088493c5307f9deafc340055ebfa0a8c58c1a8d0ab5d4a4f1cd4dc03935d9",
+    "be/src/htn_backend/simulation/model.py": "8140544c1372bbc50f8d61095ccea131db94c16899b7cf96521c2e419abb8126",
+    "be/src/htn_backend/simulation/planning.py": "f48596ac50204ffac5b3d4086134bdc18f02c341fed80c17d776cd75c4e59511",
+    "be/src/htn_backend/simulation/run.py": "16ad3a2ada6609e9c266c66c502520446e5ba7a236e5c078b1e5bc9e9ff59197",
+    "be/src/htn_backend/simulation/service.py": "66e35fa276086807a489da5aa3a55b80afdbc3f1b7b6e0912b5bb1e119bacaee",
+    "be/src/htn_backend/simulation/world.py": "e744484a0947ed2bcb73b22c0b763d0f845849f76947e3216e3350f2323fb27c",
+    "be/src/htn_backend/agent/feedback/stream.py": "5b2f13438fb84fe16c2bcb2ede9b0789526360e263efa14847b277d427fe86c2",
+    "be/src/htn_backend/agent/run.py": "ed0fc68ca4e4f650010ed1c6ec31d69b0169c749722597e0f91af24c11871892",
+    "be/src/htn_backend/agent/tools.py": "589445f46e1a409054118980fdf312c400940acef31197a8886d7d41ab0d4d93",
+    "be/src/htn_backend/agent/profile.py": "46df8a5199116c43cb7246d25f5c28329db15ca25bc4c40f887d3fc4f375186f"
+  }
+}

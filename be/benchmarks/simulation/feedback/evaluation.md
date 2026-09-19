@@ -45,8 +45,11 @@ Two real Codex/Astra runs used the same room tools:
 
 `agent-results.json`, `controller-summary.json`, and `controller-cases.jsonl`
 retain the outcomes. Replays are generated under `/tmp`, not committed recordings.
-`checks/holdout.py` defines additional fresh offset/load probes independently of
-the development seeds; their results are recorded separately when available.
+`checks/holdout.py` ran four additional, previously unused pose-offset/load cases
+(seeds 101–104, arm mass/inertia scaled to 80% or 120%). All four completed delivery
+with zero collisions; `checks/results.json` retains each result. The controller was
+not told the changed dynamics. This small same-room-template holdout does not
+establish unseen-room or arbitrary-object generalization.
 
 Pick/place are enabled only for the simulator's supported rigid block and tables.
 This does not enable physical hardware or claim arbitrary-object manipulation.

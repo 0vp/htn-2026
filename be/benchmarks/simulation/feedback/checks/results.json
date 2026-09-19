@@ -1,0 +1,118 @@
+[
+  {
+    "seed": 101,
+    "arm_mass_inertia_scale": 0.8,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "wall_time_s": 21.874651041987818,
+    "complete": true
+  },
+  {
+    "seed": 102,
+    "arm_mass_inertia_scale": 1.2,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "wall_time_s": 21.559032917022705,
+    "complete": true
+  },
+  {
+    "seed": 103,
+    "arm_mass_inertia_scale": 0.8,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "wall_time_s": 21.756337166996673,
+    "complete": true
+  },
+  {
+    "seed": 104,
+    "arm_mass_inertia_scale": 1.2,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "wall_time_s": 30.114345749956556,
+    "complete": true
+  }
+]
