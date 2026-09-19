@@ -104,7 +104,7 @@ def main():
     parser.add_argument("--seconds", type=float, default=0.2)
     args = parser.parse_args()
     device = serial.Serial(port=None, baudrate=115200, timeout=0.04, write_timeout=0.1)
-    device.dtr = device.rts = False
+    # Keep normal line states: forcing both false reset this CH340/ESP32-S3.
     device.port = args.port
     device.open()
     try:
