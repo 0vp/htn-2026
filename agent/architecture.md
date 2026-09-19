@@ -32,6 +32,34 @@ bounds do not prove current free space, graspability or physical task success.
 The server now serves camera observations independently of mapping progress;
 the robot controller must ultimately obtain current sensors locally.
 
+Raw-upload cleanup preserves sparse alignment reference views. `observe` falls
+back to these retained RGB-D views; `list_views` pages through their sequences.
+They remain explicitly historical, and their poses are already in room coordinates.
+
+## Robot prompt and tool surface
+
+`be/src/htn_backend/agent/profile.py` defines one runtime profile. It replaces
+the upstream coding base prompt with task-specific observation, grounding,
+ambiguity, and action-receipt instructions. It disables workspace environments,
+shell, file viewing/editing, web search, delegation, plugins, host skill prompts,
+and inherited MCP servers for this run without changing the user's saved settings.
+The official source and its licenses remain intact.
+
+The agent registers eight room tools. Astra's model catalog additionally requires
+Codex's sandboxed JavaScript `exec`/`wait` wrapper; its host stays enabled so
+dynamic tool calls work. The runtime also exposes clock and clarification helpers.
+The wrapper has no shell, file, or network API; its callable tools are checked by
+`be/tests/agent/test_profile.py` using the actual installed Codex executable and
+a local mock model provider. That test verifies both the outgoing prompt/tool
+surface and a real round trip through the tool host. CLI absence skips this test;
+it does not count as validating a different or future source build.
+
+The live Astra check on recorded room A211342B retrieved laptop evidence,
+observed retained sequence 65, and grounded a bottle region at approximately
+0.51 m with 12.3% depth coverage. The agent reported historical-image and
+surface-support limitations. This is an integration check, not object-pose
+accuracy or physical robot validation.
+
 ## Reference architecture
 
 The [linked demo](https://x.com/BdcauntBen/status/2092806371154460865) was inspected

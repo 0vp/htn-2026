@@ -12,7 +12,8 @@ class RegionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     sequence: int = Field(ge=1, strict=True)
     # Coordinates relative to the upright image returned by observations/image.jpg.
-    bbox: tuple[float, float, float, float]
+    # A homogeneous array also renders correctly in Codex's tool declarations.
+    bbox: list[float] = Field(min_length=4, max_length=4)
     label: str = Field(min_length=1, max_length=80)
 
     @model_validator(mode="after")
