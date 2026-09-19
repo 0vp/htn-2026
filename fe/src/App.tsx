@@ -87,7 +87,7 @@ export default function App() {
         <Bands reverse />
         <footer className="label flex flex-wrap justify-between gap-4 bg-blue px-6 py-6 text-blue-soft sm:px-9">
           <span>Hack the North 2026</span>
-          <span>window.lidar.push([[x, y, z], …]) · ?lidar= · ?control= · ?telemetry= · ?camera=</span>
+          <span>Live maps from backend rooms · ?room= · ?control= · ?telemetry= · ?camera=</span>
         </footer>
         {player && <div className="h-16 bg-blue" aria-hidden />}
       </main>

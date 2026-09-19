@@ -11,12 +11,12 @@ from pathlib import Path
 
 from ..capture.codec import encode
 from ..capture.frame import Frame
+from .counters import initialize
 
 MAX_ROOMS = 128
 MAX_DEVICES = 16
 MAX_BYTES = 4_000_000_000
 MIN_FREE_BYTES = 2_000_000_000
-MAX_FRAMES = 100_000
 
 
 class StoreError(Exception):
@@ -32,6 +32,7 @@ class Store:
         self.lock = threading.RLock()
         self.db = sqlite3.connect(root / "rooms.sqlite3", check_same_thread=False, timeout=5)
         self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA auto_vacuum=INCREMENTAL")
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
         self.db.execute("PRAGMA foreign_keys=ON")
@@ -60,6 +61,20 @@ class Store:
             );
             INSERT OR IGNORE INTO totals VALUES(1, 0, 0);
         """)
+        with self.db:
+            self.db.execute("BEGIN IMMEDIATE")
+            columns = {r[1] for r in self.db.execute("PRAGMA table_info(frames)")}
+            if "archived" not in columns:
+                self.db.execute("ALTER TABLE frames ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS room_active_frames ON frames(room_id,archived,sequence)"
+            )
+
+            initialize(self.db)
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS retention_candidates "
+                "ON frames(received_at,sequence) WHERE archived=1 AND length(payload)>0"
+            )
 
     def close(self) -> None:
         with self.lock:
@@ -71,10 +86,15 @@ class Store:
             if row is None:
                 raise StoreError(404, "Room not found")
             stats = self.db.execute(
-                "SELECT COUNT(*) AS frames_stored, COALESCE(SUM(bytes),0) AS bytes_stored "
-                "FROM frames WHERE room_id=?",
+                "SELECT received AS frames_stored, retained AS raw_frames_retained, "
+                "bytes AS bytes_stored FROM room_counts WHERE room_id=?",
                 (room_id,),
             ).fetchone()
+            stats = (
+                dict(stats)
+                if stats
+                else dict(frames_stored=0, raw_frames_retained=0, bytes_stored=0)
+            )
             devices = self.db.execute(
                 "SELECT device_id,name,joined_at FROM devices WHERE room_id=? ORDER BY joined_at",
                 (room_id,),
@@ -159,7 +179,7 @@ class Store:
             if self.require_room(room_id)["closed"]:
                 raise StoreError(409, "Room is closed")
             totals = self.db.execute("SELECT * FROM totals WHERE id=1").fetchone()
-            if totals["bytes"] + len(payload) > MAX_BYTES or totals["frames"] >= MAX_FRAMES:
+            if totals["bytes"] + len(payload) > MAX_BYTES:
                 raise StoreError(507, "Capture storage limit reached")
             if shutil.disk_usage(self.root).free < MIN_FREE_BYTES + 2 * len(payload):
                 raise StoreError(507, "Insufficient disk space")
@@ -187,8 +207,18 @@ class Store:
         with self.lock:
             self.require_room(room_id)
             rows = self.db.execute(
-                "SELECT sequence,device_id,header,bytes,received_at,sha256 FROM frames "
+                "SELECT sequence,device_id,header,bytes,received_at,sha256, "
+                "length(payload)>0 AS raw_available FROM frames "
                 "WHERE room_id=? AND sequence>? ORDER BY sequence LIMIT ?",
+                (room_id, after, limit),
+            ).fetchall()
+            return [{**dict(r), "header": json.loads(r["header"])} for r in rows]
+
+    def active_frames(self, room_id: str, after: int, limit: int) -> list[dict]:
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT sequence,device_id,header,bytes,received_at,sha256 FROM frames "
+                "WHERE room_id=? AND archived=0 AND sequence>? ORDER BY sequence LIMIT ?",
                 (room_id, after, limit),
             ).fetchall()
             return [{**dict(r), "header": json.loads(r["header"])} for r in rows]
@@ -201,4 +231,6 @@ class Store:
             ).fetchone()
             if row is None:
                 raise StoreError(404, "Frame not found")
+            if not row[0]:
+                raise StoreError(410, "Raw capture cleaned after durable map checkpoint")
             return bytes(row[0])

@@ -1,0 +1,15 @@
+[Unit]
+Description=HTN native map runtime
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=on-failure
+RestartSec=3
+ExecStartPre=-/usr/bin/docker rm -f htn-hydra
+ExecStart=/usr/bin/docker run --name htn-hydra --init --network none --read-only --tmpfs /tmp:rw,size=256m --cpus 3 --memory 6g --pids-limit 512 -v /opt/htn/backend:/work/backend:ro sha256:d724dfb15832629f33d3eb64ea1bb0b5453f786a7804125a6da5defe5c95c111 sleep infinity
+ExecStop=/usr/bin/docker stop -t 15 htn-hydra
+TimeoutStopSec=25
+
+[Install]
+WantedBy=multi-user.target

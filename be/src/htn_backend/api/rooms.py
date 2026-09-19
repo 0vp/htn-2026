@@ -40,7 +40,14 @@ def router(store: Store) -> APIRouter:
         rows = store.frames(room_id, after, limit)
         return {"frames": rows, "next_after": rows[-1]["sequence"] if rows else after}
 
-    @routes.get("/{room_id}/frames/{sequence}")
+    @routes.get(
+        "/{room_id}/frames/{sequence}",
+        responses={
+            410: {
+                "description": "Raw capture cleaned; its durable map remains available"
+            }
+        },
+    )
     def get_frame(room_id: RoomID, sequence: int) -> Response:
         return Response(store.payload(room_id, sequence), media_type="application/octet-stream")
 

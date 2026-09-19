@@ -55,6 +55,7 @@ class Frame:
     depth: np.ndarray
     confidence: np.ndarray
     rgb_jpeg: bytes = b""
+    provenance: dict | None = None
 
     def __post_init__(self) -> None:
         shape = (self.header.depth_height, self.header.depth_width)
