@@ -1,0 +1,37 @@
+{
+  "revision": "two_wheel_photo_revision",
+  "status": "awaiting_drivetrain_and_wiring_confirmation",
+  "reported_footprint": {
+    "dimensions_m": [
+      0.45,
+      0.41
+    ],
+    "approximate": true,
+    "source": "user reported 45x41 cm around",
+    "length_width_assignment": null,
+    "includes_wheels": null
+  },
+  "photo_observations": {
+    "large_wheels": 2,
+    "motor_like_units": "one yellow housing at each large wheel",
+    "passive_supports": "small caster assemblies visible at opposite frame corners",
+    "independent_motor_control_confirmed": false
+  },
+  "reported_condition": "User reports one wheel is slightly heavier and plans to fix it later; cause and effect not measured.",
+  "required_before_actuation": [
+    "controller identity and current firmware",
+    "motor driver model",
+    "per-motor GPIO and enable wiring",
+    "independent left/right control confirmation"
+  ],
+  "required_for_metric_calibration": {
+    "wheel_diameters_m": null,
+    "wheel_contact_center_spacing_m": null,
+    "encoders_available": null,
+    "counts_per_revolution": null,
+    "physical_forward_sign": null
+  },
+  "previous_base_reference": "geometry.json",
+  "previous_calibration_applicable": false,
+  "new_base_motion_commands_sent": false
+}
