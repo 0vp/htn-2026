@@ -1,0 +1,22 @@
+{
+  "esam": {
+    "source": "https://github.com/xuxw98/ESAM",
+    "revision": "188fc6de44f7577fecec2d69b75c7adbd9992251",
+    "checkpoint": "https://huggingface.co/XXXCARREY/EmbodiedSAM/resolve/main/ESAM-E_online_epoch_128.pth",
+    "sha256": "161f575838d2ef11d35fc17fecb8e3b292f4d0813945de457e7bc89f643a2329"
+  },
+  "fastsam": {
+    "source": "https://github.com/CASIA-IVA-Lab/FastSAM",
+    "revision": "b4ed20c2fed75eadc5aa7d8b09fedd137b873b52",
+    "checkpoint": "https://huggingface.co/spaces/An-619/FastSAM/resolve/main/weights/FastSAM.pt",
+    "sha256": "c0be4e7ddbe4c15333d15a859c676d053c486d0a746a3be6a7a9790d52a9b6d7"
+  },
+  "minkowski": {
+    "source": "https://github.com/NVIDIA/MinkowskiEngine",
+    "revision": "9f81ae66b33b883cd08ee4f64d08cf633608b118"
+  },
+  "nvtx": {
+    "source": "https://github.com/NVIDIA/NVTX",
+    "revision": "e170594ac7cf1dac584da473d4ca9301087090c1"
+  }
+}

@@ -153,6 +153,9 @@ class RoomProcessor:
         self.anchors.update(result.get("agents", []))
         mesh, objects = snapshot(result, self.count, self.count)
         surfaces = samples(result)
+        if "instance_objects" in result:
+            objects = result["instance_objects"]
+            surfaces = result["instance_surfaces"]
         confirmed = self.confirmation.retained(objects)
         for frame, detections in observations:
             if self.submitted_loops:
@@ -198,6 +201,8 @@ class RoomProcessor:
                 "sealed_segments": self.atlas.generation,
                 "active_segment_frames": self.count,
                 "mapping_frame_limit": None,
+                "instance_backend": "esam-e" if "instance_objects" in result else "hydra",
+                "instance_timing": result.get("instance_timing", {}),
             },
             self.unpublished,
             evidence,

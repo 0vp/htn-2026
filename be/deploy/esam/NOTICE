@@ -1,0 +1,12 @@
+The optional evaluation runtime downloads upstream code and model checkpoints;
+they are not vendored in this repository. Preserve upstream notices and licenses.
+
+ESAM: https://github.com/xuxw98/ESAM
+FastSAM: https://github.com/CASIA-IVA-Lab/FastSAM
+FastSAM and its Ultralytics components include AGPL-3.0 code. Deployment and
+distribution must follow those terms or applicable commercial licensing.
+MinkowskiEngine: https://github.com/NVIDIA/MinkowskiEngine
+NVTX: https://github.com/NVIDIA/NVTX
+
+models.json records the exact source revisions and downloaded checkpoint hashes.
+Reported upstream benchmark results are not measurements of this deployment.

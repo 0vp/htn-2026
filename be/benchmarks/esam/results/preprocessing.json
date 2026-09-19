@@ -1,0 +1,12 @@
+{
+  "equivalent": true,
+  "frames": 17,
+  "trials": 51,
+  "reference_median_ms": 197.443138982635,
+  "candidate_median_ms": 142.53753802040592,
+  "accuracy": "Preprocessing equivalence only; not a segmentation accuracy benchmark",
+  "hardware": "NVIDIA L4, 4 vCPU",
+  "torch": "2.1.0+cu118",
+  "date": "2026-09-19",
+  "note": "Warmed inference; alternating order; native dependency compilation was running concurrently. These are preprocessing times, not end-to-end frame latency."
+}
