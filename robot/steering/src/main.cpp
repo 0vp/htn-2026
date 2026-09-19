@@ -33,7 +33,7 @@ void motor(float duty) {
 }
 
 void servo(float offset) {
-  const float angle = 90 - offset;  // Handoff: increasing servo angle steers right.
+  const float angle = 90 - offset;  // Pulse convention only; physical wheel direction needs calibration.
   const float pulseUs = 600 + angle * 10;
   ledcWrite(STEERING, uint32_t(pulseUs / 20000 * 16383));
 }

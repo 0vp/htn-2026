@@ -9,7 +9,7 @@ struct SteeringControl {
   bool estop = false;
   uint32_t heard = 0;
   float duty = 0;
-  float steering = 0;  // Servo offset: positive means left, not chassis yaw.
+  float steering = 0;  // Servo offset: subtract from 90 degrees; wheel direction uncalibrated.
 
   void stop() { active = false; duty = 0; }
   void supervise(bool enabled) {
