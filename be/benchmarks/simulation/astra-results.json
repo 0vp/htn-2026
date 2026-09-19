@@ -1,0 +1,75 @@
+{
+  "method": "Actual gpt-6-astra via official Codex app-server, local MuJoCo HTTP adapter",
+  "not_tested": [
+    "speech recognition",
+    "SLAM",
+    "learned object perception",
+    "physical robot"
+  ],
+  "runs": [
+    {
+      "scenario": "delivery",
+      "seed": 23,
+      "layout": "detour",
+      "model": "gpt-6-astra",
+      "wall_time_s": 45.63051891699433,
+      "actions": [
+        {
+          "skill": "navigate",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "executor_wall_time_s": 0.5962878330028616
+        },
+        {
+          "skill": "pick",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "executor_wall_time_s": 0.2974665830261074
+        },
+        {
+          "skill": "navigate",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "executor_wall_time_s": 0.7199073749943636
+        },
+        {
+          "skill": "place",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "executor_wall_time_s": 0.34180620801635087
+        }
+      ],
+      "collision_contact_steps": 0,
+      "final_answer": "Completed in simulation. Verified the blue block is resting on the delivery table and the gripper is empty. No collisions reported; no physical-world move was performed."
+    },
+    {
+      "scenario": "blocked-final",
+      "seed": 25,
+      "layout": "blocked",
+      "model": "gpt-6-astra",
+      "wall_time_s": 14.812031999987084,
+      "actions": [
+        {
+          "skill": "navigate",
+          "state": "failed",
+          "simulation_success": false,
+          "physical_success": false,
+          "reasons": [
+            "no_collision_free_path_to_reachable_approach"
+          ],
+          "executor_wall_time_s": 0.7691107920254581
+        }
+      ],
+      "collision_contact_steps": 0,
+      "final_answer": "The simulated move was blocked: no collision-free path to the source table was available. The blue block remains at the source, and nothing was picked up or delivered. No physical action occurred."
+    }
+  ]
+}

@@ -1,5 +1,53 @@
 # Room agent
 
+## Local robot simulation
+
+Start the isolated physics server and live viewer:
+
+```sh
+uv run --project be --group sim python -m htn_backend.simulation.run
+```
+
+Open `http://127.0.0.1:8792`, then in another terminal:
+
+```sh
+uv run --project be --group sim python -m htn_backend.simulation.run \
+  --command "Move the blue block to the delivery table and verify completion."
+```
+
+This launcher checks the server's simulation domain and never constructs the
+physical robot link, even when hardware credentials exist in the environment.
+Use it for simulation rather than the hardware-aware `agent/run.sh` launcher.
+The same Codex/Astra harness and room tools issue asynchronous, idempotent actions.
+Every receipt distinguishes `simulation_success` from `physical_success: false`.
+The server and receipts are ephemeral; restart for a fresh episode.
+
+The procedural robot has a planar mobile base, lifting/extending arm, and parallel
+gripper. Footprint-inflated A* provides routes; feedback control drives the base.
+MuJoCo contact/friction support the grasp: no grasp welds or action teleports.
+Lift/contact, transport retention, and released support height determine success.
+The displayed wheels are visual: wheel dynamics, slip, and base tipping are absent.
+The agent receives known simulator objects and an overview image. Our actual
+SLAM/detector pipeline and robot RGB-D perception are not evaluated by this suite.
+
+Run the controller suite or a fresh real Astra episode with saved receipts and replay:
+
+```sh
+uv run --project be --group sim python -m htn_backend.simulation.evaluate
+uv run --project be --group sim python -m htn_backend.simulation.evaluate --agent
+```
+
+Results default to `/tmp/htn-simulation-result.json`; the agent run also writes
+PNG/GIF views there. Committed summaries are in `be/benchmarks/simulation`.
+`uv run --project be --group sim pytest be/tests -q` includes physics tests;
+without the optional simulation dependencies those tests explicitly skip.
+These runs tune controller parameters and prompt behavior, not model weights.
+
+The [MuJoCo Python API](https://mujoco.readthedocs.io/en/stable/python.html)
+provides the simulator. [Menagerie](https://github.com/google-deepmind/mujoco_menagerie)
+and [Stretch MuJoCo](https://github.com/hello-robot/stretch_mujoco) provide more
+realistic robot models for the next stage; neither is claimed as integrated here.
+
 `codex/` is the official OpenAI Codex repository pinned as a Git submodule.
 It retains its upstream source, license and history. Initialize with
 `git submodule update --init --depth 1 agent/codex`.

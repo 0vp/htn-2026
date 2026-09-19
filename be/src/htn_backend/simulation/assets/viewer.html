@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Robot simulation</title>
+<style>
+body{font:16px system-ui;background:#111820;color:#e7ecf2;margin:32px auto;max-width:960px;padding:0 20px}
+h1{font-size:28px}p{color:#bac5d2}img{width:100%;border-radius:8px;background:#000}
+pre{white-space:pre-wrap;font:14px ui-monospace;line-height:1.5}small{color:#e9ba70}
+</style>
+<h1>Mobile manipulation test room</h1>
+<p>MuJoCo simulation · Known object positions · No physical robot connected</p>
+<img src="/camera.jpg" alt="Live simulated robot, tables, obstacle and blue block">
+<pre id="status">Connecting…</pre>
+<small>Accelerated physics. This tests task execution, not SLAM or real-world grasp accuracy.</small>
+<script>
+async function refresh(){
+ try{
+  const scene=await fetch('/snapshot').then(r=>r.json());
+  document.querySelector('img').src='/camera.jpg?t='+Date.now();
+  document.querySelector('#status').textContent=
+   `Action: ${scene.active_action||'idle'}\nHeld object: ${scene.robot.held_object||'none'}\n`+
+   `Simulation time: ${scene.metrics.simulation_time_s.toFixed(1)} s\n`+
+   `Travel: ${scene.metrics.path_length_m.toFixed(2)} m\n`+
+   `Collision contact steps: ${scene.metrics.collision_steps}`;
+ }catch{document.querySelector('#status').textContent='Simulator disconnected';}
+ setTimeout(refresh,300);
+}refresh();
+</script></html>

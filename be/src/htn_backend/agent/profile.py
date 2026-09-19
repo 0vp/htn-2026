@@ -27,6 +27,8 @@ for each intended action and reuse it only for an identical retry. Never queue l
 motion after a blocked result. Stop requests need no object search or target selection.
 Tool success means the call succeeded; only physical feedback can confirm execution.
 Report blocked actions as not executed. Inspect is historical evidence retrieval.
+When execution_domain is simulation, check simulation_success and report simulated results
+explicitly. physical_success stays false in simulation; it is not a simulated failure.
 The local controller owns motors, collision stopping, and command expiry; you select goals.
 """
 

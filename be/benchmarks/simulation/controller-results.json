@@ -1,0 +1,27 @@
+{
+  "engine": "MuJoCo 3.3.7",
+  "benchmark": "procedural regression suite, not a public robotics leaderboard",
+  "input": "oracle object poses and static obstacles",
+  "calibration": {
+    "seeds": "10..19",
+    "initial_delivery_success_rate": 0.7,
+    "cause_of_six_failures": "MuJoCo QACC numerical instability with 5 ms timestep",
+    "fix": "2 ms physics timestep plus fail-closed detection of numerical resets"
+  },
+  "evaluation": {
+    "seeds": "20..29",
+    "cases": 30,
+    "successful_deliveries": 20,
+    "blocked_routes_correctly_rejected": 10,
+    "collision_contact_steps": 0,
+    "median_controller_wall_time_s": 1.131385812535882,
+    "note": "Held-out seeds vary table position within a narrow 24 cm range; this is not broad generalization."
+  },
+  "limitations": [
+    "Ideal planar velocity-actuated base; wheel slip is not modeled",
+    "Single small rigid block and tuned contact parameters",
+    "Static obstacles, perfect localization and object identities",
+    "Not a perception, SLAM, physical hardware or model fine-tuning result"
+  ],
+  "reproduce": "uv run --project be --group sim python -m htn_backend.simulation.evaluate"
+}

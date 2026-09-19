@@ -12,6 +12,7 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 .DS_Store
+MUJOCO_LOG.TXT
 .env
 .env.*
 !.env.example

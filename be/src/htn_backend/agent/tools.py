@@ -71,7 +71,8 @@ TOOLS = {
     "request_skill": (
         SkillRequest,
         "Request a bounded skill with an idempotency ID and scene revision. "
-        "Inspect retrieves stored evidence; physical skills are blocked without hardware. "
+        "Inspect retrieves stored evidence; physical skills require a connected executor. "
+        "Simulation receipts use simulation_success and never physical_success. "
         "Never equate receipt with execution.",
     ),
     "action_status": (
