@@ -28,6 +28,7 @@ VARIANTS = {
     'static': Options(direct=True, static=True),
     'graph': Options(direct=True, static=True, graph=True),
     'graph_hybrid': Options(direct=True, static=True, graph=True, native_prefill=True),
+    'graph_norms': Options(norms='all', direct=True, static=True, graph=True),
     'swiglu': Options(swiglu=True),
     'packed': Options(packed=True),
     'custom_attention': Options(gqa=True, custom_attention=True),
