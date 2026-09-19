@@ -5,6 +5,7 @@ perform autonomous calibration, obstacle detection or estimate physical distance
 """
 
 import argparse
+import contextlib
 import json
 import math
 import time
@@ -81,9 +82,18 @@ def pulse(device, duty, steering, seconds):
             "physical_stop_verified": False,
             "samples": samples,
         }
+    except (serial.SerialException, OSError) as error:
+        return {
+            "command": {"duty": duty, "steering_deg": steering, "seconds": seconds},
+            "reported_stop": False,
+            "physical_stop_verified": False,
+            "error": str(error),
+            "samples": samples,
+        }
     finally:
-        send(STOP)
-        send({"type": "supervise", "enabled": False})
+        for value in (STOP, {"type": "supervise", "enabled": False}):
+            with contextlib.suppress(serial.SerialException, OSError):
+                send(value)
 
 
 def main():
