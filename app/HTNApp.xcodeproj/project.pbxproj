@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		054936F595292CC99D7269DF /* VoiceTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B71A535B4F01773E6A977B /* VoiceTranscriptView.swift */; };
 		1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */; };
 		1792814C7EB8142083034FFC /* TransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A46E36969B6686A59C20181 /* TransportTests.swift */; };
 		29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */; };
@@ -63,6 +64,7 @@
 		0B6F159FDEB7119D871A715B /* RoomsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomsModel.swift; sourceTree = "<group>"; };
 		0D9C1897460BB84A1424EFFE /* RobotFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotFace.swift; sourceTree = "<group>"; };
 		0DB1A35441BD893CDABE2A5C /* VoiceEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEvents.swift; sourceTree = "<group>"; };
+		18B71A535B4F01773E6A977B /* VoiceTranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptView.swift; sourceTree = "<group>"; };
 		1D244F52D537A57798F00EE1 /* HTNAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HTNAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1FBEF5E80C97A99C9DDC4BEC /* VoiceModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceModelTests.swift; sourceTree = "<group>"; };
 		2408C4C3E3AD9A074389E9B4 /* VoiceLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceLiveTests.swift; sourceTree = "<group>"; };
@@ -262,6 +264,7 @@
 			isa = PBXGroup;
 			children = (
 				ACB702EC78CC57385C4D84E2 /* VoiceSheet.swift */,
+				18B71A535B4F01773E6A977B /* VoiceTranscriptView.swift */,
 			);
 			path = Voice;
 			sourceTree = "<group>";
@@ -391,6 +394,7 @@
 				C3A4385BD476CCD316DBF184 /* VoiceModel.swift in Sources */,
 				EB2CD4ED858113EEEC8D23B8 /* VoicePeer.swift in Sources */,
 				C851B3EE94E1B2B855A93F74 /* VoiceSheet.swift in Sources */,
+				054936F595292CC99D7269DF /* VoiceTranscriptView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

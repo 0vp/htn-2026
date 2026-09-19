@@ -21,7 +21,12 @@ final class RoomFlowTests: XCTestCase {
         app.buttons["Create"].tap()
         XCTAssertTrue(app.buttons["robotFace"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Room leader"].exists)
+        XCTAssertTrue(app.staticTexts["userTranscript"].exists)
+        XCTAssertTrue(app.staticTexts["assistantTranscript"].exists)
         app.buttons["voiceControls"].tap()
+        XCTAssertTrue(app.staticTexts["roomVoiceError"].waitForExistence(timeout: 10))
+        save(app, "inline-voice-error")
+        app.buttons["voiceSettings"].tap()
         let toggle = app.switches["connectCodex"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.tap()

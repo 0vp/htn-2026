@@ -33,6 +33,7 @@ struct RoomSessionView: View {
             }.padding(.horizontal, 24)
             if session.isLeader {
                 RobotFace(mouth: voice.mouth, voicePhase: voice.phase)
+                VoiceTranscriptView(voice: voice).padding(.horizontal, 24)
             } else {
                 VStack(spacing: 20) {
                     Image(systemName: "viewfinder").font(.system(size: 64, weight: .light)).foregroundStyle(.tint)
@@ -51,10 +52,15 @@ struct RoomSessionView: View {
                     Button("Retry camera") { Task { await scan.start() } }.disabled(session.room.closed)
                 }
                 if session.isLeader {
-                    HStack(spacing: 20) {
+                    HStack(spacing: 12) {
+                        Button {
+                            if voice.active { Task { await voice.end() } } else { voice.start() }
+                        } label: {
+                            Label(voice.active ? "End" : "Talk", systemImage: voice.active ? "stop.fill" : "mic")
+                        }.buttonStyle(.bordered).controlSize(.large).accessibilityIdentifier("voiceControls").disabled(voice.phase == .ending || session.room.closed)
                         Button { voiceSettings = true } label: {
-                            Label(voice.active ? voice.status : "Talk", systemImage: voice.muted ? "mic.slash" : "waveform")
-                        }.buttonStyle(.bordered).controlSize(.large).accessibilityIdentifier("voiceControls")
+                            Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
+                        }.accessibilityLabel("Voice settings").accessibilityIdentifier("voiceSettings")
                         syncButton
                     }
                 } else { syncButton }
@@ -106,11 +112,11 @@ struct RoomSessionView: View {
 
     @ViewBuilder private var syncButton: some View {
         if #available(iOS 26.0, *) {
-            Button { sync = true } label: { Label("Sync", systemImage: "qrcode").padding(.horizontal, 24) }
+            Button { sync = true } label: { Label("Sync", systemImage: "qrcode").lineLimit(1).fixedSize().padding(.horizontal, 8) }
                 .buttonStyle(.glass).controlSize(.large).buttonBorderShape(.capsule)
         } else {
             Button { sync = true } label: {
-                Label("Sync", systemImage: "qrcode").padding(.horizontal, 32).padding(.vertical, 16)
+                Label("Sync", systemImage: "qrcode").lineLimit(1).fixedSize().padding(.horizontal, 16).padding(.vertical, 16)
                     .background(.regularMaterial, in: Capsule())
             }.buttonStyle(.plain)
         }

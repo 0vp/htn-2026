@@ -74,10 +74,14 @@ final class VoicePeer: NSObject, VoiceTransport {
                     let level = report.statistics.values.filter {
                         $0.type == "inbound-rtp" && ($0.values["kind"] as? String == "audio" || $0.values["mediaType"] as? String == "audio")
                     }.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max() ?? 0
+                    let input = report.statistics.values.filter {
+                        $0.type == "media-source" && ($0.values["kind"] as? String == "audio")
+                    }.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max() ?? 0
                     Task { @MainActor [weak self] in
                         guard let self, self.peer != nil else { return }
                         // Incoming speech envelope; never animate from text generation timing.
                         self.receive?(.level(min(1, max(0, level - 0.008) * 8)))
+                        self.receive?(.inputLevel(min(1, input * 8)))
                     }
                 }
                 try? await Task.sleep(for: .milliseconds(80))

@@ -11,6 +11,9 @@ final class VoiceModel: ObservableObject {
     @Published private(set) var mouth: Double = 0
     @Published private(set) var caption = ""
     @Published private(set) var speaker = ""
+    @Published private(set) var userTranscript = ""
+    @Published private(set) var assistantTranscript = ""
+    @Published private(set) var microphoneLevel: Double = 0
     @Published private(set) var codexEnabled: Bool
     private let api: any VoiceServing
     private let makePeer: @MainActor () -> any VoiceTransport
@@ -56,6 +59,7 @@ final class VoiceModel: ObservableObject {
         guard !active, phase != .ending else { return }
         let token = UUID(); generation = token
         phase = .connecting; error = nil; caption = ""; speaker = ""; mouth = 0; muted = false
+        userTranscript = ""; assistantTranscript = ""; microphoneLevel = 0
         startTask = Task { await connect(token) }
     }
     private func connect(_ token: UUID) async {
@@ -106,6 +110,7 @@ final class VoiceModel: ObservableObject {
     }
     func setMuted(_ value: Bool) {
         muted = value
+        if value { microphoneLevel = 0 }
         peer?.mute(value || phase != .listening)
     }
     func end() async {
@@ -114,7 +119,7 @@ final class VoiceModel: ObservableObject {
         startTask?.cancel(); startTask = nil
         watchdog?.cancel(); watchdog = nil
         peer?.receive = nil; peer?.close(); peer = nil
-        mouth = 0
+        mouth = 0; microphoneLevel = 0
         let id = sessionID; sessionID = nil
         phase = .ending
         if let id {
@@ -136,7 +141,12 @@ final class VoiceModel: ObservableObject {
         case .level(let value):
             guard phase == .listening else { return }
             mouth = min(1, max(0, value))
+        case .inputLevel(let value):
+            guard phase == .listening else { return }
+            microphoneLevel = muted ? 0 : min(1, max(0, value))
         case .transcript(let role, let delta):
+            if role == "You" { userTranscript = String((userTranscript + delta).suffix(2000)) }
+            else { assistantTranscript = String((assistantTranscript + delta).suffix(2000)) }
             if speaker != role { speaker = role; caption = "" }
             caption = String((caption + delta).suffix(600))
         case .closed: Task { await end() }
