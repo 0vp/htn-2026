@@ -4,10 +4,11 @@ import math
 
 import numpy as np
 
-from .control.approach import footprint_clear, rotation
 from .control.arm import move_hand
 from .control.manipulation import pick, place
-from .planning import clear, line_clear, plan
+from .control.recovery import recover
+from .control.safety import MotionStopped
+from .planning import line_clear, plan
 from .world import angle
 
 
@@ -17,6 +18,14 @@ class Controller:
         self.failure = None
 
     def execute(self, skill, object_id):
+        self.world.safety_stop = None
+        try:
+            return self._execute(skill, object_id)
+        except MotionStopped as error:
+            self.world.stop()
+            return False, str(error)
+
+    def _execute(self, skill, object_id):
         w = self.world
         w.phase = skill
         if skill == "stop":
@@ -51,39 +60,23 @@ class Controller:
                 return False
         else:
             w.settle_arm(0.4, 0, 0)
-        if not clear(w.pose[:2], w.obstacles):
-            # Fine manipulation poses use an oriented envelope. Back out until the
-            # conservative global planner's circular envelope is valid again.
-            w.phase = "retreat_to_navigation_clearance"
-            for _ in range(300):
-                if clear(w.pose[:2], w.obstacles):
-                    w.stop()
-                    break
-                if w.cancelled or not footprint_clear(w.pose, w.obstacles):
-                    self.failure = "retreat_clearance_lost"
-                    w.stop()
-                    return False
-                w.drive_world(*(-rotation(w.pose[2])[:, 0] * 0.07), 0)
-                w.step(0.05)
-                if w.collisions:
-                    self.failure = "retreat_environment_contact"
-                    w.stop()
-                    return False
-            else:
-                self.failure = "retreat_not_converged"
-                w.stop()
-                return False
+        if not recover(self):
+            return False
         candidates = []
         # Try all reachable approach directions; no scene-specific approach point.
-        for theta in np.linspace(-math.pi, math.pi, 24, endpoint=False):
-            goal = target[:2] + radius * np.array([math.cos(theta), math.sin(theta)])
+        for distance, theta in (
+            (distance, theta)
+            for distance in ([radius, radius + 0.2] if radius else [0])
+            for theta in np.linspace(-math.pi, math.pi, 24, endpoint=False)
+        ):
+            goal = target[:2] + distance * np.array([math.cos(theta), math.sin(theta)])
             path = plan(w.pose[:2], goal, w.obstacles)
             if path:
                 length = sum(
                     np.linalg.norm(b - a)
                     for a, b in zip([w.pose[:2], *path[:-1]], path, strict=True)
                 )
-                candidates.append((float(length), goal, path))
+                candidates.append((float(length + (distance - radius) * 100), goal, path))
         if not candidates:
             self.failure = "no_collision_free_path_to_reachable_approach"
             return False

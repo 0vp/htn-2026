@@ -1,0 +1,37 @@
+{
+  "input": "ideal poses and static obstacle map",
+  "groups": {
+    "regression/open": {
+      "cases": 10,
+      "deliveries": 10,
+      "expected_behavior": 10,
+      "collisions": 0
+    },
+    "regression/detour": {
+      "cases": 10,
+      "deliveries": 3,
+      "expected_behavior": 3,
+      "collisions": 0
+    },
+    "regression/blocked": {
+      "cases": 10,
+      "deliveries": 0,
+      "expected_behavior": 10,
+      "collisions": 0
+    },
+    "holdout/open": {
+      "cases": 4,
+      "deliveries": 4,
+      "expected_behavior": 4,
+      "collisions": 0
+    },
+    "holdout/detour": {
+      "cases": 4,
+      "deliveries": 0,
+      "expected_behavior": 0,
+      "collisions": 0
+    }
+  },
+  "physical_validation": false,
+  "public_benchmark": false
+}

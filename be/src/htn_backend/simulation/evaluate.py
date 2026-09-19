@@ -106,7 +106,16 @@ def agent(output, seed=17, layout="detour", command=TASK):
             time.sleep(0.02)
         started = time.monotonic()
         # Direct call intentionally excludes physical Motion/RobotLink, even if host env sets them.
-        answer = asyncio.run(run(ROOM, command, f"http://127.0.0.1:{port}", binary, motion=None))
+        agent_error = None
+        try:
+            answer = asyncio.run(
+                run(ROOM, command, f"http://127.0.0.1:{port}", binary, motion=None)
+            )
+        except (RuntimeError, TimeoutError) as error:
+            # Preserve failed/partial episodes as evidence, including model timeouts.
+            agent_error, answer = type(error).__name__, ""
+            app.state.sim.world.cancelled = True
+            app.state.sim.executor.submit(lambda: None).result(timeout=30)
         sim = app.state.sim
         with sim.lock:
             receipts = list(sim.receipts.values())
@@ -118,6 +127,7 @@ def agent(output, seed=17, layout="detour", command=TASK):
             layout=layout,
             command=command,
             answer=answer,
+            agent_error=agent_error,
             wall_time_s=time.monotonic() - started,
             receipts=receipts,
             scene=snapshot,
@@ -150,6 +160,8 @@ def main():
     if args.agent:
         result = agent(args.output, args.seed, args.layout, args.command)
         print(f"Recorded {len(result['receipts'])} action receipts at {args.output}")
+        if result["agent_error"]:
+            raise SystemExit(f"Agent evaluation failed: {result['agent_error']}")
     else:
         result = matrix()
         args.output.parent.mkdir(parents=True, exist_ok=True)

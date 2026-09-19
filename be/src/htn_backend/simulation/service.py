@@ -149,7 +149,9 @@ class Simulation:
                     manipulation_scope="simulated rigid block; not arbitrary objects or hardware",
                     stop=True,
                 ),
-                geometry_contract="Visible simulator labels/poses; known static obstacle map. "
+                geometry_contract="Historical powered-steering-wheel fixture; NOT the confirmed "
+                "fixed-drive/separate-steering physical chassis. "
+                "Visible simulator labels/poses; known static obstacle map. "
                 "No learned perception, pose noise, or SLAM under test. "
                 "Last-seen poses can be stale.",
                 blockers=[
@@ -237,7 +239,12 @@ class Simulation:
                 "simulation_numerical_instability" if self.world.failed else type(error).__name__
             )
         finally:
-            self.world.stop()
+            try:
+                stopped = self.world.stop()
+            except Exception:
+                stopped = False
+            if not stopped:
+                success, state, detail = False, "failed", "base_stop_not_verified"
         self.world.phase = state
         with self.lock:
             receipt = self.receipts[ident]

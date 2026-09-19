@@ -7,6 +7,7 @@ import mujoco
 import numpy as np
 from PIL import Image
 
+from .control.safety import check as check_motion
 from .mechanics.kinematics import arm_ik
 from .model import scene
 
@@ -30,6 +31,8 @@ class World:
             self.data.joint(name).qpos[0] = value
             self.data.ctrl[self.act[name]] = value
         self.command_speed = 0.0
+        self.command_deadline = 0.0
+        self.safety_stop = None
         self.command_steering = 0.0
         self.step(1)
 
@@ -67,6 +70,7 @@ class World:
     def drive_world(self, vx, vy, omega):
         # One steering contact cannot independently command chassis yaw. Track
         # a world translation direction; report the resulting measured yaw.
+        self.command_deadline = float(self.data.time) + 0.2
         speed = math.hypot(vx, vy)
         if speed < 1e-6:
             self.data.ctrl[self.act["wheel"]] = 0
@@ -96,7 +100,9 @@ class World:
         )
 
     def step(self, seconds=0.05):
-        for _ in range(round(seconds / self.model.opt.timestep)):
+        for index in range(round(seconds / self.model.opt.timestep)):
+            if index % 10 == 0:
+                check_motion(self)
             old = self.pose[:2]
             mujoco.mj_step(self.model, self.data)
             if any(

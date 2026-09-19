@@ -39,28 +39,47 @@ def relative_target(world, target):
     return rotation(world.pose[2]).T @ (np.asarray(target[:2]) - world.pose[:2])
 
 
-def approach(controller, target):
-    w = controller.world
-    target = np.asarray(target)
+def approach_candidates(w, target, corridors, headings):
     candidates = []
-    for heading in np.linspace(-math.pi, math.pi, 16, endpoint=False):
+    for heading in np.linspace(-math.pi, math.pi, headings, endpoint=False):
         forward = np.array([math.cos(heading), math.sin(heading)])
         goal = target[:2] - 0.64 * forward
         if not footprint_clear([*goal, heading], w.obstacles):
             continue
-        for corridor in (1.2, 1.6, 0.8, 2.0, 2.4, 2.8):
+        for corridor in corridors:
             stage = target[:2] - (0.64 + corridor) * forward
-            path = plan(w.pose[:2], stage, w.obstacles)
-            if not path:
-                continue
             if not all(
                 footprint_clear([*p, heading], w.obstacles) for p in np.linspace(stage, goal, 40)
             ):
+                continue
+            path = plan(w.pose[:2], stage, w.obstacles)
+            if not path:
                 continue
             length = sum(
                 np.linalg.norm(b - a) for a, b in zip([w.pose[:2], *path[:-1]], path, strict=True)
             )
             candidates.append((float(length + corridor), stage, forward))
+    return candidates
+
+
+def approach(controller, target):
+    w = controller.world
+    target = np.asarray(target)
+    local = relative_target(w, target)
+    goal = target[:2] - 0.64 * rotation(w.pose[2])[:, 0]
+    if (
+        0.4 < local[0] < 1.2
+        and abs(local[1]) < 0.4
+        and all(
+            footprint_clear([*p, w.pose[2]], w.obstacles) for p in np.linspace(w.pose[:2], goal, 20)
+        )
+    ):
+        return align(controller, target)
+    candidates = approach_candidates(w, target, (1.2, 1.6, 0.8, 0.6, 2.0, 2.4, 2.8), 16)
+    if not candidates:
+        candidates = approach_candidates(w, target, np.arange(0.8, 3.21, 0.1), 16)
+    if not candidates:
+        candidates = approach_candidates(w, target, np.arange(0.8, 3.21, 0.1), 64)
     if not candidates:
         return False, "no_collision_free_arm_approach"
     _, stage, forward = min(candidates, key=lambda value: value[0])
@@ -71,7 +90,7 @@ def approach(controller, target):
     # Straight run-in encourages heading alignment before precision placement.
     pregoal = target[:2] - 0.83 * forward
     initial_collisions = w.collisions
-    for _ in range(900):
+    for _ in range(1600):
         delta = pregoal - w.pose[:2]
         if np.linalg.norm(delta) < 0.04:
             break
@@ -79,7 +98,7 @@ def approach(controller, target):
             w.stop()
             return False, "cancelled" if w.cancelled else "approach_clearance_lost"
         direction = delta / max(np.linalg.norm(delta), 1e-9)
-        desired = direction * min(0.1, np.linalg.norm(delta) * 0.5)
+        desired = direction * min(0.1, max(0.04, np.linalg.norm(delta) * 0.5))
         actual = w.data.joint("base_free").qvel[:2]
         w.drive_world(*(desired - (actual - direction * np.dot(actual, direction))), 0)
         w.step(0.1)
@@ -90,6 +109,12 @@ def approach(controller, target):
         w.stop()
         return False, "approach_corridor_timeout"
     w.stop()
+    return align(controller, target)
+
+
+def align(controller, target):
+    w = controller.world
+    initial_collisions = w.collisions
     w.phase = "target_relative_alignment"
     integral, previous = np.zeros(2), np.zeros(2)
     for _ in range(600):
