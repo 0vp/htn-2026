@@ -1,0 +1,341 @@
+{
+  "room_id": "ADF41F47",
+  "kind": "Repeated real RGB-D captures; no accuracy ground truth",
+  "expected": 297,
+  "upload": {
+    "status": {
+      "room_id": "ADF41F47",
+      "received": 272,
+      "raw_frames_retained": 272,
+      "raw_bytes_retained": 96382457,
+      "raw_frames_cleaned": 0,
+      "mapped": 272,
+      "awaiting_alignment": 0,
+      "skipped_tracking": 0,
+      "pending": 0,
+      "worker": {
+        "id": 1,
+        "heartbeat": 1789801645.9495637,
+        "state": "running",
+        "detail": "",
+        "healthy": true
+      },
+      "error": null,
+      "map": {
+        "revision": 68,
+        "updated_at": 1789801644.4058018,
+        "backend": "hydra",
+        "coordinate_system": "right_handed_y_up_meters",
+        "integrated_frames": 272,
+        "through_sequence": 373,
+        "vertices": 61012,
+        "triangles": 67881,
+        "batch_ms": 1099.0685370052233,
+        "object_events": [],
+        "loop_constraints": 0,
+        "loop_detection": {
+          "attempts": 0,
+          "proposed": 0
+        },
+        "replaying": false,
+        "sealed_segments": 1,
+        "active_segment_frames": 16,
+        "mapping_frame_limit": null
+      },
+      "alignments": {
+        "[\"replay\",\"cumulative\",1]": {
+          "status": "anchor",
+          "room_from_local": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
+      }
+    },
+    "drain_seconds": 90.22692576001282,
+    "mesh_bytes": 1547492
+  },
+  "passed": true,
+  "cleanup_test": {
+    "capture_age_adjusted_seconds": 1200,
+    "room_scope_only": true
+  },
+  "after_cleanup": {
+    "room_id": "ADF41F47",
+    "received": 272,
+    "raw_frames_retained": 0,
+    "raw_bytes_retained": 0,
+    "raw_frames_cleaned": 272,
+    "mapped": 272,
+    "awaiting_alignment": 0,
+    "skipped_tracking": 0,
+    "pending": 0,
+    "worker": {
+      "id": 1,
+      "heartbeat": 1789801899.567372,
+      "state": "running",
+      "detail": "",
+      "healthy": true
+    },
+    "error": null,
+    "map": {
+      "revision": 68,
+      "updated_at": 1789801644.4058018,
+      "backend": "hydra",
+      "coordinate_system": "right_handed_y_up_meters",
+      "integrated_frames": 272,
+      "through_sequence": 373,
+      "vertices": 61012,
+      "triangles": 67881,
+      "batch_ms": 1099.0685370052233,
+      "object_events": [],
+      "loop_constraints": 0,
+      "loop_detection": {
+        "attempts": 0,
+        "proposed": 0
+      },
+      "replaying": false,
+      "sealed_segments": 1,
+      "active_segment_frames": 16,
+      "mapping_frame_limit": null
+    },
+    "alignments": {
+      "[\"replay\",\"cumulative\",1]": {
+        "status": "anchor",
+        "room_from_local": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    }
+  },
+  "resume": {
+    "status": {
+      "room_id": "ADF41F47",
+      "received": 280,
+      "raw_frames_retained": 8,
+      "raw_bytes_retained": 2838823,
+      "raw_frames_cleaned": 272,
+      "mapped": 280,
+      "awaiting_alignment": 0,
+      "skipped_tracking": 0,
+      "pending": 0,
+      "worker": {
+        "id": 1,
+        "heartbeat": 1789802063.9145641,
+        "state": "running",
+        "detail": "",
+        "healthy": true
+      },
+      "error": null,
+      "checkpoint": {
+        "generation": 2,
+        "frames": 272,
+        "through_sequence": 373
+      },
+      "map": {
+        "revision": 70,
+        "updated_at": 1789802063.6322587,
+        "backend": "hydra",
+        "coordinate_system": "right_handed_y_up_meters",
+        "integrated_frames": 280,
+        "through_sequence": 381,
+        "vertices": 66003,
+        "triangles": 70441,
+        "batch_ms": 1040.773785993224,
+        "object_events": [],
+        "loop_constraints": 0,
+        "loop_detection": {
+          "attempts": 0,
+          "proposed": 0
+        },
+        "replaying": false,
+        "sealed_segments": 2,
+        "active_segment_frames": 8,
+        "mapping_frame_limit": null
+      },
+      "alignments": {
+        "[\"replay\",\"cumulative\",1]": {
+          "status": "anchor",
+          "room_from_local": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
+      }
+    },
+    "drain_seconds": 4.008786933001829,
+    "mesh_bytes": 1638104
+  },
+  "align": {
+    "status": {
+      "room_id": "ADF41F47",
+      "received": 297,
+      "raw_frames_retained": 25,
+      "raw_bytes_retained": 8863784,
+      "raw_frames_cleaned": 272,
+      "mapped": 297,
+      "awaiting_alignment": 0,
+      "skipped_tracking": 0,
+      "pending": 0,
+      "worker": {
+        "id": 1,
+        "heartbeat": 1789802169.1933165,
+        "state": "running",
+        "detail": "",
+        "healthy": true
+      },
+      "error": null,
+      "checkpoint": {
+        "generation": 3,
+        "frames": 280,
+        "through_sequence": 381
+      },
+      "map": {
+        "revision": 75,
+        "updated_at": 1789802167.6401708,
+        "backend": "hydra",
+        "coordinate_system": "right_handed_y_up_meters",
+        "integrated_frames": 297,
+        "through_sequence": 398,
+        "vertices": 66446,
+        "triangles": 71693,
+        "batch_ms": 697.2863279806916,
+        "object_events": [],
+        "loop_constraints": 0,
+        "loop_detection": {
+          "attempts": 0,
+          "proposed": 0
+        },
+        "replaying": false,
+        "sealed_segments": 3,
+        "active_segment_frames": 17,
+        "mapping_frame_limit": null
+      },
+      "alignments": {
+        "[\"replay\",\"cumulative\",1]": {
+          "status": "anchor",
+          "room_from_local": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        },
+        "[\"second\",\"second\",1]": {
+          "status": "aligned",
+          "method": "rgbd_seed_icp_withheld_views",
+          "room_from_local": [
+            0.9396868402790713,
+            -0.00011272702768865159,
+            -0.3420360061440215,
+            0.0,
+            8.860703913222449e-05,
+            0.9999999923640513,
+            -8.614344007469426e-05,
+            0.0,
+            0.3420360132429456,
+            5.06410592334388e-05,
+            0.9396868430920776,
+            0.0,
+            1.1999447099807639,
+            -3.4162066414014814e-05,
+            0.8001309078623473,
+            1.0
+          ],
+          "reference_views": 5,
+          "available_reference_views": 24,
+          "fit_overlap": 1.0,
+          "check_overlap": 0.700530035335689,
+          "fit_rmse_m": 0.015136078578425999,
+          "observability": 0.10875640385393666,
+          "translation_disagreement_m": 0.028322871958528825,
+          "rotation_disagreement_deg": 0.42927845680360555,
+          "training_visual": {
+            "inliers": 1350,
+            "fraction": 0.9926470588235294,
+            "cells": 316,
+            "rmse_m": 0.013009859893890292
+          },
+          "withheld_visual": {
+            "inliers": 666,
+            "fraction": 0.9262865090403338,
+            "cells": 134,
+            "rmse_m": 0.03880128521092599
+          },
+          "evidence": "RGB-D proposal; separate new capture views verify appearance and geometry",
+          "latency_ms": 360.07598499418236
+        }
+      }
+    },
+    "drain_seconds": 10.02086134898127,
+    "mesh_bytes": 1658460
+  },
+  "alignment_error": {
+    "translation_m": 0.00014615369113747393,
+    "rotation_deg": 0.00714637959729655,
+    "kind": "Controlled re-expression of the same RGB-D captures"
+  },
+  "version": "0.4.0",
+  "unit_and_contract_tests_passed": 48,
+  "counter_stress_test": {
+    "frames_mapped": 1808,
+    "native_mapper": "test double",
+    "maximum_active_segment_frames": 256,
+    "restart_after_cleanup_mapped": 1809
+  }
+}
