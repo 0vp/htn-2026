@@ -1,5 +1,5 @@
 {
-  "backend_tests_passed": 159,
+  "backend_tests_passed": 155,
   "backend_tests_failed": 0,
   "backend_tests_skipped": 0,
   "firmware_build": "PlatformIO espressif32@6.9.0 esp32-s3-devkitc-1 SUCCESS",
@@ -10,5 +10,7 @@
     "protocol_test: pass"
   ],
   "native_protocol_bridge_checks": "8 passed after final firmware parser change",
-  "firmware_sha256": "73ff16f49dcefe82f52f23f16689b168ebc0f5d564d0c2aac57c41ad650d9416"
+  "firmware_sha256": "73ff16f49dcefe82f52f23f16689b168ebc0f5d564d0c2aac57c41ad650d9416",
+  "test_scope": "Isolated publication checkout without unrelated local voice work",
+  "combined_local_checkout_tests_passed": 159
 }
