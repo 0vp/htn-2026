@@ -17,7 +17,7 @@ test('server Y-up metric bounds preserve center, size and yaw in Three.js', () =
     assert.ok(Math.abs(value - [4, 1, 2][i]) < 1e-6);
   });
   let disposed = false;
-  layer.group.children[0].geometry.addEventListener('dispose', () => { disposed = true; });
+  layer.group.children[0].children[1].geometry.addEventListener('dispose', () => { disposed = true; });
   layer.update([]);
   assert.equal(disposed, true);
   assert.equal(layer.group.children.length, 0);
@@ -27,9 +27,9 @@ test('selection stays on stable identity when the scene updates', () => {
   const layer = new ObjectLayer();
   layer.select(object.object_id);
   layer.update([object]);
-  assert.equal(layer.group.children[0].material.color.getHex(), 0xff784f);
+  assert.equal(layer.group.children[0].children[1].material.color.getHex(), 0xff784f);
   layer.update([{ ...object, object_id: 'other' }]);
-  assert.equal(layer.group.children[0].material.opacity, 0.3);
+  assert.equal(layer.group.children[0].children[1].visible, false);
 });
 
 test('mesh/object revision mismatch fails safely, and a subsequent retry succeeds', async (t) => {

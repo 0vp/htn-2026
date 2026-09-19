@@ -29,7 +29,7 @@ export function LidarView() {
   const [displayedScene, setDisplayedScene] = useState<RoomScene | null>(null);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [camera, setCamera] = useState(true);
+  const [camera, setCamera] = useState(false);
   const [picking, setPicking] = useState(false);
   const controlState = useControl();
   const { goal } = controlState;
@@ -118,10 +118,10 @@ export function LidarView() {
             options={[
               ['orbit', 'Orbit'],
               ['top', 'Top'],
-              ['follow', 'Follow'],
+              ...((stats?.pose ? [['follow', 'Follow']] : []) as [ViewMode, string][]),
             ]}
           />
-          <Segmented
+          {(!room.scene || replaying) && <Segmented
             tone="dark"
             value={color}
             onChange={setColor}
@@ -129,7 +129,7 @@ export function LidarView() {
               ['height', 'Height'],
               ['age', 'Age'],
             ]}
-          />
+          />}
           <div className="flex gap-2">
             <TextButton tone="dark" onClick={() => setCamera((c) => !c)} active={camera}>
               Camera
@@ -137,9 +137,9 @@ export function LidarView() {
             <TextButton tone="dark" onClick={() => setPaused((p) => !p)} active={paused}>
               {paused ? 'Resume' : 'Pause'}
             </TextButton>
-            <TextButton tone="dark" onClick={() => renderer.current?.clear()}>
+            {(!room.scene || replaying) && <TextButton tone="dark" onClick={() => renderer.current?.clear()}>
               Clear
-            </TextButton>
+            </TextButton>}
           </div>
         </div>
       </div>

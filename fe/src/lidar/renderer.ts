@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadModels } from '../objects/models';
+import { prepareSurfaces } from '../scene/prepare';
 import { ObjectLayer, disposeTree } from '../objects/layer';
 import type { RoomScene } from '../rooms/api';
 import type { LidarBatch, Pose } from './protocol';
@@ -85,10 +87,13 @@ export class LidarRenderer {
   private roomMesh: THREE.Group | null = null;
   private meshVertices = 0;
   private meshGeneration = 0;
+  private surfaceAbort = new AbortController();
   private objectLayer = new ObjectLayer();
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.setClearColor(0x000000, 0);
     host.appendChild(this.renderer.domElement);
@@ -127,6 +132,14 @@ export class LidarRenderer {
     gridMaterial.opacity = 0.1;
     this.scene.add(grid);
 
+    this.scene.add(new THREE.HemisphereLight(0xeaf2ff, 0x46536a, 2));
+    const sunlight = new THREE.DirectionalLight(0xffffff, 3);
+    sunlight.position.set(4, 9, 5);
+    sunlight.castShadow = true;
+    sunlight.shadow.mapSize.set(1024, 1024);
+    Object.assign(sunlight.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 0.1, far: 40 });
+    sunlight.shadow.bias = -0.001;
+    this.scene.add(sunlight);
     this.scene.add(this.objectLayer.group);
     this.buildRobot();
     const trailGeometry = new THREE.BufferGeometry();
@@ -311,30 +324,44 @@ export class LidarRenderer {
   }
 
   async loadRoomScene(data: RoomScene): Promise<void> {
+    this.surfaceAbort.abort();
+    this.surfaceAbort = new AbortController();
+    const signal = this.surfaceAbort.signal;
     const generation = ++this.meshGeneration;
-    const gltf = await new GLTFLoader().parseAsync(data.mesh, '');
+    const [gltf, templates] = await Promise.all([
+      new GLTFLoader().parseAsync(data.mesh, ''),
+      loadModels(data.objects.map((object) => object.label)),
+    ]);
     if (generation !== this.meshGeneration) {
       disposeTree(gltf.scene);
       return;
     }
+    const meshes: THREE.Mesh[] = [];
+    gltf.scene.traverse((node) => { if (node instanceof THREE.Mesh) meshes.push(node); });
+    try {
+      for (const object of meshes) {
+        const surface = await prepareSurfaces(object.geometry, data.objects, signal);
+        object.geometry.dispose();
+        object.geometry = surface.geometry;
+        object.receiveShadow = true;
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => material.dispose());
+        object.material = new THREE.MeshStandardMaterial({ color: 0x939eae, roughness: 1, side: THREE.DoubleSide });
+      }
+    } catch (error) {
+      disposeTree(gltf.scene);
+      throw error;
+    }
+    if (generation !== this.meshGeneration) { disposeTree(gltf.scene); return; }
     const first = !this.roomMesh;
     if (this.roomMesh) {
       this.scene.remove(this.roomMesh);
       disposeTree(this.roomMesh);
     }
     this.roomMesh = gltf.scene;
-    this.meshVertices = 0;
-    this.roomMesh.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      this.meshVertices += object.geometry.getAttribute('position')?.count ?? 0;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.forEach((material) => material.dispose());
-      object.material = new THREE.MeshBasicMaterial({
-        color: 0xd8e0ff, wireframe: true, transparent: true, opacity: 0.45,
-      });
-    });
+    this.meshVertices = meshes.reduce((count, object) => count + object.geometry.getAttribute('position').count, 0);
     this.scene.add(this.roomMesh);
-    this.objectLayer.update(data.objects);
+    this.objectLayer.update(data.objects, templates);
     const bounds = new THREE.Box3().setFromObject(this.roomMesh);
     if (first && !bounds.isEmpty()) {
       this.controls.target.copy(bounds.getCenter(new THREE.Vector3()));
@@ -355,11 +382,12 @@ export class LidarRenderer {
   }
 
   cancelSceneLoad(): void {
+    this.surfaceAbort.abort();
     ++this.meshGeneration;
   }
 
   clearRoomMesh(): void {
-    ++this.meshGeneration;
+    this.cancelSceneLoad();
     if (this.roomMesh) {
       this.scene.remove(this.roomMesh);
       disposeTree(this.roomMesh);

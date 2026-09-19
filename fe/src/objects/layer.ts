@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { categoryModel } from './models.ts';
 import type { RoomObject } from '../rooms/api';
 
 export function disposeTree(root: THREE.Object3D): void {
@@ -14,7 +15,7 @@ export class ObjectLayer {
   readonly group = new THREE.Group();
   private selected: string | null = null;
 
-  update(objects: RoomObject[]): void {
+  update(objects: RoomObject[], templates = new Map<string, THREE.Group>()): void {
     disposeTree(this.group);
     this.group.clear();
     for (const object of objects) {
@@ -26,11 +27,16 @@ export class ObjectLayer {
         new THREE.LineBasicMaterial({ color: 0xffd580, depthTest: false, transparent: true, opacity: 0.8 }),
       );
       box.dispose();
-      edges.position.fromArray(object.center_m);
-      edges.rotation.y = object.yaw_rad;
-      edges.userData.objectId = object.object_id;
+      const instance = new THREE.Group();
+      instance.position.fromArray(object.center_m);
+      instance.rotation.y = object.yaw_rad;
+      instance.userData.objectId = object.object_id;
+      const model = categoryModel(object.label, templates.get(object.label));
+      model.scale.multiply(new THREE.Vector3(...object.size_m));
+      edges.userData.bounds = true;
       edges.renderOrder = 2;
-      this.group.add(edges);
+      instance.add(model, edges);
+      this.group.add(instance);
     }
     this.select(this.selected);
   }
@@ -38,9 +44,10 @@ export class ObjectLayer {
   select(id: string | null): void {
     this.selected = id;
     for (const child of this.group.children) {
-      const line = child as THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>;
-      line.material.color.setHex(line.userData.objectId === id ? 0xff784f : 0xffd580);
-      line.material.opacity = id && line.userData.objectId !== id ? 0.3 : 1;
+      const line = child.children.find((node) => node.userData.bounds) as THREE.LineSegments<THREE.EdgesGeometry, THREE.LineBasicMaterial>;
+      line.visible = child.userData.objectId === id;
+      line.material.color.setHex(0xff784f);
+      line.material.opacity = 1;
     }
   }
 }
