@@ -45,7 +45,8 @@ def _rms_norm_kernel(x_ptr, w_ptr, y_ptr, row_stride, n_cols, eps, BLOCK: tl.con
     tl.store(y_ptr + offsets, normed.to(y_ptr.dtype.element_ty) * weight, mask=mask)
 
 
-def rms_norm(x: torch.Tensor, weight: torch.Tensor, eps: float) -> torch.Tensor:
+def rms_norm(x: torch.Tensor, weight: torch.Tensor, eps: float,
+             num_warps: int | None = None) -> torch.Tensor:
     """RMSNorm over the last dimension, matching ``Qwen3RMSNorm.forward``.
 
     ``x`` is any shape whose last dimension matches ``weight``; ``weight`` is
@@ -66,6 +67,6 @@ def rms_norm(x: torch.Tensor, weight: torch.Tensor, eps: float) -> torch.Tensor:
         n_cols,
         eps,
         BLOCK=block,
-        num_warps=max(4, min(16, block // 256)),
+        num_warps=num_warps or max(4, min(16, block // 256)),
     )
     return out.reshape(shape)

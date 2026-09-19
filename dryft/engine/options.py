@@ -1,10 +1,11 @@
 """Independent experiment switches; keep baseline as the default."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
 class Options:
     norms: str = 'none'
+    norm_warps: int = 0
     direct: bool = False
     gqa: bool = False
     folded_gqa: bool = False
@@ -21,6 +22,8 @@ class Options:
     residual_norm: bool = False
 
     def __post_init__(self):
+        if self.norm_warps not in (0, 4, 8, 16):
+            raise ValueError('Norm warps must be automatic (0), 4, 8 or 16')
         if self.norms not in ('none', 'hidden', 'all'):
             raise ValueError('Unknown norm replacement mode')
         if self.static and not self.direct:
@@ -62,4 +65,5 @@ VARIANTS = {
     'combined': Options(norms='all', direct=True, gqa=True, static=True,
                         graph=True, swiglu=True, packed=True),
 }
+VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
 ACTIVE = 'graph_folded'

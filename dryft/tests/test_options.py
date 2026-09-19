@@ -6,7 +6,8 @@ class OptionTests(unittest.TestCase):
     def test_invalid_compositions_fail_before_model_loading(self):
         for kwargs in ({'graph': True}, {'static': True}, {'native_prefill': True},
                        {'adaptive_speculation': True}, {'batched_speculation': True},
-                       {'norms': 'typo'}, {'folded_gqa': True, 'custom_attention': True}):
+                       {'norms': 'typo'}, {'norm_warps': 3},
+                       {'folded_gqa': True, 'custom_attention': True}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 Options(**kwargs)
 
