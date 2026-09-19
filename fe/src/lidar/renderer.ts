@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { ObjectLayer, disposeTree } from '../objects/layer';
+import type { RoomScene } from '../rooms/api';
 import type { LidarBatch, Pose } from './protocol';
 
 export type ViewMode = 'orbit' | 'top' | 'follow';
@@ -82,6 +84,8 @@ export class LidarRenderer {
   private pressedAt: { x: number; y: number } | null = null;
   private roomMesh: THREE.Group | null = null;
   private meshVertices = 0;
+  private meshGeneration = 0;
+  private objectLayer = new ObjectLayer();
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
@@ -123,6 +127,7 @@ export class LidarRenderer {
     gridMaterial.opacity = 0.1;
     this.scene.add(grid);
 
+    this.scene.add(this.objectLayer.group);
     this.buildRobot();
     const trailGeometry = new THREE.BufferGeometry();
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(this.trailPoints, 3));
@@ -305,38 +310,63 @@ export class LidarRenderer {
     this.trail.geometry.setDrawRange(0, 0);
   }
 
-  async loadRoomMesh(data: ArrayBuffer): Promise<void> {
-    const gltf = await new Promise<Awaited<ReturnType<GLTFLoader['parseAsync']>>>((resolve, reject) => {
-      new GLTFLoader().parse(data, '', resolve, reject);
-    });
-    if (this.roomMesh) this.scene.remove(this.roomMesh);
+  async loadRoomScene(data: RoomScene): Promise<void> {
+    const generation = ++this.meshGeneration;
+    const gltf = await new GLTFLoader().parseAsync(data.mesh, '');
+    if (generation !== this.meshGeneration) {
+      disposeTree(gltf.scene);
+      return;
+    }
+    const first = !this.roomMesh;
+    if (this.roomMesh) {
+      this.scene.remove(this.roomMesh);
+      disposeTree(this.roomMesh);
+    }
     this.roomMesh = gltf.scene;
     this.meshVertices = 0;
     this.roomMesh.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
-      const position = object.geometry.getAttribute('position');
-      this.meshVertices += position?.count ?? 0;
+      this.meshVertices += object.geometry.getAttribute('position')?.count ?? 0;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => material.dispose());
       object.material = new THREE.MeshBasicMaterial({
-        color: 0xd8e0ff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.82,
+        color: 0xd8e0ff, wireframe: true, transparent: true, opacity: 0.45,
       });
     });
     this.scene.add(this.roomMesh);
+    this.objectLayer.update(data.objects);
     const bounds = new THREE.Box3().setFromObject(this.roomMesh);
-    if (!bounds.isEmpty()) {
-      const center = bounds.getCenter(new THREE.Vector3());
-      this.controls.target.copy(center);
+    if (first && !bounds.isEmpty()) {
+      this.controls.target.copy(bounds.getCenter(new THREE.Vector3()));
       this.setView(this.view);
     }
     this.lastBatchAt = performance.now();
   }
 
+  selectObject(id: string | null): void {
+    this.objectLayer.select(id);
+    const object = this.objectLayer.group.children.find((item) => item.userData.objectId === id);
+    if (object) {
+      const direction = this.camera.position.clone().sub(this.controls.target).normalize();
+      const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3()).length();
+      this.controls.target.copy(object.position);
+      this.camera.position.copy(object.position).addScaledVector(direction, Math.max(2, size * 2));
+    }
+  }
+
+  cancelSceneLoad(): void {
+    ++this.meshGeneration;
+  }
+
   clearRoomMesh(): void {
-    if (this.roomMesh) this.scene.remove(this.roomMesh);
+    ++this.meshGeneration;
+    if (this.roomMesh) {
+      this.scene.remove(this.roomMesh);
+      disposeTree(this.roomMesh);
+    }
     this.roomMesh = null;
     this.meshVertices = 0;
+    this.objectLayer.update([]);
   }
 
   setPaused(paused: boolean): void {
@@ -392,6 +422,7 @@ export class LidarRenderer {
   }
 
   dispose(): void {
+    this.clearRoomMesh();
     this.renderer.setAnimationLoop(null);
     this.resize.disconnect();
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);

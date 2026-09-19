@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { apiUrl, fetchMesh, listRooms, type ProcessingStatus, type Room } from './api';
+import { useEffect, useState } from 'react';
+import { apiUrl, fetchScene, listRooms, type RoomScene, type ProcessingStatus, type Room } from './api';
 
 export type RoomLink = 'connecting' | 'live' | 'waiting' | 'offline';
 
@@ -19,10 +19,9 @@ export function useRoomStream() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomId, setRoomIdState] = useState(initialRoomId);
   const [status, setStatus] = useState<ProcessingStatus | null>(null);
-  const [mesh, setMesh] = useState<ArrayBuffer | null>(null);
+  const [scene, setScene] = useState<RoomScene | null>(null);
   const [link, setLink] = useState<RoomLink>('connecting');
   const [error, setError] = useState<string | null>(null);
-  const revision = useRef<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,31 +51,50 @@ export function useRoomStream() {
   }, []);
 
   useEffect(() => {
-    revision.current = null;
     setStatus(null);
-    setMesh(null);
+    setScene(null);
     if (!roomId) return;
     setLink('connecting');
     const controller = new AbortController();
+    let wanted: number | null = null;
+    let loaded: number | null = null;
+    let loading = false;
+    const refresh = async () => {
+      if (loading || wanted === null || wanted === loaded) return;
+      loading = true;
+      try {
+        const next = await fetchScene(roomId, controller.signal);
+        if (!controller.signal.aborted) {
+          loaded = next.revision;
+          setScene(next);
+          setError(null);
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Map unavailable');
+      } finally {
+        loading = false;
+      }
+    };
     const events = new EventSource(apiUrl(`/v1/rooms/${roomId}/events`));
     events.addEventListener('processing', (event) => {
-      const next = JSON.parse((event as MessageEvent<string>).data) as ProcessingStatus;
-      setStatus(next);
-      setLink(next.map ? 'live' : 'waiting');
-      setError(next.error?.detail ?? null);
-      const nextRevision = next.map?.revision ?? null;
-      if (nextRevision === null || nextRevision === revision.current) return;
-      revision.current = nextRevision;
-      void fetchMesh(roomId, controller.signal)
-        .then(setMesh)
-        .catch((cause: unknown) => {
-          if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Map unavailable');
-        });
+      if (controller.signal.aborted) return;
+      try {
+        const next = JSON.parse((event as MessageEvent<string>).data) as ProcessingStatus;
+        setStatus(next);
+        setLink(next.map ? 'live' : 'waiting');
+        setError(next.error?.detail ?? null);
+        wanted = next.map?.revision ?? null;
+        void refresh();
+      } catch {
+        setError('Invalid room update');
+      }
     });
-    events.onerror = () => setLink('offline');
+    events.onerror = () => { if (!controller.signal.aborted) setLink('offline'); };
+    const retry = window.setInterval(() => void refresh(), 1000);
     return () => {
       controller.abort();
       events.close();
+      window.clearInterval(retry);
     };
   }, [roomId]);
 
@@ -90,5 +108,5 @@ export function useRoomStream() {
     }
   };
 
-  return { rooms, roomId, setRoomId, status, mesh, link, error };
+  return { rooms, roomId, setRoomId, status, scene, link, error };
 }

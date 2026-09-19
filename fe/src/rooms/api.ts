@@ -17,7 +17,8 @@ export type ProcessingStatus = {
   map: ({ revision: number; updated_at: number } & Record<string, unknown>) | null;
 };
 
-const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+const configuredBase = (import.meta.env?.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
+  ?? (import.meta.env?.DEV ? '' : 'https://qasim-test.35-253-10-71.sslip.io');
 
 export function apiUrl(path: string): string {
   return `${configuredBase}${path}`;
@@ -30,8 +31,33 @@ export async function listRooms(signal?: AbortSignal): Promise<Room[]> {
   return payload.rooms;
 }
 
-export async function fetchMesh(roomId: string, signal?: AbortSignal): Promise<ArrayBuffer> {
-  const response = await fetch(apiUrl(`/v1/rooms/${roomId}/mesh.glb`), { signal });
+export type RoomObject = {
+  object_id: string;
+  label: string;
+  center_m: [number, number, number];
+  size_m: [number, number, number];
+  yaw_rad: number;
+  confirmed_views?: number;
+  evidence_digest?: string;
+  orientation_status?: string;
+  visibility?: string;
+};
+
+export type RoomScene = { revision: number; objects: RoomObject[]; mesh: ArrayBuffer };
+
+export async function fetchScene(roomId: string, signal?: AbortSignal): Promise<RoomScene> {
+  const path = `/v1/rooms/${encodeURIComponent(roomId)}`;
+  const response = await fetch(apiUrl(`${path}/map`), { signal, cache: 'no-store' });
   if (!response.ok) throw new Error(`Map returned ${response.status}`);
-  return response.arrayBuffer();
+  const snapshot = await response.json() as { revision: number; objects: RoomObject[] };
+  const mesh = await fetch(apiUrl(`${path}/mesh.glb`), { signal, cache: 'no-store' });
+  if (!mesh.ok) throw new Error(`Mesh returned ${mesh.status}`);
+  if (mesh.headers.get('ETag') !== `"${roomId}-${snapshot.revision}"`) {
+    throw new Error('Map changed during download; retrying');
+  }
+  return { ...snapshot, mesh: await mesh.arrayBuffer() };
+}
+
+export function evidenceUrl(roomId: string, object: RoomObject): string {
+  return apiUrl(`/v1/rooms/${encodeURIComponent(roomId)}/objects/${encodeURIComponent(object.object_id)}/evidence.jpg?version=${encodeURIComponent(object.evidence_digest ?? '')}`);
 }

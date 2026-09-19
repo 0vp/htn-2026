@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { RoomScene } from '../rooms/api';
+import { ObjectPanel } from '../objects/ObjectPanel';
 import { feed } from './feed';
 import { LidarRenderer, type CloudStats, type ColorMode, type ViewMode } from './renderer';
 import { CameraFeed } from '../camera/CameraFeed';
@@ -24,6 +26,9 @@ export function LidarView() {
   const [color, setColor] = useState<ColorMode>('height');
   const [paused, setPaused] = useState(false);
   const [stats, setStats] = useState<CloudStats | null>(null);
+  const [displayedScene, setDisplayedScene] = useState<RoomScene | null>(null);
+  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const [camera, setCamera] = useState(true);
   const [picking, setPicking] = useState(false);
   const controlState = useControl();
@@ -47,10 +52,35 @@ export function LidarView() {
   }, []);
 
   useEffect(() => {
-    if (room.mesh) void renderer.current?.loadRoomMesh(room.mesh);
-  }, [room.mesh]);
+    renderer.current?.clearRoomMesh();
+    setDisplayedScene(null);
+    setSelectedObject(null);
+    setRenderError(null);
+  }, [room.roomId]);
 
-  useEffect(() => renderer.current?.clearRoomMesh(), [room.roomId]);
+  useEffect(() => {
+    let cancelled = false;
+    if (room.scene && !paused && !replaying) {
+      void renderer.current?.loadRoomScene(room.scene).then(() => {
+        if (!cancelled) {
+          setDisplayedScene(room.scene);
+          setRenderError(null);
+        }
+      }).catch((error: unknown) => {
+        if (!cancelled) setRenderError(error instanceof Error ? error.message : 'Scene unavailable');
+      });
+    }
+    return () => {
+      cancelled = true;
+      renderer.current?.cancelSceneLoad();
+    };
+  }, [room.scene, paused, replaying]);
+
+  useEffect(() => {
+    if (replaying) renderer.current?.clearRoomMesh();
+  }, [replaying]);
+
+  useEffect(() => renderer.current?.selectObject(selectedObject), [selectedObject]);
 
   useEffect(() => renderer.current?.setView(view), [view]);
   useEffect(() => renderer.current?.setColorMode(color), [color]);
@@ -114,6 +144,10 @@ export function LidarView() {
         </div>
       </div>
 
+      {!replaying && <ObjectPanel roomId={room.roomId} objects={displayedScene?.objects ?? []}
+        selected={selectedObject} onSelect={setSelectedObject} />}
+      {renderError && <p role="alert" className="absolute left-6 top-36 bg-blue p-2">{renderError}</p>}
+
       <div className="absolute bottom-20 left-6 flex flex-col items-start gap-3 sm:left-9">
         {camera && <CameraFeed />}
         <div className="label flex items-center gap-2">
@@ -140,13 +174,6 @@ export function LidarView() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute right-6 bottom-20 text-right sm:right-9">
-        <p className="label text-blue-soft">Points in view</p>
-        <p className="font-pixel text-7xl leading-none tabular-nums sm:text-8xl">
-          {compact(stats?.points ?? 0)}
-        </p>
-      </div>
-
       <div className="absolute inset-x-0 bottom-0 px-6 sm:px-9">
         <div className="hairline-light flex flex-wrap items-center gap-x-6 gap-y-2 border-b py-4 label text-white/85">
           <span className="flex items-center gap-2">
@@ -154,7 +181,7 @@ export function LidarView() {
             {replaying ? 'Replay' : LINK_LABEL[room.link]}
           </span>
           <span>{room.status ? `${room.status.mapped}/${room.status.received} frames mapped` : 'No frames'}</span>
-          <span>{stats?.fps ?? 0} fps</span>
+          <span>{compact(stats?.points ?? 0)} vertices · {stats?.fps ?? 0} fps</span>
           <span>
             {pose ? `x ${pose.x.toFixed(2)}  z ${pose.z.toFixed(2)}  θ ${((pose.yaw * 180) / Math.PI).toFixed(0)}°` : 'No pose'}
           </span>
