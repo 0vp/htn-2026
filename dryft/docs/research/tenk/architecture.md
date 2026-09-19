@@ -184,3 +184,11 @@ CUDA capture, numerical correctness, warmup cost and performance are unverified
 until the official candidate runs. Four graph widths can increase warmup time
 and memory; neither is assumed free. It is queued after residual fusion and norm
 warp tuning. The active pending residual submission is unchanged remotely.
+
+Fable's source review confirmed the position/acceptance alignment under the
+explicit-mask invariant. It found adaptive budget headroom above the supported
+three draft tokens; capped it at three, and now give each row feedback from
+its own verified prefix. Emission still uses the common prefix. Newer-cache API
+concerns do not apply to pinned Transformers 4.51.3. Model identity is fixed per
+verifier, and rectangular inputs are part of the contract. This is source review,
+not runtime validation; raw response is in `results/claude-fable-verifier-review.json`.

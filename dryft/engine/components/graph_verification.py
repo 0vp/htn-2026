@@ -27,6 +27,7 @@ class GraphVerifier:
         shape = (batch, prompt, output)
         if self.shape == shape:
             return
+        self.shape = None
         self.graphs.clear()
         self.capacity = (prompt + output + 4 + 7) // 8 * 8
         self.cache = StaticCache(
@@ -78,7 +79,8 @@ class GraphVerifier:
             for target, value in zip(self.cache.value_cache, source.value_cache):
                 target[:, :, :prompt].copy_(value)
             del source, prefill
-            lookups = [SuffixLookup(list(row) + [token]) for row, token in zip(ids, current)]
+            lookups = [SuffixLookup(list(row) + [token], max_draft=3)
+                       for row, token in zip(ids, current)]
             emitted, length = 1, prompt
             while emitted < output:
                 remaining = output - emitted
@@ -88,10 +90,10 @@ class GraphVerifier:
                 drafts = [draft[:draft_width] for draft in drafts]
                 predicted = self.evaluate(
                     [[token] + draft for token, draft in zip(current, drafts)], length)
-                accepted = min(accepted_prefix(draft, row)
-                               for draft, row in zip(drafts, predicted))
-                for lookup in lookups:
-                    lookup.feedback(draft_width, accepted)
+                counts = [accepted_prefix(draft, row) for draft, row in zip(drafts, predicted)]
+                accepted = min(counts)
+                for lookup, count in zip(lookups, counts):
+                    lookup.feedback(draft_width, count)
                 # Rejected suffix slots remain masked. A following evaluation
                 # overwrites every slot it exposes, so physical cropping is unnecessary.
                 length += accepted + 1
