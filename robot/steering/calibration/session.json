@@ -16,7 +16,7 @@
   "preview_observation": "Cable moved clear by user; refreshed Photo Booth view inspected between pulses; displacement too small to quantify",
   "movement_commands_sent": true,
   "metric_calibration_complete": false,
-  "blocking_observation": "Six bounded floor commands passed with continuous uptime. Metric scale and physical steering angles remain unmeasured; open-loop motion varies. Board reports a brownout before this session.",
+  "blocking_observation": "30% duty, 0.7s ramped trial produced visible movement but USB timed out near end. Controller uptime remained continuous; recovery verified stop/disarm. Link fault remains unresolved.",
   "measurements": {
     "meters_per_tick": null,
     "steering_angle_per_servo_degree": null,
