@@ -105,3 +105,10 @@ fuses the post-attention residual addition with RMSNorm. The residual sum is
 rounded to BF16 before the FP32 variance, and normalized values are rounded
 again before multiplying the learned weight. Local archive/tooling checks
 passed; its GPU correctness and performance remain pending.
+
+Folded attention with native prefill, without the other fusions, passed at
+**412.6689999 official TPS**, run `bb32171a-a5da-40f4-86fb-4eeb31493e75`.
+Public B1/B4/B16 TPOT was 9.274 / 12.030 / 10.280 ms, with paired native
+ratios 0.332 / 0.394 / 0.362. The combined graph_fused remains the winner.
+A frontend-only push triggered another run of the identical engine tree;
+that duplicate was canceled before resuming the residual-fusion candidate.
