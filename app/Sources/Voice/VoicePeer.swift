@@ -19,17 +19,8 @@ final class VoicePeer: NSObject, VoiceTransport {
     private var speech = SpeechMeter()
     private var microphoneMeter = SpeechMeter()
 
-    private func configureAudio() throws {
-        let audio = RTCAudioSession.sharedInstance()
-        audio.lockForConfiguration()
-        defer { audio.unlockForConfiguration() }
-        try audio.setCategory(AVAudioSession.Category.playAndRecord,
-                              with: [.defaultToSpeaker, .allowBluetooth])
-        try audio.setMode(AVAudioSession.Mode.voiceChat)
-    }
-
     func offer() async throws -> String {
-        try configureAudio()
+        try VoiceAudioSession.configure()
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
         config.enableDscp = true
