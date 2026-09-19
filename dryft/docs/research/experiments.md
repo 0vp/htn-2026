@@ -125,10 +125,15 @@ Q/K head RMSNorm with RoPE during one-token decode, preserving intermediate
 BF16 casts and the two rounded RoPE products. Read packed projection strides
 directly and write contiguous attention layout. Native prefill is unchanged.
 Local packaging/tooling checks pass; GPU correctness and speed are unverified.
-This candidate is not yet in the running sweep order; review it before scheduling.
+This candidate is scheduled immediately after graph_verify.
 
 Fable completed the source review (`results/claude-fable-rope-review.json`):
 addressing and BF16 boundaries look consistent with eager. Added layout/dtype
 guards to prevent incompatible rotary tables from causing out-of-bounds reads.
 The reported variable-prefill compilation concern does not apply to this
 decode-only T=1 dispatch. Reduction-order differences still require GPU checks.
+
+Four-warps norm tuning passed at **556.653160 official TPS**, run
+`3861998f-70a7-44e8-b58c-13651c978259`. Public TPOT B1/B4/B16 was
+6.615 / 9.439 / 7.267 ms; paired native ratios 0.256 / 0.292 / 0.244.
+No new best score established; retain graph_fused (571.446) as the winner.
