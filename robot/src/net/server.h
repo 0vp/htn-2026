@@ -5,10 +5,8 @@
 #include "command.h"
 
 /**
- * Access point + WebSocket control server. Any number of clients (badge, dashboard) may
- * connect; the first to send an armed packet owns the robot until it disarms, disconnects
- * or goes silent. An E-STOP from any client stops everything and latches until an owner
- * re-arms. Telemetry is broadcast to every client.
+ * Access point and the WebSocket control server. Who may drive is decided in authority.h.
+ * Telemetry is broadcast to every accepted client.
  *
  * `loop()` runs on the Arduino loop task and can block for seconds on a dead client's TCP
  * write, so the actuator task only ever reads state through `snapshot()`, which is safe

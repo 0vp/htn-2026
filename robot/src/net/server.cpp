@@ -4,6 +4,7 @@
 #include <WiFi.h>
 
 #include "../config.h"
+#include "authority.h"
 
 #if __has_include("../secrets.h")
 #include "../secrets.h"
@@ -13,7 +14,6 @@
 
 namespace {
 
-constexpr uint8_t NO_OWNER = 0xFF;
 /**
  * Clients send commands at 20 Hz. TCP writes to a dead client block for up to 10 s once the
  * send buffer fills, so only send to clients heard from recently and drop silent ones.
@@ -29,69 +29,38 @@ class ControlServer : public WebSocketsServer {
 };
 
 ControlServer socket(config::CONTROL_PORT);
-Command latest;
-uint8_t owner = NO_OWNER;
-uint32_t ownerLastMs = 0;
-bool latched = true;  // boot in E-STOP: an operator must arm deliberately
 uint8_t clients = 0;
 uint32_t lastHeard[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
 bool connectedClient[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
-// Guards owner/latest/ownerLastMs/latched between the network and actuator tasks.
-portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
+bool localClient[WEBSOCKETS_SERVER_CLIENT_MAX] = {};
 
-void release(const char *why) {
-  if (owner == NO_OWNER) return;
-  const uint8_t was = owner;
-  portENTER_CRITICAL(&lock);
-  owner = NO_OWNER;
-  latest = Command();
-  portEXIT_CRITICAL(&lock);
-  Serial.printf("control released (client %u, %s)\n", was, why);
-}
-
-void onCommand(uint8_t client, const Command &c) {
-  if (c.estop) {
-    if (!latched) Serial.printf("E-STOP from client %u\n", client);
-    portENTER_CRITICAL(&lock);
-    latched = true;
-    portEXIT_CRITICAL(&lock);
-    release("e-stop");
-    return;
-  }
-  if (!c.armed) {
-    if (client == owner) release("disarmed");
-    return;
-  }
-  // Armed and not stopped: take control if free, ignore if someone else holds it.
-  if (owner == NO_OWNER) {
-    owner = client;
-    Serial.printf("control taken by client %u\n", client);
-  }
-  if (client != owner) return;
-  portENTER_CRITICAL(&lock);
-  latched = false;
-  latest = c;
-  ownerLastMs = millis();
-  portEXIT_CRITICAL(&lock);
+/** Clients on the robot's own access point (192.168.4.x) already proved the WPA2 password. */
+bool onAccessPoint(const IPAddress &ip) {
+  const IPAddress ap = WiFi.softAPIP();
+  return ip[0] == ap[0] && ip[1] == ap[1] && ip[2] == ap[2];
 }
 
 void onEvent(uint8_t client, WStype_t type, uint8_t *payload, size_t length) {
-  if (client < WEBSOCKETS_SERVER_CLIENT_MAX) lastHeard[client] = millis();
+  if (client >= WEBSOCKETS_SERVER_CLIENT_MAX) return;
+  lastHeard[client] = millis();
   switch (type) {
-    case WStype_CONNECTED:
+    case WStype_CONNECTED: {
+      const IPAddress ip = socket.remoteIP(client);
       clients++;
       connectedClient[client] = true;
-      Serial.printf("client %u connected from %s\n", client, socket.remoteIP(client).toString().c_str());
+      localClient[client] = onAccessPoint(ip);
+      Serial.printf("client %u connected from %s\n", client, ip.toString().c_str());
       break;
+    }
     case WStype_DISCONNECTED:
       if (connectedClient[client] && clients) clients--;
       connectedClient[client] = false;
       Serial.printf("client %u disconnected\n", client);
-      if (client == owner) release("disconnected");
+      authority::onDisconnect(client);
       break;
     case WStype_TEXT: {
       Command c;
-      if (parseCommand(payload, length, c)) onCommand(client, c);
+      if (parseCommand(payload, length, c)) authority::onCommand(client, localClient[client], c);
       break;
     }
     default:
@@ -122,23 +91,19 @@ void loop() {
       socket.drop(i);
     }
   }
-  if (owner != NO_OWNER && millis() - ownerLastMs > config::RELEASE_OWNER_MS) release("silent");
+  authority::tick();
+
 }
 
-bool snapshot(Command &out) {
-  portENTER_CRITICAL(&lock);
-  const bool fresh = owner != NO_OWNER && !latched && millis() - ownerLastMs <= config::FAILSAFE_MS;
-  out = latest;
-  portEXIT_CRITICAL(&lock);
-  return fresh;
-}
-bool estopLatched() { return latched; }
+bool snapshot(Command &out) { return authority::snapshot(out); }
+bool estopLatched() { return authority::status().latched; }
 uint8_t clientCount() { return clients; }
 
 void broadcast(const char *json, size_t length) {
-  const uint32_t now = millis();
   for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
-    if (connectedClient[i] && now - lastHeard[i] <= QUIET_SKIP_MS) socket.sendTXT(i, json, length);
+    if (connectedClient[i] && millis() - lastHeard[i] <= QUIET_SKIP_MS) {
+      socket.sendTXT(i, json, length);
+    }
   }
 }
 

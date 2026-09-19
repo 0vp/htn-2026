@@ -8,6 +8,7 @@
 #include "../actuators/winches.h"
 #include "../config.h"
 #include "../pins.h"
+#include "authority.h"
 
 namespace {
 
@@ -45,14 +46,21 @@ size_t build(char *out, size_t size, float loopHz) {
     snprintf(rpm, sizeof rpm, "\"rpm\":{\"left\":%.1f,\"right\":%.1f},\"odometerM\":%.2f,", odo.rpmLeft,
              odo.rpmRight, odo.distanceM);
   }
+  const authority::Status control = authority::status();
+  char extra[200];
+  snprintf(extra, sizeof extra,
+           "\"control\":{\"owner\":\"%s\",\"supervised\":%s,\"estop\":%s},"
+           "\"duty\":{\"left\":%.2f,\"right\":%.2f},\"encoders\":{\"left\":%lld,\"right\":%lld},",
+           authority::roleName(control.owner), control.supervised ? "true" : "false", control.latched ? "true" : "false",
+           drive::appliedLeft(), drive::appliedRight(), odo.countLeft, odo.countRight);
   const int n = snprintf(
       out, size,
-      "{\"type\":\"telemetry\",\"packVolts\":%.2f,\"ampsEstimate\":%.1f,%s"
+      "{\"type\":\"telemetry\",\"packVolts\":%.2f,\"ampsEstimate\":%.1f,%s%s"
       "\"servoDeg\":{\"shoulder\":%.0f,\"elbow\":%.0f,\"wrist\":%.0f},"
       "\"winchPos\":[%.2f,%.2f,%.2f],"
       "\"limits\":[[%s,%s],[%s,%s],[%s,%s]],"
       "\"loopHz\":%.0f,\"uptimeS\":%lu,\"heapKb\":%u}",
-      isnan(volts) ? 0.0f : volts, ampsEstimate(), rpm, arm::angle(0), arm::angle(1), arm::angle(2),
+      isnan(volts) ? 0.0f : volts, ampsEstimate(), rpm, extra, arm::angle(0), arm::angle(1), arm::angle(2),
       winches::position(0), winches::position(1), winches::position(2), winches::atInEnd(0) ? "true" : "false",
       winches::atOutEnd(0) ? "true" : "false", winches::atInEnd(1) ? "true" : "false",
       winches::atOutEnd(1) ? "true" : "false", winches::atInEnd(2) ? "true" : "false",

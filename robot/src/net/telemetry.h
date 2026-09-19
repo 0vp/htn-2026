@@ -4,7 +4,8 @@
 
 /**
  * Builds the telemetry frame the dashboard merges (fe/src/telemetry/types.ts) and the badge
- * shows. Fields that aren't measured on this build (rpm before encoder calibration) are left out.
+ * shows, plus `control` (owner, AUTO supervision, E-STOP), applied `duty` and raw `encoders` for
+ * the agent's motion feedback. Unmeasured fields (rpm before encoder calibration) are left out.
  */
 namespace telemetry {
 

@@ -4,6 +4,7 @@
 #include "actuators/drive.h"
 #include "actuators/winches.h"
 #include "config.h"
+#include "net/authority.h"
 #include "net/server.h"
 #include "net/telemetry.h"
 
@@ -35,7 +36,7 @@ void controlTask(void *) {
     const bool live = server::snapshot(c);
     if (live) {
       drive::setTarget(c.driveLeft, c.driveRight);
-      arm::setTarget(c.arm);
+      if (c.hasArm) arm::setTarget(c.arm);
       winches::set(c.winch);
     } else if (wasLive) {
       // E-STOP, disarm or no fresh packet: stop at once. The worm gears self-lock and the
@@ -55,10 +56,11 @@ void controlTask(void *) {
 
 void log() {
   const drive::Odometry &odo = drive::odometry();
-  Serial.printf("clients %u  %s  duty L %+.2f R %+.2f  pack %.2fV  enc L %lld R %lld  loop %.0f Hz\n",
-                server::clientCount(), isLive ? "LIVE" : (server::estopLatched() ? "E-STOP" : "idle"),
-                drive::appliedLeft(), drive::appliedRight(), telemetry::packVolts(), odo.countLeft, odo.countRight,
-                loopHz);
+  const authority::Status control = authority::status();
+  Serial.printf("clients %u  %s  owner %s%s  duty L %+.2f R %+.2f  pack %.2fV  enc L %lld R %lld  loop %.0f Hz\n",
+                server::clientCount(), isLive ? "LIVE" : (control.latched ? "E-STOP" : "idle"),
+                authority::roleName(control.owner), control.supervised ? " (auto)" : "", drive::appliedLeft(),
+                drive::appliedRight(), telemetry::packVolts(), odo.countLeft, odo.countRight, loopHz);
 }
 
 }  // namespace
@@ -86,7 +88,7 @@ void loop() {
     loopHz = loops * 1000.0f / (now - lastTelemetry);
     loops = 0;
     lastTelemetry = now;
-    char json[512];
+    char json[768];
     const size_t n = telemetry::build(json, sizeof json, loopHz);
     if (n) server::broadcast(json, n);
   }
