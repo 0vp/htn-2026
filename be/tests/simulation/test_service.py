@@ -68,3 +68,18 @@ def test_stop_cancels_running_action_and_has_measured_simulated_receipt():
         assert final_stop["state"] == "completed" and final_stop["simulation_success"]
         assert not final_stop["physical_success"]
         assert client.app.state.sim.active is None
+
+
+def test_failed_stop_cannot_leave_a_running_or_successful_receipt(monkeypatch):
+    with TestClient(create_app(layout="open")) as client:
+        sim = client.app.state.sim
+        monkeypatch.setattr(sim.world, "stop", lambda: False)
+        action = client.post(
+            f"/v1/rooms/{ROOM}/actions",
+            json=dict(request_id="stop-failed", skill="stop", scene_revision=0),
+        ).json()
+        receipt = completed(client, action["action_id"])
+        assert receipt["state"] == "failed"
+        assert not receipt["simulation_success"] and not receipt["physical_success"]
+        assert receipt["reasons"] == ["base_stop_not_verified"]
+        assert sim.active is None

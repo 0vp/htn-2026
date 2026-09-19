@@ -27,3 +27,18 @@ success does not authorize physical manipulation.
 Keep one default controller, record failures as well as successes, and keep
 recordings and credentials out of git. Public benchmark comparisons require
 matching input assumptions and metrics; procedural fixtures are regressions.
+
+## Current gate after inspecting the physical robot
+
+The supplied photos and user confirmation changed the immediate order: finish
+supervised single-drive-wheel / separate-steering-wheel calibration first. The
+hardware protocol and stopped-by-default firmware now match those actuators;
+physical execution and calibration have not been performed. The previous
+simulator layout is not the photographed chassis and cannot certify it.
+
+Implemented and tested in this pass: depth-grounding plumbing, improved historical
+fixture approach/recovery, motor expiry and footprint guard, honest stop receipts,
+physical protocol replacement, serial bridge, firmware compile and native protocol
+tests. Still incomplete: calibrated digital twin, perception-driven autonomous
+control, dynamic-hazard validation and general/physical manipulation. Voice work
+is progressing separately through the existing agent entry point.

@@ -1,0 +1,146 @@
+[
+  {
+    "seed": 401,
+    "block_half_size_m": 0.03,
+    "mass_kg": 0.04,
+    "yaw_rad": 0,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "final_position": [
+      -1.0220222832201908,
+      1.3061853887080654,
+      0.6797844891595658
+    ],
+    "final_speed": 2.2142278288191858e-14,
+    "complete": true
+  },
+  {
+    "seed": 402,
+    "block_half_size_m": 0.04,
+    "mass_kg": 0.12,
+    "yaw_rad": 0,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "final_position": [
+      -1.0189736821519688,
+      1.3041542215543716,
+      0.684955165173734
+    ],
+    "final_speed": 0.014363054778639445,
+    "complete": true
+  },
+  {
+    "seed": 403,
+    "block_half_size_m": 0.035,
+    "mass_kg": 0.08,
+    "yaw_rad": 0.7853981633974483,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "final_position": [
+      -1.0165197995476056,
+      1.3076512655441985,
+      0.6847844891595658
+    ],
+    "final_speed": 2.2281081340729338e-14,
+    "complete": true
+  },
+  {
+    "seed": 404,
+    "block_half_size_m": 0.035,
+    "mass_kg": 0.16,
+    "yaw_rad": 0.5235987755982988,
+    "stages": [
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "pick",
+        "success": true,
+        "reason": "lift_and_retained_contact_verified"
+      },
+      {
+        "skill": "navigate",
+        "success": true,
+        "reason": "navigation_feedback_checked"
+      },
+      {
+        "skill": "place",
+        "success": true,
+        "reason": "released_object_support_and_rest_verified"
+      }
+    ],
+    "collision_steps": 0,
+    "final_position": [
+      -1.0177750586822552,
+      1.3031021979583728,
+      0.6847844891595659
+    ],
+    "final_speed": 2.1351832027595945e-14,
+    "complete": true
+  }
+]

@@ -44,6 +44,7 @@ def measure(world, sequence):
         collision_steps=w.collisions,
         held_object=w.held,
         cancelled=w.cancelled,
+        safety_stop=w.safety_stop,
         numerical_failure=w.failed,
         controller=getattr(w, "control_feedback", {}),
     )
