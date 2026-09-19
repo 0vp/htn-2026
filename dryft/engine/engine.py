@@ -9,6 +9,11 @@ must be the one native Qwen picks, judged by a teacher-forced replay.
 
 import torch
 from transformers import AutoModelForCausalLM
+from options import ACTIVE, VARIANTS
+from components.adapters import install
+from components.execution import Execution
+from components.speculation import generate as speculative_generate
+from components.verification import reference_cases, verify
 
 
 class Engine:
@@ -26,6 +31,12 @@ class Engine:
             .eval()
             .to("cuda:0")
         )
+        self.options = VARIANTS[ACTIVE]
+        checks = reference_cases(self.model) if ACTIVE != 'baseline' else []
+        install(self.model, self.options)
+        self.execution = Execution(self.model, self.options)
+        if checks:
+            verify(self, checks)
 
     def generate(self, input_ids: list[list[int]], max_new_tokens: int):
         """Greedy continuation of every sequence, one step at a time.
@@ -34,6 +45,12 @@ class Engine:
         exactly max_new_tokens times. Every sequence has the same length.
         Never stops at end-of-sequence tokens.
         """
+        if self.options.speculative and len(input_ids) == 1 and max_new_tokens > 0:
+            yield from speculative_generate(self.model, input_ids, max_new_tokens)
+            return
+        if self.options.direct:
+            yield from self.execution.generate(input_ids, max_new_tokens)
+            return
         current = torch.tensor(input_ids, dtype=torch.int64, device="cuda:0")
         cache = None
         with torch.inference_mode():
