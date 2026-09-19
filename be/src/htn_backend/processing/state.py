@@ -194,10 +194,13 @@ class ProcessingState:
                 ],
             )
 
-    def snapshot(self, room_id: str) -> dict:
+    def snapshot(self, room_id: str, *, include_mesh: bool = True) -> dict:
         with self.store.lock:
             self.store.require_room(room_id)
-            row = self.store.db.execute("SELECT * FROM maps WHERE room_id=?", (room_id,)).fetchone()
+            columns = "*" if include_mesh else "room_id,revision,updated_at,metadata,objects"
+            row = self.store.db.execute(
+                f"SELECT {columns} FROM maps WHERE room_id=?", (room_id,)
+            ).fetchone()
             if row is None:
                 raise StoreError(409, "Map is not available yet; check processing status")
             return {
@@ -223,7 +226,7 @@ class ProcessingState:
         if not terms:
             return []
         with self.store.lock:
-            snapshot = self.snapshot(room_id)
+            snapshot = self.snapshot(room_id, include_mesh=False)
             rows = self.store.db.execute(
                 "SELECT object_id FROM object_search WHERE object_search MATCH ? "
                 "AND room_id=? ORDER BY rank LIMIT 50",

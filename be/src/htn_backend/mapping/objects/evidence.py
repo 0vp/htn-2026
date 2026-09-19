@@ -42,7 +42,7 @@ def crop(frame, detection) -> dict | None:
             capture_session_id=h.session_id,
             capture_epoch=h.epoch,
             capture_frame_id=h.frame_id,
-            capture_timestamp_s=h.timestamp_s,
+            capture_timestamp_s=(frame.provenance or {}).get("capture_timestamp_s", h.timestamp_s),
         ),
         bbox_rgb=box,
         quality=float(len(x) * detection["score"]),

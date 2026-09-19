@@ -1,0 +1,3 @@
+[submodule "agent/codex"]
+	path = agent/codex
+	url = https://github.com/openai/codex.git

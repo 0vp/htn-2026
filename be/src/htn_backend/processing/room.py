@@ -117,6 +117,8 @@ class RoomProcessor:
                 header=header,
                 provenance={
                     "device_id": row["device_id"],
+                    "received_at": row["received_at"],
+                    "sequence": row["sequence"],
                     "capture_timestamp_s": frame.header.timestamp_s,
                 },
             )
