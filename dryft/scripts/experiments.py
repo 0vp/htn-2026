@@ -6,16 +6,19 @@ from pathlib import Path
 import re
 import subprocess
 import time
+from urllib.error import URLError
 
 try:
     from .benchmark import ROOT, client, collect, git, items, save, validate, TERMINAL
 except ImportError:
     from benchmark import ROOT, client, collect, git, items, save, validate, TERMINAL
+from agent.client import ApiError
 
 STATE = ROOT / 'results' / 'sweep.json'
 CONTROL = '4eec26fe-79bb-4af7-ad78-b4b28355a154'
 ORDER = ['norms', 'all_norms', 'speculative', 'suffix', 'suffix_batch',
-         'direct', 'gqa', 'static', 'graph', 'graph_hybrid', 'graph_norms', 'swiglu', 'packed',
+         'direct', 'gqa', 'folded_gqa', 'static', 'graph', 'graph_hybrid',
+         'graph_folded', 'graph_norms', 'swiglu', 'packed',
          'head_gemv', 'custom_attention', 'combined']
 
 
@@ -43,7 +46,14 @@ def select(name: str) -> None:
 def wait_run(api, run_id: str) -> dict:
     last = None
     while True:
-        run = api.run(run_id)
+        try:
+            run = api.run(run_id)
+        except (ApiError, URLError, TimeoutError, ConnectionError) as error:
+            if isinstance(error, ApiError) and error.status not in (408, 429, 500, 502, 503, 504):
+                raise
+            print(f'{run_id}: status unavailable; retrying this same run in 20 seconds', flush=True)
+            time.sleep(20)
+            continue
         save(ROOT / 'results' / run_id / 'run.json', run)
         if run['state'] != last:
             print(f"{run_id}: {run['state']}", flush=True)

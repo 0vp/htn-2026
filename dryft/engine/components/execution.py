@@ -33,6 +33,9 @@ class Execution:
             return
         self.shape = shape
         self.capacity = prompt + output
+        if self.options.folded_gqa:
+            # Align BF16 mask row strides while masking all padded slots.
+            self.capacity = (self.capacity + 7) // 8 * 8
         self.cache = StaticCache(config=self.model.config, max_batch_size=batch,
                                  max_cache_len=self.capacity, device='cuda:0', dtype=torch.bfloat16)
         self.token = torch.zeros((batch, 1), dtype=torch.int64, device='cuda:0')

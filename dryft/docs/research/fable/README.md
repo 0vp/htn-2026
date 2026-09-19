@@ -38,3 +38,24 @@ All performance estimates from the response are unmeasured hypotheses.
 
 The 2000 official TPS goal remains unverified. Unknown hidden workload shapes
 prevent turning per-batch throughput estimates into a promised official score.
+
+## Follow-up and resulting experiments
+
+The second response completed successfully in the same Fable session (raw:
+`results/claude-fable-followup.json`). Its concrete suggestion is now implemented
+as `folded_gqa` and `graph_folded`: for single-token decode only, reshape Q from
+`[B,32,1,128]` to `[B,8,4,128]`, attend against the eight native KV heads with
+`is_causal=False`, and restore head layout afterward. The four rows are query
+heads at one absolute position, not four successive positions. Prefill and
+multi-token verification retain the ordinary attention path. Graph capacity is
+rounded to eight-token alignment, with padded positions explicitly masked.
+
+This removes the explicit KV repetition in our adapter. Backend choice and
+performance remain unverified until H100 runs; model-level regression and the
+official teacher-forced checks must pass. No speedup is claimed from reshaping
+alone. Fable's labels saying API facts were verified were based on recollection,
+not fresh source inspection, so we do not treat those labels as verification.
+
+We also clarified that graph objects and shape buffers may persist across calls;
+only prompt-dependent content and positions must reset. Capture should occur
+during warmup, not recur for each measured prompt of the same shape.
