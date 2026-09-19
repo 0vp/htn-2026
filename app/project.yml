@@ -15,11 +15,28 @@ targets:
     platform: iOS
     sources:
       - Sources
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleDisplayName: HTN
+        NSCameraUsageDescription: Camera and LiDAR stream to your shared room. The camera also scans room QR codes.
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.htn2026.room
+            CFBundleURLSchemes: [htnroom]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         INFOPLIST_KEY_NSCameraUsageDescription: Camera and depth capture let you scan a room.
         PRODUCT_BUNDLE_IDENTIFIER: com.htn2026.app
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_KEY_CFBundleDisplayName: HTN
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

@@ -4,11 +4,11 @@ import XCTest
 final class BackendIntegrationTests: XCTestCase {
     @MainActor
     func testSwiftPacketOverWebSocketAndHTTPRetry() async throws {
-        let base = URL(string: "http://127.0.0.1:8895")!
+        let base = URL(string: "http://127.0.0.1:8897")!
         var probe = URLRequest(url: base.appendingPathComponent("health"))
         probe.timeoutInterval = 2
         do { _ = try await URLSession.shared.data(for: probe) }
-        catch { throw XCTSkip("Start the local backend on port 8895 for integration tests.") }
+        catch { throw XCTSkip("Start the local backend on port 8897 for integration tests.") }
         let api = RoomAPI(base: base)
         let room = try await api.create(name: "Swift transport check")
         let device = UUID().uuidString

@@ -5,7 +5,21 @@ struct Room: Decodable, Identifiable, Equatable {
     let name: String
     let closed: Bool
     let frames_stored: Int
+    var leader_device_id: String? = nil
+    var devices: [RoomDevice]? = nil
     var id: String { room_id }
+}
+
+struct RoomDevice: Decodable, Identifiable, Equatable {
+    let device_id: String
+    let name: String
+    var id: String { device_id }
+}
+
+struct RoomProcessing: Decodable {
+    let received: Int
+    let mapped: Int
+    let awaiting_alignment: Int
 }
 
 struct APIError: LocalizedError {
@@ -37,13 +51,23 @@ struct RoomAPI {
         return result.rooms.filter { !$0.closed }
     }
 
-    func create(name: String) async throws -> Room {
-        try await request("v1/rooms", body: ["name": name])
+    func create(name: String, device: String? = nil) async throws -> Room {
+        var body = ["name": name]
+        if let device { body["device_id"] = device }
+        return try await request("v1/rooms", body: body)
     }
 
     func join(code: String, device: String) async throws -> Room {
         guard Self.validCode(code) else { throw APIError(message: "Enter an eight-character room code.") }
         return try await request("v1/rooms/\(code)/join", body: ["device_id": device, "name": "iPhone"])
+    }
+
+    func room(code: String) async throws -> Room {
+        try await request("v1/rooms/\(code)")
+    }
+
+    func processing(code: String) async throws -> RoomProcessing {
+        try await request("v1/rooms/\(code)/processing")
     }
 
     static func validCode(_ code: String) -> Bool {
