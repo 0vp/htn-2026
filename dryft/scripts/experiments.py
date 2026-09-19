@@ -14,8 +14,9 @@ except ImportError:
 
 STATE = ROOT / 'results' / 'sweep.json'
 CONTROL = '4eec26fe-79bb-4af7-ad78-b4b28355a154'
-ORDER = ['norms', 'all_norms', 'direct', 'gqa', 'static', 'graph',
-         'swiglu', 'packed', 'head_gemv', 'custom_attention', 'speculative', 'combined']
+ORDER = ['norms', 'all_norms', 'speculative', 'suffix', 'suffix_batch',
+         'direct', 'gqa', 'static', 'graph', 'swiglu', 'packed',
+         'head_gemv', 'custom_attention', 'combined']
 
 
 def choose_winner(state: dict) -> str:
