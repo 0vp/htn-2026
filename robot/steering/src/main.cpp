@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <esp_system.h>
 #include "control.h"
 #include "protocol.h"
 
@@ -46,6 +47,8 @@ void telemetry(uint32_t now) {
   JsonDocument doc;
   doc["type"] = "telemetry";
   doc["drivetrain"] = "single_steer_v1";
+  doc["uptime_ms"] = now;
+  doc["reset_reason"] = int(esp_reset_reason());
   doc["motor_duty"] = appliedDuty;
   doc["steering_deg"] = appliedSteering;
   doc["steering_feedback"] = "commanded_servo_pulse_not_measured_angle";

@@ -1,10 +1,10 @@
 {
-  "recorded_at": "2026-09-19T15:33:46.538455+00:00",
+  "recorded_at": "2026-09-19T15:44:34.792835+00:00",
   "board": "ESP32-S3",
   "port": "/dev/cu.usbserial-110",
   "firmware_uploaded": true,
   "upload_result": "SUCCESS; flash data hash verified",
-  "firmware_sha256": "73ff16f49dcefe82f52f23f16689b168ebc0f5d564d0c2aac57c41ad650d9416",
+  "firmware_sha256": "2b13ab0a59adba7425bf7ea846c05a08deae070f207d558a328bd1902b31e51b",
   "telemetry_verified": {
     "drivetrain": "single_steer_v1",
     "motor_duty": 0,
@@ -16,7 +16,7 @@
   "preview_observation": "Cable moved clear by user; refreshed Photo Booth view inspected between pulses; displacement too small to quantify",
   "movement_commands_sent": true,
   "metric_calibration_complete": false,
-  "blocking_observation": "USB write timeout/device disconnected during zero-drive +5-degree servo command; cause unknown",
+  "blocking_observation": "Intermittent USB serial disconnect remains unresolved; observed even without movement. ESP32 uptime remained continuous across latest steering disconnect.",
   "measurements": {
     "meters_per_tick": null,
     "steering_angle_per_servo_degree": null,
@@ -62,5 +62,23 @@
     "last_encoder_ticks": 0,
     "last_steering_deg": 0
   },
-  "interpretation": "Command signs produce opposite raw encoder changes. Too few counts for scale or reliability; reset/reconnect loses count continuity. No physical forward/left/right sign or metric calibration established."
+  "interpretation": "Command signs produce opposite raw encoder changes. Too few counts for scale or reliability; reset/reconnect loses count continuity. No physical forward/left/right sign or metric calibration established.",
+  "diagnostics": {
+    "uptime_ms": true,
+    "reset_reason": true,
+    "persistent_positive_3_deg": "completed; uninterrupted uptime 14960..21310ms",
+    "positive_5_deg": "USB write timeout near uptime 53860ms; reconnect uptime 106110ms with servo command still +5",
+    "recovery_stopped_unsupervised_samples": 61,
+    "forced_dtr_rts_false": "boot banner observed on reopen; no universal causal claim",
+    "normal_dtr_rts": "5s idle and +3 degree run passed, later +5 degree run disconnected",
+    "brownout_diagnosis_confirmed": false,
+    "tests_passed": 28,
+    "idle_20_seconds": {
+      "samples": 400,
+      "uptime_start_ms": 146060,
+      "uptime_end_ms": 166010,
+      "all_drive_duty_zero": true,
+      "disconnect": false
+    }
+  }
 }

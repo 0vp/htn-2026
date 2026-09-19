@@ -37,6 +37,8 @@ class Motion:
             estop=control.get("estop", True),
             drivetrain=telemetry.get("drivetrain"),
             motor_duty=telemetry.get("motor_duty"),
+            uptime_ms=telemetry.get("uptime_ms"),
+            reset_reason=telemetry.get("reset_reason"),
             steering_deg=telemetry.get("steering_deg"),
             steering_feedback=telemetry.get("steering_feedback"),
             encoder_ticks=telemetry.get("encoder_ticks"),

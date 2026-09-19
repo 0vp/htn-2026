@@ -121,7 +121,7 @@ def main():
     parser.add_argument("--supervise", action="store_true", help="Human-supervised bench movement")
     args = parser.parse_args()
     device = serial.Serial(port=None, baudrate=115200, timeout=0.05, write_timeout=0.1)
-    device.dtr, device.rts = False, False
+    # Keep normal line states: forcing both false reset this CH340/ESP32-S3.
     device.port = args.device
     device.open()
     try:
