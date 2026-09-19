@@ -17,8 +17,8 @@ from agent.client import ApiError
 STATE = ROOT / 'results' / 'sweep.json'
 CONTROL = '4eec26fe-79bb-4af7-ad78-b4b28355a154'
 ORDER = ['norms', 'all_norms', 'speculative', 'suffix', 'suffix_batch',
-         'direct', 'gqa', 'folded_gqa', 'static', 'graph', 'graph_hybrid',
-         'graph_folded', 'graph_norms', 'swiglu', 'packed',
+         'graph', 'graph_hybrid', 'graph_folded', 'graph_norms',
+         'direct', 'gqa', 'folded_gqa', 'static', 'swiglu', 'packed',
          'head_gemv', 'custom_attention', 'combined']
 
 

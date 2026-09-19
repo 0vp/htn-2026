@@ -44,6 +44,7 @@ move with device conditions. Public ratios do not establish hidden-case gains.
 | Hidden norms | 177.44 | 0.967 / 1.006 / 0.954 |
 | All norms | 204.19 | 0.778 / 0.802 / 0.806 |
 | Fixed prompt lookup | 162.70 | 0.942 / 0.965 / 0.975 |
+| Adaptive suffix B1 | 175.14 | 0.962 / 1.005 / 0.940 |
 
 All norms is promising despite the raw score: paired public TTFT and TPOT fell
 roughly 19–22%. Fixed lookup has only a modest paired B1 improvement; B4/B16
@@ -55,7 +56,15 @@ Run IDs, in table order:
 - `29982948-7867-4755-86b4-bff693558d56`
 - `0fd39406-8e8a-45bf-8178-723f8fa4e961`
 - `59f7355e-6d4b-4505-b6da-a4d68e14c715`
+- `58218a38-14d3-431b-83bf-657836c93745`
 
 Run `uv run --locked scripts/analyze.py` for the current paired measurements.
-Adaptive suffix variants and graph combinations remain pending. The active
+The batched adaptive suffix and graph combinations remain pending. The active
 goal is 2000 official TPS, not completion of this initial sweep.
+
+After the B1 adaptive suffix result, graph experiments were moved immediately
+after the already-submitted batched suffix run. The modest 4% paired B1 TPOT
+gain from adaptive suffix does not yet justify further speculation tuning.
+Graph-only, native-prefill graph, folded-head graph, and norms-plus-graph will
+test larger dispatch and KV-copy reductions before the remaining leaf variants.
+Every originally listed candidate remains in the sequential sweep.
