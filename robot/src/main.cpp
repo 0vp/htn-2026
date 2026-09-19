@@ -10,7 +10,7 @@
 namespace {
 
 constexpr uint32_t CONTROL_MS = 10;  // 100 Hz actuator loop
-constexpr uint32_t LOG_MS = 2000;
+constexpr uint32_t LOG_MS = 500;
 
 uint32_t lastControl = 0, lastTelemetry = 0, lastLog = 0;
 uint32_t loops = 0;
@@ -39,9 +39,9 @@ void control(float dt) {
 
 void log() {
   const drive::Odometry &odo = drive::odometry();
-  Serial.printf("clients %u  %s  pack %.2fV  enc L %lld R %lld  loop %.0f Hz\n", server::clientCount(),
-                server::live() ? "LIVE" : (server::estopLatched() ? "E-STOP" : "idle"), telemetry::packVolts(),
-                odo.countLeft, odo.countRight, loopHz);
+  Serial.printf("clients %u  %s  duty L %+.2f R %+.2f  pack %.2fV  enc L %lld R %lld  loop %.0f Hz\n",
+                server::clientCount(), server::live() ? "LIVE" : (server::estopLatched() ? "E-STOP" : "idle"),
+                drive::appliedLeft(), drive::appliedRight(), telemetry::packVolts(), odo.countLeft, odo.countRight, loopHz);
 }
 
 }  // namespace
