@@ -126,3 +126,9 @@ BF16 casts and the two rounded RoPE products. Read packed projection strides
 directly and write contiguous attention layout. Native prefill is unchanged.
 Local packaging/tooling checks pass; GPU correctness and speed are unverified.
 This candidate is not yet in the running sweep order; review it before scheduling.
+
+Fable completed the source review (`results/claude-fable-rope-review.json`):
+addressing and BF16 boundaries look consistent with eager. Added layout/dtype
+guards to prevent incompatible rotary tables from causing out-of-bounds reads.
+The reported variable-prefill compilation concern does not apply to this
+decode-only T=1 dispatch. Reduction-order differences still require GPU checks.

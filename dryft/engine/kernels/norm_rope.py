@@ -42,7 +42,13 @@ def norm_rope(x: torch.Tensor, weight: torch.Tensor, eps: float,
               cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
     """Read strided [B,T,H,D], return contiguous [B,H,T,D]."""
     batch, tokens, heads, dim = x.shape
-    if dim != 128 or cos.shape[0] not in (1, batch) or sin.shape[0] not in (1, batch):
+    if (dim != 128 or x.dtype != torch.bfloat16 or weight.stride() != (1,)
+            or weight.numel() != dim):
+        raise ValueError('Unsupported norm/RoPE weight or input layout')
+    if (cos.ndim != 3 or sin.ndim != 3 or cos.shape[1:] != (tokens, dim)
+            or sin.shape[1:] != (tokens, dim) or cos.shape[0] not in (1, batch)
+            or sin.shape[0] not in (1, batch)
+            or cos.dtype != x.dtype or sin.dtype != x.dtype):
         raise ValueError('Unsupported norm/RoPE head or batch layout')
     out = torch.empty((batch, heads, tokens, dim), dtype=x.dtype, device=x.device)
     _norm_rope[(batch * tokens * heads,)](
