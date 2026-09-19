@@ -15,11 +15,15 @@ final class VoicePeer: NSObject, VoiceTransport {
     private var peer: RTCPeerConnection?
     private var channel: RTCDataChannel?
     private var microphone: RTCAudioTrack?
+    private var trace: VoiceTrace?
+    private var health = VoiceHealth()
+    private var lastHealthAt = -Double.infinity
     private var metering: Task<Void, Never>?
     private var speech = SpeechMeter()
     private var microphoneMeter = SpeechMeter()
 
     func offer() async throws -> String {
+        trace = VoiceTrace()
         try VoiceAudioSession.configure()
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
@@ -84,7 +88,11 @@ final class VoicePeer: NSObject, VoiceTransport {
         metering = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, let peer = self.peer else { return }
-                peer.statistics { [weak self] report in
+                let report = await withCheckedContinuation { continuation in
+                    peer.statistics { continuation.resume(returning: $0) }
+                }
+                guard !Task.isCancelled, self.peer === peer else { return }
+                do {
                     let inbound = report.statistics.values.filter {
                         $0.type == "inbound-rtp" && ($0.values["kind"] as? String == "audio" || $0.values["mediaType"] as? String == "audio")
                     }
@@ -96,18 +104,40 @@ final class VoicePeer: NSObject, VoiceTransport {
                     let sent = report.statistics.values.filter { $0.type == "outbound-rtp" }
                         .compactMap { ($0.values["packetsSent"] as? NSNumber)?.intValue }.reduce(0, +)
                     let received = inbound.compactMap { ($0.values["packetsReceived"] as? NSNumber)?.intValue }.reduce(0, +)
-                    Task { @MainActor [weak self] in
-                        guard let self, self.peer != nil else { return }
-                        // Incoming speech envelope; never animate from text generation timing.
-                        self.receive?(.level(self.speech.update(playout)))
-                        self.receive?(.inputLevel(self.microphoneMeter.update(microphone)))
-                        self.receive?(.packets(sent, received))
-                    }
+                    self.receive?(.level(self.speech.update(playout)))
+                    self.receive?(.inputLevel(self.microphoneMeter.update(microphone)))
+                    self.receive?(.packets(sent, received))
+                    self.reportHealth(report, source: source, sent: sent)
                 }
                 // Mouth frames need ~25 Hz; slower polling made the face trail the voice.
                 try? await Task.sleep(for: .milliseconds(40))
             }
         }
+    }
+    private func reportHealth(_ report: RTCStatisticsReport, source: [RTCStatistics], sent: Int) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastHealthAt >= 1 else { return }
+        lastHealthAt = now
+        let duration = source.compactMap { ($0.values["totalSamplesDuration"] as? NSNumber)?.doubleValue }.max()
+        let muted = microphone?.isEnabled != true
+        let capture = health.capture(duration: duration, now: now, muted: muted)
+        let remote = report.statistics.values.filter {
+            $0.type == "remote-inbound-rtp" && ($0.values["kind"] as? String == "audio" || $0.values["mediaType"] as? String == "audio")
+        }
+        let loss = remote.compactMap { ($0.values["fractionLost"] as? NSNumber)?.doubleValue }.max()
+        let lossText = loss.map { String(format: "last uplink loss %.1f%%", $0 * 100) } ?? "uplink loss unavailable"
+        receive?(.diagnostic(capture + " · " + lossText))
+        var row: [String: Any] = ["event": "sample", "capture": capture, "muted": muted,
+                                  "packets_sent": sent, "ice_state": peer?.iceConnectionState.rawValue ?? -1]
+        row["capture_seconds"] = duration
+        row["uplink_reports"] = remote.map { stat -> [String: Any] in
+            var fields: [String: Any] = ["id": stat.id, "timestamp_us": stat.timestamp_us]
+            for key in ["packetsLost", "fractionLost", "roundTripTime", "reportsReceived"] {
+                fields[key] = stat.values[key]
+            }
+            return fields
+        }
+        trace?.write(row)
     }
     /// Cumulative energy counters, plus WebRTC's smoothed level as a fallback before two samples exist.
     nonisolated private static func sample(_ stats: [RTCStatistics]) -> SpeechMeter.Sample {
@@ -117,9 +147,13 @@ final class VoicePeer: NSObject, VoiceTransport {
         let level = stats.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max() ?? 0
         return SpeechMeter.Sample(energy: total("totalAudioEnergy"), duration: total("totalSamplesDuration"), level: level)
     }
-    func mute(_ muted: Bool) { microphone?.isEnabled = !muted }
+    func mute(_ muted: Bool) {
+        microphone?.isEnabled = !muted
+        trace?.write(["event": "user_mute", "muted": muted])
+    }
     func close() {
         metering?.cancel(); metering = nil
+        trace?.stop(); trace = nil
         microphone?.isEnabled = false
         if channel?.readyState == .open {
             channel?.sendData(RTCDataBuffer(data: Data(#"{"type":"session.close"}"#.utf8), isBinary: false))

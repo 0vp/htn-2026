@@ -14,6 +14,7 @@ final class VoiceModel: ObservableObject {
     @Published private(set) var userTranscript = ""
     @Published private(set) var assistantTranscript = ""
     @Published private(set) var microphoneLevel: Double = 0
+    @Published private(set) var audioDiagnostic = "Waiting for capture measurements…"
     @Published private(set) var packetsSent = 0
     @Published private(set) var packetsReceived = 0
     @Published private(set) var connectionDetail = "Connecting voice…"
@@ -66,6 +67,7 @@ final class VoiceModel: ObservableObject {
         phase = .connecting; error = nil; caption = ""; speaker = ""; mouth = 0; muted = false
         userTranscript = ""; assistantTranscript = ""; microphoneLevel = 0
         rawUser = ""; rawAssistant = ""; rawCaption = ""
+        audioDiagnostic = "Waiting for capture measurements…"
         packetsSent = 0; packetsReceived = 0; connectionDetail = "Checking voice service…"
         startTask = Task { await connect(token) }
     }
@@ -152,6 +154,9 @@ final class VoiceModel: ObservableObject {
         case .level(let value):
             guard phase == .listening else { return }
             mouth = min(1, max(0, value))
+        case .diagnostic(let text):
+            guard phase == .listening else { return }
+            audioDiagnostic = text
         case .packets(let sent, let received):
             guard phase == .listening else { return }
             packetsSent = sent; packetsReceived = received

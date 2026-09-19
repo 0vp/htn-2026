@@ -16,6 +16,8 @@ struct VoiceTranscriptView: View {
                 }
             }.font(.subheadline).accessibilityIdentifier("voiceStatus")
             if voice.phase == .listening {
+                Text(voice.audioDiagnostic).font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("voiceDiagnostic")
                 Text("Audio packets · sent \(voice.packetsSent) · received \(voice.packetsReceived)")
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     .accessibilityIdentifier("voiceTransport")
