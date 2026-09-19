@@ -7,21 +7,74 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */; };
+		1792814C7EB8142083034FFC /* TransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A46E36969B6686A59C20181 /* TransportTests.swift */; };
+		29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */; };
+		437699743260A169F0374C58 /* FramePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A57E1EF17145DB4B413531 /* FramePacket.swift */; };
+		4E3EFEBC864BAC864D3C5414 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53AF2FFEE1BFD19DB660679 /* ScanView.swift */; };
+		55D374846D2BB59E6612C98D /* CaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */; };
+		588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88A22517007073988C49602 /* PixelBuffers.swift */; };
+		69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */; };
+		744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */; };
+		99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */; };
+		9E6A548071E6FA4933D2D999 /* RoomFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6FBF161AD662835D743E453 /* RoomFlowTests.swift */; };
 		AD9D6BA0BAB97208A9D87790 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B2C467AFC5D7B12B71E16A /* ContentView.swift */; };
+		C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6F159FDEB7119D871A715B /* RoomsModel.swift */; };
+		D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E21FD7A85332B934F46E8DB /* RoomAPI.swift */; };
+		DE97CEF071294690A17E79E3 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 405593358D73490118526653 /* CameraPreview.swift */; };
+		E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */; };
 		F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EF0760CAC94289EDAAFC5 /* HTNApp.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		6D7F3E72462CD74724724930 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 51467CC6B617B5F6AF54F139 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DC3A7EFCC39CC430D8E99FB4;
+			remoteInfo = HTNApp;
+		};
+		9FB8DBD065B7592EED216379 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 51467CC6B617B5F6AF54F139 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DC3A7EFCC39CC430D8E99FB4;
+			remoteInfo = HTNApp;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureWindow.swift; sourceTree = "<group>"; };
 		06B2C467AFC5D7B12B71E16A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		0B6F159FDEB7119D871A715B /* RoomsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomsModel.swift; sourceTree = "<group>"; };
+		1D244F52D537A57798F00EE1 /* HTNAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HTNAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		270EF0760CAC94289EDAAFC5 /* HTNApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTNApp.swift; sourceTree = "<group>"; };
+		2F652CBD9424040BA14B4CD9 /* HTNAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HTNAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3A46E36969B6686A59C20181 /* TransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportTests.swift; sourceTree = "<group>"; };
+		405593358D73490118526653 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModel.swift; sourceTree = "<group>"; };
 		606790FD5359A8C541B42B2D /* HTNApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HTNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendIntegrationTests.swift; sourceTree = "<group>"; };
+		7E21FD7A85332B934F46E8DB /* RoomAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomAPI.swift; sourceTree = "<group>"; };
+		80A57E1EF17145DB4B413531 /* FramePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacket.swift; sourceTree = "<group>"; };
+		A6FBF161AD662835D743E453 /* RoomFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomFlowTests.swift; sourceTree = "<group>"; };
+		C88A22517007073988C49602 /* PixelBuffers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBuffers.swift; sourceTree = "<group>"; };
+		CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameStream.swift; sourceTree = "<group>"; };
+		E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureBufferTests.swift; sourceTree = "<group>"; };
+		E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadQueue.swift; sourceTree = "<group>"; };
+		EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
+		F53AF2FFEE1BFD19DB660679 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
+		FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		00B811D873B7C1F057C54AE4 = {
 			isa = PBXGroup;
 			children = (
+				53FE87E85C8F1E99E101EB59 /* Config */,
 				05519B5C3A36DAC469765ADC /* Sources */,
+				0B6B17B5030BCF679553FD06 /* Tests */,
+				7CB17E9F161B19F72BF10868 /* UITests */,
 				70202A9E89AC521F0985194F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -31,21 +84,132 @@
 			children = (
 				06B2C467AFC5D7B12B71E16A /* ContentView.swift */,
 				270EF0760CAC94289EDAAFC5 /* HTNApp.swift */,
+				53A884D121917880CF493003 /* Capture */,
+				4AF40E6009EE1A3CE1598BB4 /* Model */,
+				28B2AC3769D31820D32714CC /* Networking */,
+				68F9E63B31C60B4FD3018793 /* Views */,
+				26B57E69B530AA5B4AC26B02 /* Wire */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		0B6B17B5030BCF679553FD06 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */,
+				E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */,
+				3A46E36969B6686A59C20181 /* TransportTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		26B57E69B530AA5B4AC26B02 /* Wire */ = {
+			isa = PBXGroup;
+			children = (
+				80A57E1EF17145DB4B413531 /* FramePacket.swift */,
+			);
+			path = Wire;
+			sourceTree = "<group>";
+		};
+		28B2AC3769D31820D32714CC /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */,
+				7E21FD7A85332B934F46E8DB /* RoomAPI.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		4AF40E6009EE1A3CE1598BB4 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				0B6F159FDEB7119D871A715B /* RoomsModel.swift */,
+				4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */,
+				E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		53A884D121917880CF493003 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */,
+				020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */,
+				C88A22517007073988C49602 /* PixelBuffers.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		53FE87E85C8F1E99E101EB59 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		68F9E63B31C60B4FD3018793 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				405593358D73490118526653 /* CameraPreview.swift */,
+				F53AF2FFEE1BFD19DB660679 /* ScanView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		70202A9E89AC521F0985194F /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				606790FD5359A8C541B42B2D /* HTNApp.app */,
+				1D244F52D537A57798F00EE1 /* HTNAppTests.xctest */,
+				2F652CBD9424040BA14B4CD9 /* HTNAppUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7CB17E9F161B19F72BF10868 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				A6FBF161AD662835D743E453 /* RoomFlowTests.swift */,
+			);
+			path = UITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		39934096A1DFD1469A1DB7BD /* HTNAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2D63769146AAB323B298C60D /* Build configuration list for PBXNativeTarget "HTNAppTests" */;
+			buildPhases = (
+				53EC659174C337E96D76CC8D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FF46347D8E476E05CFD8CD8B /* PBXTargetDependency */,
+			);
+			name = HTNAppTests;
+			productName = HTNAppTests;
+			productReference = 1D244F52D537A57798F00EE1 /* HTNAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		ABFA2E8DF4CE0B2D62C306ED /* HTNAppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CDBE3E1E6741352741CC81CA /* Build configuration list for PBXNativeTarget "HTNAppUITests" */;
+			buildPhases = (
+				7BC26E1148D87D32A8C98F03 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				89814537B13D3E133029F10F /* PBXTargetDependency */,
+			);
+			name = HTNAppUITests;
+			productName = HTNAppUITests;
+			productReference = 2F652CBD9424040BA14B4CD9 /* HTNAppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		DC3A7EFCC39CC430D8E99FB4 /* HTNApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D9D1B892AB991BD2DBBEFA05 /* Build configuration list for PBXNativeTarget "HTNApp" */;
@@ -70,6 +234,16 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					39934096A1DFD1469A1DB7BD = {
+						ProvisioningStyle = Automatic;
+					};
+					ABFA2E8DF4CE0B2D62C306ED = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = DC3A7EFCC39CC430D8E99FB4;
+					};
+					DC3A7EFCC39CC430D8E99FB4 = {
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 7358BD0C8ED411C6F31F0AAB /* Build configuration list for PBXProject "HTNApp" */;
@@ -85,6 +259,8 @@
 			projectRoot = "";
 			targets = (
 				DC3A7EFCC39CC430D8E99FB4 /* HTNApp */,
+				39934096A1DFD1469A1DB7BD /* HTNAppTests */,
+				ABFA2E8DF4CE0B2D62C306ED /* HTNAppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -94,14 +270,107 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DE97CEF071294690A17E79E3 /* CameraPreview.swift in Sources */,
+				55D374846D2BB59E6612C98D /* CaptureController.swift in Sources */,
+				29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */,
 				AD9D6BA0BAB97208A9D87790 /* ContentView.swift in Sources */,
+				437699743260A169F0374C58 /* FramePacket.swift in Sources */,
+				744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */,
 				F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */,
+				588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */,
+				D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */,
+				C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */,
+				69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */,
+				4E3EFEBC864BAC864D3C5414 /* ScanView.swift in Sources */,
+				1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53EC659174C337E96D76CC8D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */,
+				99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */,
+				1792814C7EB8142083034FFC /* TransportTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7BC26E1148D87D32A8C98F03 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9E6A548071E6FA4933D2D999 /* RoomFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		89814537B13D3E133029F10F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DC3A7EFCC39CC430D8E99FB4 /* HTNApp */;
+			targetProxy = 6D7F3E72462CD74724724930 /* PBXContainerItemProxy */;
+		};
+		FF46347D8E476E05CFD8CD8B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DC3A7EFCC39CC430D8E99FB4 /* HTNApp */;
+			targetProxy = 9FB8DBD065B7592EED216379 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		06C550F7D17A05319DD503C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.htn2026.HTNAppUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HTNApp;
+			};
+			name = Debug;
+		};
+		199145E01C56D0153F5DFDC4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.htn2026.HTNAppUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HTNApp;
+			};
+			name = Release;
+		};
+		36FA79D349B663F296F83F21 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.htn2026.HTNAppTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HTNApp.app/HTNApp";
+			};
+			name = Release;
+		};
 		4C13E64441EC6FA2A268E701 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -110,6 +379,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HTN;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera and depth capture let you scan a room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -123,6 +393,23 @@
 			};
 			name = Release;
 		};
+		70B188C4E302661D984C8BBF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.htn2026.HTNAppTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HTNApp.app/HTNApp";
+			};
+			name = Debug;
+		};
 		DAE5B7ADFA5E18A82A5E0B7D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -131,6 +418,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HTN;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera and depth capture let you scan a room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -146,6 +434,7 @@
 		};
 		EB2E74C41FE021518B4AD3C3 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -209,6 +498,7 @@
 		};
 		F1907C7671226175CF82C3FB /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -266,11 +556,29 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2D63769146AAB323B298C60D /* Build configuration list for PBXNativeTarget "HTNAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70B188C4E302661D984C8BBF /* Debug */,
+				36FA79D349B663F296F83F21 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		7358BD0C8ED411C6F31F0AAB /* Build configuration list for PBXProject "HTNApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EB2E74C41FE021518B4AD3C3 /* Debug */,
 				F1907C7671226175CF82C3FB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CDBE3E1E6741352741CC81CA /* Build configuration list for PBXNativeTarget "HTNAppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06C550F7D17A05319DD503C6 /* Debug */,
+				199145E01C56D0153F5DFDC4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
