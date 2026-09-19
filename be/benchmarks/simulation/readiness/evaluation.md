@@ -67,7 +67,8 @@ motion. The serial bridge and native fixture run the actual firmware JSON parser
 and watchdog in the end-to-end tests; they do not emulate motor loads or validate
 real wiring. No physical obstacle sensing is implemented by this bench controller.
 
-159 backend tests passed, including the bridge tests with no skips. The firmware
+155 backend tests passed in the isolated publication checkout, including the
+bridge tests with no skips (159 in the shared checkout with separate voice work). The firmware
 cross-build, C++ control tests and C++ parser tests passed; all eight serial bridge
 checks also passed after the final parser correction. `results/checks.json`
 records the binary hash and the explicit no-upload/no-physical-motion status.
