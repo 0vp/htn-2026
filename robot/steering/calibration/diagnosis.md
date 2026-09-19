@@ -39,3 +39,16 @@ encoder counts, respectively, returning to reported zero duty and disarmed state
 Uptime remained continuous and neither run reported a USB disconnect. See
 [unloaded.json](unloaded.json). These tests do not measure actual steering angle
 or establish which physical change removed the intermittent failure.
+
+## Floor follow-up
+
+Six individually requested floor commands passed on one serial connection:
+three 15% duty pulses and +3/-3/0 degree steering commands. Drive encoder deltas
+were -8, +50, -42. Identical positive pulses were not repeatable enough for timed
+position control. Tape markings were not readable and displacement too small
+for reliable visual measurement; no meters/count or steering geometry was fitted.
+
+The firmware reported ESP_RST_BROWNOUT (9) before the first pulse, with continuous
+uptime throughout this session. This proves a prior brownout was reported, not
+that these commands caused one or which component caused it. Final telemetry was
+zero drive duty, centered steering command and supervision off. See [floor.json](floor.json).

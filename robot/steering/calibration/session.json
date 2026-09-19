@@ -16,7 +16,7 @@
   "preview_observation": "Cable moved clear by user; refreshed Photo Booth view inspected between pulses; displacement too small to quantify",
   "movement_commands_sent": true,
   "metric_calibration_complete": false,
-  "blocking_observation": "Latest unloaded checks passed. Prior intermittent disconnect cause unresolved; floor-load calibration and physical angle measurements pending.",
+  "blocking_observation": "Six bounded floor commands passed with continuous uptime. Metric scale and physical steering angles remain unmeasured; open-loop motion varies. Board reports a brownout before this session.",
   "measurements": {
     "meters_per_tick": null,
     "steering_angle_per_servo_degree": null,
@@ -81,5 +81,6 @@
       "disconnect": false
     }
   },
-  "latest_unloaded_check": "unloaded.json"
+  "latest_unloaded_check": "unloaded.json",
+  "latest_floor_check": "floor.json"
 }

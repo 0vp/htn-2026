@@ -1,0 +1,98 @@
+{
+  "recorded_at": "2026-09-19T15:57:42.756736+00:00",
+  "setup": "Floor; laptop camera, distant tape measure, slack USB tether. Tape markings not reliably readable; no metric scale fitted.",
+  "connection": "One persistent port; zero observed disconnects during six bounded commands",
+  "commands": [
+    {
+      "request": {
+        "duty": 0.15,
+        "steering_deg": 0,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "encoder_delta": -8,
+      "uptime_start_ms": 199810,
+      "uptime_end_ms": 200210
+    },
+    {
+      "request": {
+        "duty": -0.15,
+        "steering_deg": 0,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "encoder_delta": 50,
+      "uptime_start_ms": 225760,
+      "uptime_end_ms": 226160
+    },
+    {
+      "request": {
+        "duty": 0.15,
+        "steering_deg": 0,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "encoder_delta": -42,
+      "uptime_start_ms": 308460,
+      "uptime_end_ms": 308860
+    },
+    {
+      "request": {
+        "duty": 0,
+        "steering_deg": 3,
+        "seconds": 0.2
+      },
+      "reported_stop": true,
+      "encoder_delta": 0,
+      "uptime_start_ms": 330960,
+      "uptime_end_ms": 331260
+    },
+    {
+      "request": {
+        "duty": 0,
+        "steering_deg": -3,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "encoder_delta": 0,
+      "uptime_start_ms": 357161,
+      "uptime_end_ms": 357561
+    },
+    {
+      "request": {
+        "duty": 0,
+        "steering_deg": 0,
+        "seconds": 0.2
+      },
+      "reported_stop": true,
+      "encoder_delta": 0,
+      "uptime_start_ms": 378311,
+      "uptime_end_ms": 378611
+    }
+  ],
+  "calibration": {
+    "positive_duty_encoder_sign": -1,
+    "negative_duty_encoder_sign": 1,
+    "meters_per_tick": null,
+    "physical_forward_sign": null,
+    "servo_offset_to_wheel_angle": null,
+    "turning_radius_m": null,
+    "stopping_distance_m": null,
+    "open_loop_repeatability": "insufficient: identical positive pulses gave -8 and -42 counts"
+  },
+  "reset_evidence": {
+    "reset_reason": 9,
+    "meaning": "ESP_RST_BROWNOUT in installed ESP-IDF enum",
+    "already_present_before_first_command": true,
+    "reset_during_session": false,
+    "cause": "unknown; does not identify servo or USB as cause"
+  },
+  "final": {
+    "uptime_ms": 396411,
+    "motor_duty": 0,
+    "steering_deg": 0,
+    "encoder_ticks": 1,
+    "supervised": false
+  },
+  "status": "partial_command_and_encoder_validation_not_metric_calibration"
+}
