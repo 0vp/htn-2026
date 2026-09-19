@@ -23,7 +23,11 @@ class RobotLink:
             raise ValueError("Robot URL must look like ws://host:81")
         self.url = f"{url.rstrip('/')}/?token={quote(token, safe='')}"
         self._lock = threading.Lock()
+        self._sent = threading.Condition(self._lock)
         self._command: dict | None = None
+        # Bumped on every set_command; tracks which command the last sent packet carried.
+        self._generation = 0
+        self._sent_generation = 0
         self._telemetry: dict = {}
         self._telemetry_at = 0.0
         self._connected = False
@@ -35,8 +39,7 @@ class RobotLink:
         self._thread.start()
 
     def close(self) -> None:
-        self.set_command(None)
-        time.sleep(2 / RATE_HZ)  # let one idle packet go out before closing
+        self.release()
         self._stop.set()
         self._thread.join(timeout=3)
 
@@ -48,6 +51,19 @@ class RobotLink:
         """`command` holds drive/arm/winch fields; None sends idle (disarmed) packets."""
         with self._lock:
             self._command = command
+            self._generation += 1
+
+    def release(self, timeout: float = 0.5) -> bool:
+        """Switch to idle and wait until a disarmed packet is on the wire.
+
+        Without this, a packet built just before the switch can still carry the old command.
+        Returns False if no idle packet went out in time (e.g. the link is down; the robot's
+        own 300 ms failsafe then stops it).
+        """
+        self.set_command(None)
+        with self._sent:
+            target = self._generation
+            return self._sent.wait_for(lambda: self._sent_generation >= target, timeout)
 
     def telemetry(self) -> tuple[dict, float]:
         """Latest robot telemetry and its age in seconds (infinite before the first frame)."""
@@ -55,9 +71,9 @@ class RobotLink:
             age = time.monotonic() - self._telemetry_at if self._telemetry_at else float("inf")
             return dict(self._telemetry), age
 
-    def _packet(self) -> str:
+    def _packet(self) -> tuple[str, int]:
         with self._lock:
-            command = self._command
+            command, generation = self._command, self._generation
         self._seq += 1
         packet = {
             "type": "command",
@@ -72,7 +88,7 @@ class RobotLink:
         }
         if command:
             packet.update(command)
-        return json.dumps(packet)
+        return json.dumps(packet), generation
 
     def _run(self) -> None:
         asyncio.run(self._main())
@@ -85,7 +101,11 @@ class RobotLink:
                     receiver = asyncio.create_task(self._receive(ws))
                     try:
                         while not self._stop.is_set() and not receiver.done():
-                            await ws.send(self._packet())
+                            packet, generation = self._packet()
+                            await ws.send(packet)
+                            with self._sent:
+                                self._sent_generation = generation
+                                self._sent.notify_all()
                             await asyncio.sleep(1 / RATE_HZ)
                     finally:
                         receiver.cancel()

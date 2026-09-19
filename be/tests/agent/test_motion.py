@@ -69,6 +69,19 @@ def supervise(fake, motion):
         time.sleep(0.02)
 
 
+def released(fake):
+    """True once the fake robot has received a disarmed packet after the move.
+
+    The link confirms the idle packet was sent; the fake records it a moment later.
+    """
+    deadline = time.monotonic() + 0.5
+    while time.monotonic() < deadline:
+        if fake.packets and not fake.packets[-1]["armed"]:
+            return True
+        time.sleep(0.01)
+    return False
+
+
 @pytest.fixture
 def robot():
     fake = FakeRobot()
@@ -105,7 +118,7 @@ def test_supervised_drive_runs_then_releases(robot):
     assert "not measured" in result["measurement"].lower() or "estimated" in result["measurement"]
     armed = [p for p in fake.packets if p["armed"]]
     assert armed and all(p["drive"] == {"left": 0.3, "right": 0.3} for p in armed)
-    assert not fake.packets[-1]["armed"]
+    assert released(fake)
 
 
 def test_losing_supervision_interrupts_the_move(robot):
@@ -117,7 +130,7 @@ def test_losing_supervision_interrupts_the_move(robot):
     assert result["state"] == "interrupted"
     assert result["stopped_by"].startswith("supervision_lost")
     assert time.monotonic() - started < 2
-    assert not fake.packets[-1]["armed"]
+    assert released(fake)
 
 
 def test_estop_interrupts_and_blocks_retry(robot):

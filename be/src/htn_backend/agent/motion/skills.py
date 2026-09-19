@@ -107,9 +107,9 @@ class Motion:
         )
 
     def stop(self) -> dict:
-        self.link.set_command(None)
-        time.sleep(0.3)
-        return dict(skill="stop", released=True, status=self.status())
+        released = self.link.release()
+        self._wait_until_still()
+        return dict(skill="stop", release_sent=released, status=self.status())
 
     def _run(self, command: dict, seconds: float, request: dict, estimate: dict) -> dict:
         if seconds > MAX_SECONDS:
@@ -150,7 +150,7 @@ class Motion:
                 if stopped_by or elapsed >= seconds:
                     break
         finally:
-            self.link.set_command(None)
+            released = self.link.release()
 
         elapsed = time.monotonic() - started
         settled = self._wait_until_still()
@@ -162,6 +162,7 @@ class Motion:
             stopped_by=stopped_by,
             commanded_seconds=round(seconds, 2),
             ran_seconds=round(elapsed, 2),
+            release_sent=released,
             robot_reports_stopped=settled,
             encoder_counts_delta={
                 side: end_counts[side] - start_counts[side] for side in ("left", "right")
