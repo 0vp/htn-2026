@@ -38,7 +38,7 @@ def test_unknown_room_member_and_cross_room_reads(client):
     result = upload(client, first, packet()).json()
     assert client.get(f"/v1/rooms/{second}/frames/{result['sequence']}").status_code == 404
     assert upload(client, first, packet(), "absent").status_code == 409
-    assert client.post("/v1/rooms/FFFFFFFF/join", json={"device_id": "a"}).status_code == 404
+    assert client.post("/v1/rooms/FFFF/join", json={"device_id": "a"}).status_code == 404
 
 
 def test_close_preserves_capture_and_retry(client):

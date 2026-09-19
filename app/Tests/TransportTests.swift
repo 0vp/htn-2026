@@ -72,7 +72,8 @@ final class TransportTests: XCTestCase {
         XCTAssertFalse(window.reserve(100))
         window.complete()
         XCTAssertTrue(window.reserve(100))
-        XCTAssertTrue(RoomAPI.validCode("ABCDEF12"))
+        XCTAssertTrue(RoomAPI.validCode("AB12"))
+        XCTAssertFalse(RoomAPI.validCode("ABCDEF12"))
         XCTAssertFalse(RoomAPI.validCode("../rooms"))
     }
 }

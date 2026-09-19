@@ -116,7 +116,7 @@ class Store:
             if self.db.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] >= MAX_ROOMS:
                 raise StoreError(409, "Room limit reached")
             while True:
-                room_id = uuid.uuid4().hex[:8].upper()
+                room_id = uuid.uuid4().hex[:4].upper()
                 if not self.db.execute(
                     "SELECT 1 FROM rooms WHERE room_id=?", (room_id,)
                 ).fetchone():

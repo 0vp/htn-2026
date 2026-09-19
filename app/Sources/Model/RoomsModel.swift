@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 final class RoomsModel: ObservableObject {
     @Published var rooms: [Room] = []
-    @Published var selected: Room?
+    @Published var selected: RoomSession?
     @Published var busy = false
     @Published var error: String?
     let deviceID: String
@@ -25,7 +25,7 @@ final class RoomsModel: ObservableObject {
         catch { self.error = error.localizedDescription }
     }
 
-    func enter(code: String? = nil, name: String = "Room") async {
+    func enter(code: String? = nil, name: String = "Room", role: DeviceRole = .angle) async {
         guard !busy else { return }
         busy = true
         defer { busy = false }
@@ -33,7 +33,8 @@ final class RoomsModel: ObservableObject {
             let roomCode: String
             if let code { roomCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
             else { roomCode = try await api.create(name: name).room_id }
-            selected = try await api.join(code: roomCode, device: deviceID)
+            let room = try await api.join(code: roomCode, device: deviceID, role: role)
+            selected = RoomSession(room: room, role: role)
             error = nil
         } catch { self.error = error.localizedDescription }
     }
