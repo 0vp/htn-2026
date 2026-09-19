@@ -44,10 +44,19 @@ class Bridge:
         self.device.write((json.dumps(value, allow_nan=False) + "\n").encode())
 
     async def telemetry(self, ws):
+        loop = asyncio.get_running_loop()
+        heard = loop.time()
+        pending = b""
         while True:
-            line = await asyncio.to_thread(self.device.read_until, b"\n", 2048)
-            if not line:
+            chunk = await asyncio.to_thread(self.device.read_until, b"\n", 2048)
+            if loop.time() - heard > 0.5:
+                raise TimeoutError("Serial telemetry stopped")
+            pending += chunk
+            if len(pending) > 2048:
+                raise ValueError("Oversized serial telemetry")
+            if not pending.endswith(b"\n"):
                 continue
+            line, pending = pending, b""
             try:
                 value = json.loads(line)
             except (ValueError, UnicodeError):
@@ -57,6 +66,7 @@ class Bridge:
                 and value.get("type") == "telemetry"
                 and value.get("drivetrain") == "single_steer_v1"
             ):
+                heard = loop.time()
                 await ws.send(json.dumps(value, allow_nan=False))
 
     async def client(self, ws):
@@ -64,7 +74,7 @@ class Bridge:
             await ws.close(code=1008, reason="Controller already connected")
             return
         self.active = True
-        sender = None
+        sender = receiver = None
         try:
             # Check identity before forwarding any active command.
             deadline = asyncio.get_running_loop().time() + 3
@@ -86,25 +96,39 @@ class Bridge:
             self.send(STOP)
             self.send(dict(type="supervise", enabled=self.supervise))
             sender = asyncio.create_task(self.telemetry(ws))
-            async for message in ws:
-                try:
-                    value = command(message)
-                except (ValueError, TypeError, AttributeError):
-                    self.send(STOP)
-                    await ws.close(code=1008, reason="Invalid steering command")
-                    break
-                if value["armed"] and not self.supervise:
-                    self.send(STOP)
-                else:
-                    self.send(value)
+            receiver = asyncio.create_task(self.commands(ws))
+            done, _ = await asyncio.wait((sender, receiver), return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                task.result()
+        except (serial.SerialException, OSError, TimeoutError, ValueError):
+            if receiver:
+                receiver.cancel()
+            with contextlib.suppress(serial.SerialException, OSError):
+                self.send(STOP)
+                self.send(dict(type="supervise", enabled=False))
+            await ws.close(code=1011, reason="Serial control link failed")
         finally:
             with contextlib.suppress(serial.SerialException, OSError):
                 self.send(STOP)
                 self.send(dict(type="supervise", enabled=False))
-            if sender:
-                sender.cancel()
-                await asyncio.gather(sender, return_exceptions=True)
+            tasks = [task for task in (sender, receiver) if task is not None]
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             self.active = False
+
+    async def commands(self, ws):
+        async for message in ws:
+            try:
+                value = command(message)
+            except (ValueError, TypeError, AttributeError):
+                self.send(STOP)
+                await ws.close(code=1008, reason="Invalid steering command")
+                break
+            if value["armed"] and not self.supervise:
+                self.send(STOP)
+            else:
+                self.send(value)
 
 
 async def serve(device, port, supervise):
@@ -120,7 +144,9 @@ def main():
     parser.add_argument("--port", type=int, default=8793)
     parser.add_argument("--supervise", action="store_true", help="Human-supervised bench movement")
     args = parser.parse_args()
-    device = serial.Serial(port=None, baudrate=115200, timeout=0.05, write_timeout=0.1)
+    device = serial.Serial(
+        port=None, baudrate=115200, timeout=0.05, write_timeout=0.1, exclusive=True
+    )
     # Keep normal line states: forcing both false reset this CH340/ESP32-S3.
     device.port = args.device
     device.open()

@@ -16,5 +16,6 @@
   "wifi_client_end_to_end_tested": false,
   "charger_power_tested": false,
   "movement_commands_sent_during_wifi_update": false,
-  "credentials_committed": false
+  "credentials_committed": false,
+  "status": "Historical test of removed Wi-Fi firmware; superseded by wired.json"
 }
