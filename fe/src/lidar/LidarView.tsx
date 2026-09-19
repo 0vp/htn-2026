@@ -3,6 +3,8 @@ import { startDemo } from './demoScan';
 import { connectSocket, feed, initialSourceUrl, rememberSourceUrl, type LinkState } from './feed';
 import { LidarRenderer, type CloudStats, type ColorMode, type ViewMode } from './renderer';
 import { Segmented, TextButton } from '../ui/controls';
+import { defaultRoom, RoomPicker, useRooms } from '../backend/RoomPicker';
+import { connectRoom, parseRoomSource, roomSource } from '../backend/roomFeed';
 
 const compact = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
@@ -25,6 +27,27 @@ export function LidarView() {
   const [link, setLink] = useState<LinkState>('demo');
   const [attempt, setAttempt] = useState(0);
   const [stats, setStats] = useState<CloudStats | null>(null);
+  const rooms = useRooms();
+  const chosen = useRef(url !== '');
+  const roomId = parseRoomSource(url);
+
+  const choose = (next: string) => {
+    chosen.current = true;
+    rememberSourceUrl(next);
+    setUrl(next);
+    setDraft(next);
+    setAttempt((n) => n + 1);
+  };
+
+  // With no configured source, follow the newest capture room once the API answers.
+  useEffect(() => {
+    if (chosen.current) return;
+    const room = defaultRoom(rooms.rooms);
+    if (!room) return;
+    chosen.current = true;
+    setUrl(roomSource(room.room_id));
+    setDraft(roomSource(room.room_id));
+  }, [rooms.rooms]);
 
   useEffect(() => {
     if (!host.current) return;
@@ -46,7 +69,8 @@ export function LidarView() {
       return startDemo();
     }
     feed.emit({ xyz: new Float32Array(0), reset: true });
-    return connectSocket(url, setLink);
+    const room = parseRoomSource(url);
+    return room ? connectRoom(room, setLink) : connectSocket(url, setLink);
   }, [url, attempt]);
 
   useEffect(() => renderer.current?.setView(view), [view]);
@@ -55,10 +79,7 @@ export function LidarView() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const next = draft.trim();
-    rememberSourceUrl(next);
-    setUrl(next);
-    setAttempt((n) => n + 1);
+    choose(draft.trim());
   };
 
   const pose = stats?.pose;
@@ -115,29 +136,32 @@ export function LidarView() {
         <div className="hairline-light flex flex-wrap items-center gap-x-6 gap-y-2 border-b py-4 label text-white/85">
           <span className="flex items-center gap-2">
             <span className={`size-2 ${link === 'live' && !stale ? 'bg-white' : link === 'demo' ? 'bg-blue-soft' : 'bg-signal'}`} />
-            {stale ? 'Stalled' : LINK_LABEL[link]}
+            {stale ? (roomId ? 'No new frames' : 'Stalled') : LINK_LABEL[link]}
           </span>
           <span>{compact(stats?.pointsPerSecond ?? 0)} pts/s</span>
           <span>{stats?.fps ?? 0} fps</span>
           <span>
             {pose ? `x ${pose.x.toFixed(2)}  z ${pose.z.toFixed(2)}  θ ${((pose.yaw * 180) / Math.PI).toFixed(0)}°` : 'No pose'}
           </span>
-          <form onSubmit={submit} className="ml-auto flex items-center gap-2">
-            <label htmlFor="lidar-url" className="text-blue-soft">
-              Source
-            </label>
-            <input
-              id="lidar-url"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="ws://robot.local:8765 · empty = demo"
-              spellCheck={false}
-              className="hairline-light w-64 border bg-transparent px-2 py-1 font-mono text-[11px] tracking-normal normal-case text-white placeholder:text-white/45 focus:outline-none"
-            />
-            <button type="submit" className="bg-paper px-3 py-1 text-blue hover:bg-white">
-              {draft.trim() === url ? 'Reconnect' : 'Connect'}
-            </button>
-          </form>
+          <div className="ml-auto flex flex-wrap items-center gap-4">
+            <RoomPicker list={rooms} value={roomId} onPick={(id) => choose(id ? roomSource(id) : '')} />
+            <form onSubmit={submit} className="flex items-center gap-2">
+              <label htmlFor="lidar-url" className="text-blue-soft">
+                Source
+              </label>
+              <input
+                id="lidar-url"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="room:A211342B · ws://… · empty = demo"
+                spellCheck={false}
+                className="hairline-light w-64 border bg-transparent px-2 py-1 font-mono text-[11px] tracking-normal normal-case text-white placeholder:text-white/45 focus:outline-none"
+              />
+              <button type="submit" className="bg-paper px-3 py-1 text-blue hover:bg-white">
+                {draft.trim() === url ? 'Reconnect' : 'Connect'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </section>
