@@ -15,6 +15,7 @@ final class ScanModel: ObservableObject {
     private var observation: AnyCancellable?
     private var permissionPending = false
     private var finished = false
+    private var restartAfterUpload = false
     static var supported: Bool { ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) }
 
     lazy var capture: CaptureController = CaptureController(
@@ -34,6 +35,7 @@ final class ScanModel: ObservableObject {
                     self.capture.uploadCompleted()
                     self.error = "Upload buffer is full. Keep the app open and retry."
                     self.pause()
+                    self.restartAfterUpload = true
                 }
             }
         }
@@ -43,7 +45,14 @@ final class ScanModel: ObservableObject {
         let stream = FrameStream(room: room.id, device: device)
         self.stream = stream
         uploads = UploadQueue { data, header in try await stream.send(data, header: header) }
-        uploads.acknowledged = { [weak self] in self?.capture.uploadCompleted() }
+        uploads.acknowledged = { [weak self] in
+            guard let self else { return }
+            self.capture.uploadCompleted()
+            if self.uploads.pending == 0, self.restartAfterUpload {
+                self.restartAfterUpload = false
+                Task { await self.start() }
+            }
+        }
         uploads.failed = { [weak self] in self?.pause() }
         observation = uploads.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
     }
@@ -63,7 +72,7 @@ final class ScanModel: ObservableObject {
             return
         }
         guard uploads.pending == 0 else {
-            error = "Finish uploading before starting another capture."
+            restartAfterUpload = true
             return
         }
         error = nil
@@ -73,6 +82,7 @@ final class ScanModel: ObservableObject {
     }
 
     func pause() {
+        restartAfterUpload = false
         capturing = false
         capture.stop()
     }

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export OMP_NUM_THREADS=2
+export OPENBLAS_NUM_THREADS=2
+export LD_LIBRARY_PATH="/opt/htn/esam/cuda/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PYTHONPATH="/opt/htn/esam/backend/src:/opt/htn/esam/fastsam"
+exec /opt/htn/esam/env/bin/python -m htn_backend.perception.esam.runtime \
+  --upstream /opt/htn/esam/upstream \
+  --checkpoint /opt/htn/esam/weights/ESAM-E_CA_online_epoch_128.pth \
+  --fastsam /opt/htn/esam/weights/FastSAM-x.pt

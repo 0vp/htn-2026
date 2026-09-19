@@ -35,6 +35,7 @@ class ObjectConfirmation:
                     first=None,
                     last=-1.0,
                     confirmed=False,
+                    last_received_at=None,
                     devices=set(),
                     evidence=None,
                 ),
@@ -74,6 +75,8 @@ class ObjectConfirmation:
                     v >= bound
                     for v, bound in zip(difference(pose, state["pose"]), (0.08, 8), strict=True)
                 )
+                if ratio >= 0.5:
+                    state["last_received_at"] = (frame.provenance or {}).get("received_at")
                 if ratio >= 0.5 and changed:
                     state["views"] += 1
                     state["pose"] = pose.copy()
@@ -108,6 +111,7 @@ class ObjectConfirmation:
             observations=state["samples"],
             source_devices=sorted(state["devices"]),
             last_confirmed_capture_s=state["last"],
+            last_confirmed_received_at=state["last_received_at"],
             age_s=max(0.0, self.timestamp_s - state["last"]),
             evidence_digest=state["evidence"]["digest"] if state["evidence"] else None,
         )

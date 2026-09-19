@@ -19,8 +19,7 @@ def router(state: ProcessingState) -> APIRouter:
 
     @routes.get("/{room_id}/map")
     def room_map(room_id: RoomID) -> dict:
-        row = state.snapshot(room_id)
-        return {k: v for k, v in row.items() if k != "mesh"}
+        return state.snapshot(room_id, include_mesh=False)
 
     @routes.get("/{room_id}/mesh.glb")
     def mesh(room_id: RoomID, request: Request) -> Response:
@@ -38,7 +37,7 @@ def router(state: ProcessingState) -> APIRouter:
     def objects(room_id: RoomID, q: str = Query(default="", max_length=256)) -> dict:
         if q.strip():
             return {"objects": state.search(room_id, q), "search": "sqlite_fts5"}
-        row = state.snapshot(room_id)
+        row = state.snapshot(room_id, include_mesh=False)
         return {"revision": row["revision"], "objects": row["objects"]}
 
     @routes.get("/{room_id}/objects/{object_id}/evidence.jpg")

@@ -1,0 +1,15 @@
+numpy==1.26.4
+setuptools==69.5.1
+wheel==0.48.0
+ninja==1.13.2
+mmengine==0.10.3
+mmdet==3.2.0
+mmdet3d==1.4.0
+mmcv==2.1.0
+opencv-python==4.8.1.78
+ultralytics==8.0.120
+icecream==2.2.0
+seaborn==0.13.2
+scipy==1.15.3
+scikit-learn==1.7.2
+spconv-cu118==2.3.8

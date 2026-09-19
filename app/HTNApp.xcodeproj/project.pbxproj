@@ -10,20 +10,26 @@
 		1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */; };
 		1792814C7EB8142083034FFC /* TransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A46E36969B6686A59C20181 /* TransportTests.swift */; };
 		29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */; };
+		2F4CE16761EAD95DA832CC41 /* RoomSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35235E54BEB20EC3D650040C /* RoomSessionModel.swift */; };
 		437699743260A169F0374C58 /* FramePacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A57E1EF17145DB4B413531 /* FramePacket.swift */; };
-		4E3EFEBC864BAC864D3C5414 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53AF2FFEE1BFD19DB660679 /* ScanView.swift */; };
+		47B2FD61098A96CB31FA1D81 /* SyncSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A5D818A67A5C7020A15A014 /* SyncSheet.swift */; };
 		55D374846D2BB59E6612C98D /* CaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */; };
 		588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88A22517007073988C49602 /* PixelBuffers.swift */; };
 		69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */; };
+		6A05460ECD7E7A56A4EE5AB4 /* RobotFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D9C1897460BB84A1424EFFE /* RobotFace.swift */; };
+		73B93F00F973E89771F334D1 /* RoomLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7EB7BB11D378314CC7DA33 /* RoomLink.swift */; };
 		744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */; };
+		8E9ACC22ADEB4C3549F36A09 /* RoomLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777B111EC0599DA5BC7CEA1A /* RoomLinkTests.swift */; };
 		99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */; };
 		9E6A548071E6FA4933D2D999 /* RoomFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6FBF161AD662835D743E453 /* RoomFlowTests.swift */; };
 		AD9D6BA0BAB97208A9D87790 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B2C467AFC5D7B12B71E16A /* ContentView.swift */; };
 		C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6F159FDEB7119D871A715B /* RoomsModel.swift */; };
 		D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E21FD7A85332B934F46E8DB /* RoomAPI.swift */; };
-		DE97CEF071294690A17E79E3 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 405593358D73490118526653 /* CameraPreview.swift */; };
+		D73B8705C58C512CA31EA0CE /* RoomQRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */; };
+		DDA331CAD7055D1260332844 /* RoomSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6459AA12B44B8D02E19C32 /* RoomSessionView.swift */; };
 		E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */; };
 		F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EF0760CAC94289EDAAFC5 /* HTNApp.swift */; };
+		FD4C501D7B83530268D2814E /* RoomEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,23 +53,29 @@
 		020BBDF9B7F9A6E90859D0E2 /* CaptureWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureWindow.swift; sourceTree = "<group>"; };
 		06B2C467AFC5D7B12B71E16A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		0B6F159FDEB7119D871A715B /* RoomsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomsModel.swift; sourceTree = "<group>"; };
+		0D9C1897460BB84A1424EFFE /* RobotFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RobotFace.swift; sourceTree = "<group>"; };
 		1D244F52D537A57798F00EE1 /* HTNAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HTNAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		270EF0760CAC94289EDAAFC5 /* HTNApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTNApp.swift; sourceTree = "<group>"; };
 		2F652CBD9424040BA14B4CD9 /* HTNAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HTNAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		35235E54BEB20EC3D650040C /* RoomSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomSessionModel.swift; sourceTree = "<group>"; };
+		3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomQRScanner.swift; sourceTree = "<group>"; };
 		3A46E36969B6686A59C20181 /* TransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportTests.swift; sourceTree = "<group>"; };
-		405593358D73490118526653 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		3F6459AA12B44B8D02E19C32 /* RoomSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomSessionView.swift; sourceTree = "<group>"; };
 		4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanModel.swift; sourceTree = "<group>"; };
 		606790FD5359A8C541B42B2D /* HTNApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HTNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendIntegrationTests.swift; sourceTree = "<group>"; };
+		6A5D818A67A5C7020A15A014 /* SyncSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSheet.swift; sourceTree = "<group>"; };
+		6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomEntrySheet.swift; sourceTree = "<group>"; };
+		777B111EC0599DA5BC7CEA1A /* RoomLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomLinkTests.swift; sourceTree = "<group>"; };
 		7E21FD7A85332B934F46E8DB /* RoomAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomAPI.swift; sourceTree = "<group>"; };
 		80A57E1EF17145DB4B413531 /* FramePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacket.swift; sourceTree = "<group>"; };
 		A6FBF161AD662835D743E453 /* RoomFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomFlowTests.swift; sourceTree = "<group>"; };
 		C88A22517007073988C49602 /* PixelBuffers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBuffers.swift; sourceTree = "<group>"; };
 		CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameStream.swift; sourceTree = "<group>"; };
+		CD7EB7BB11D378314CC7DA33 /* RoomLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomLink.swift; sourceTree = "<group>"; };
 		E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureBufferTests.swift; sourceTree = "<group>"; };
 		E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadQueue.swift; sourceTree = "<group>"; };
 		EAEB05C54804D23B43C70FD4 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
-		F53AF2FFEE1BFD19DB660679 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		FB3E71CA3B5A8EB00C141514 /* CaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,6 +110,7 @@
 			children = (
 				634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */,
 				E71ACFCB32B0358C185B0D88 /* CaptureBufferTests.swift */,
+				777B111EC0599DA5BC7CEA1A /* RoomLinkTests.swift */,
 				3A46E36969B6686A59C20181 /* TransportTests.swift */,
 			);
 			path = Tests;
@@ -116,6 +129,7 @@
 			children = (
 				CB68E55C56DD2F1ED84F5D2C /* FrameStream.swift */,
 				7E21FD7A85332B934F46E8DB /* RoomAPI.swift */,
+				CD7EB7BB11D378314CC7DA33 /* RoomLink.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -123,6 +137,7 @@
 		4AF40E6009EE1A3CE1598BB4 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				35235E54BEB20EC3D650040C /* RoomSessionModel.swift */,
 				0B6F159FDEB7119D871A715B /* RoomsModel.swift */,
 				4A49EA40973C1DA1F760D1E6 /* ScanModel.swift */,
 				E743F4F6AAC4C400188ACEAB /* UploadQueue.swift */,
@@ -151,8 +166,8 @@
 		68F9E63B31C60B4FD3018793 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				405593358D73490118526653 /* CameraPreview.swift */,
-				F53AF2FFEE1BFD19DB660679 /* ScanView.swift */,
+				B41C3F2BBD5CC00EF1A6B920 /* Rooms */,
+				E07AE404933E2808A8B92F92 /* Session */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -173,6 +188,25 @@
 				A6FBF161AD662835D743E453 /* RoomFlowTests.swift */,
 			);
 			path = UITests;
+			sourceTree = "<group>";
+		};
+		B41C3F2BBD5CC00EF1A6B920 /* Rooms */ = {
+			isa = PBXGroup;
+			children = (
+				6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */,
+				3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */,
+			);
+			path = Rooms;
+			sourceTree = "<group>";
+		};
+		E07AE404933E2808A8B92F92 /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				0D9C1897460BB84A1424EFFE /* RobotFace.swift */,
+				3F6459AA12B44B8D02E19C32 /* RoomSessionView.swift */,
+				6A5D818A67A5C7020A15A014 /* SyncSheet.swift */,
+			);
+			path = Session;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -270,7 +304,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DE97CEF071294690A17E79E3 /* CameraPreview.swift in Sources */,
 				55D374846D2BB59E6612C98D /* CaptureController.swift in Sources */,
 				29FB92B935B064326E030CFB /* CaptureWindow.swift in Sources */,
 				AD9D6BA0BAB97208A9D87790 /* ContentView.swift in Sources */,
@@ -278,10 +311,16 @@
 				744A35EE3FC5E3A712E99A43 /* FrameStream.swift in Sources */,
 				F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */,
 				588CC8885973033F23C7D53A /* PixelBuffers.swift in Sources */,
+				6A05460ECD7E7A56A4EE5AB4 /* RobotFace.swift in Sources */,
 				D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */,
+				FD4C501D7B83530268D2814E /* RoomEntrySheet.swift in Sources */,
+				73B93F00F973E89771F334D1 /* RoomLink.swift in Sources */,
+				D73B8705C58C512CA31EA0CE /* RoomQRScanner.swift in Sources */,
+				2F4CE16761EAD95DA832CC41 /* RoomSessionModel.swift in Sources */,
+				DDA331CAD7055D1260332844 /* RoomSessionView.swift in Sources */,
 				C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */,
 				69C25CF195D7F8F53D7F0A9A /* ScanModel.swift in Sources */,
-				4E3EFEBC864BAC864D3C5414 /* ScanView.swift in Sources */,
+				47B2FD61098A96CB31FA1D81 /* SyncSheet.swift in Sources */,
 				1565E8F2FA1A2C589996A24D /* UploadQueue.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -292,6 +331,7 @@
 			files = (
 				E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */,
 				99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */,
+				8E9ACC22ADEB4C3549F36A09 /* RoomLinkTests.swift in Sources */,
 				1792814C7EB8142083034FFC /* TransportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -377,7 +417,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HTN;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera and depth capture let you scan a room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -416,7 +457,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = HTN;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera and depth capture let you scan a room.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

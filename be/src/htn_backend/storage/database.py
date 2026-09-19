@@ -63,6 +63,9 @@ class Store:
         """)
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
+            room_columns = {r[1] for r in self.db.execute("PRAGMA table_info(rooms)")}
+            if "leader_device_id" not in room_columns:
+                self.db.execute("ALTER TABLE rooms ADD COLUMN leader_device_id TEXT")
             columns = {r[1] for r in self.db.execute("PRAGMA table_info(frames)")}
             if "archived" not in columns:
                 self.db.execute("ALTER TABLE frames ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
@@ -111,7 +114,7 @@ class Store:
             ids = self.db.execute("SELECT room_id FROM rooms ORDER BY created_at DESC").fetchall()
             return [self.room(row[0]) for row in ids]
 
-    def create(self, name: str) -> dict:
+    def create(self, name: str, device_id: str | None = None) -> dict:
         with self.lock, self.db:
             if self.db.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] >= MAX_ROOMS:
                 raise StoreError(409, "Room limit reached")
@@ -121,7 +124,16 @@ class Store:
                     "SELECT 1 FROM rooms WHERE room_id=?", (room_id,)
                 ).fetchone():
                     break
-            self.db.execute("INSERT INTO rooms VALUES(?,?,?,0)", (room_id, name, time.time()))
+            now = time.time()
+            self.db.execute(
+                "INSERT INTO rooms(room_id,name,created_at,closed,leader_device_id) "
+                "VALUES(?,?,?,0,?)",
+                (room_id, name, now, device_id),
+            )
+            if device_id is not None:
+                self.db.execute(
+                    "INSERT INTO devices VALUES(?,?,?,?)", (room_id, device_id, "iPhone", now)
+                )
         return self.room(room_id)
 
     def join(self, room_id: str, device_id: str, name: str) -> dict:

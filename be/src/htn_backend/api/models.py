@@ -12,6 +12,7 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 class CreateRoom(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: Name = "Room"
+    device_id: DeviceID | None = None
 
 
 class JoinRoom(BaseModel):
