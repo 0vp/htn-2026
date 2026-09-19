@@ -9,6 +9,7 @@ class Options:
     gqa: bool = False
     static: bool = False
     graph: bool = False
+    native_prefill: bool = False
     swiglu: bool = False
     packed: bool = False
     custom_attention: bool = False
@@ -26,6 +27,7 @@ VARIANTS = {
     'gqa': Options(gqa=True),
     'static': Options(direct=True, static=True),
     'graph': Options(direct=True, static=True, graph=True),
+    'graph_hybrid': Options(direct=True, static=True, graph=True, native_prefill=True),
     'swiglu': Options(swiglu=True),
     'packed': Options(packed=True),
     'custom_attention': Options(gqa=True, custom_attention=True),

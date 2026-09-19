@@ -51,6 +51,9 @@ class Execution:
         self.cache.reset()
 
     def generate(self, ids, output):
+        if self.options.native_prefill:
+            yield from self.generate_hybrid(ids, output)
+            return
         with torch.inference_mode():
             current = torch.tensor(ids, dtype=torch.int64, device='cuda:0')
             if self.options.static:
@@ -71,4 +74,34 @@ class Execution:
                     current = forward(self.model, current, cache, positions,
                                       self.capacity if self.options.static else None)
                 position = len(ids[0]) if step == 0 else position + 1
+                yield current[:, 0].tolist()
+
+    def generate_hybrid(self, ids, output):
+        """Native dynamic prefill, followed by fixed-buffer graphed decode."""
+        if output <= 0:
+            return
+        with torch.inference_mode():
+            batch, prompt = len(ids), len(ids[0])
+            self.prepare(batch, prompt, output)
+            tokens = torch.tensor(ids, dtype=torch.int64, device='cuda:0')
+            prefill = self.model(input_ids=tokens, use_cache=True, logits_to_keep=1,
+                                 return_dict=True)
+            current = prefill.logits[:, -1].argmax(-1, keepdim=True)
+            yield current[:, 0].tolist()
+            if output == 1:
+                return
+            # Only initialized positions enter the graph's visible cache range.
+            # Reset also removes data from the preceding prompt/warmup call.
+            self.cache.reset()
+            source = prefill.past_key_values
+            for target, value in zip(self.cache.key_cache, source.key_cache):
+                target[:, :, :prompt].copy_(value)
+            for target, value in zip(self.cache.value_cache, source.value_cache):
+                target[:, :, :prompt].copy_(value)
+            del prefill, source
+            for step in range(1, output):
+                self.token.copy_(current)
+                self.position.fill_(prompt + step - 1)
+                self.graph.replay()
+                current = self.graph_token
                 yield current[:, 0].tolist()
