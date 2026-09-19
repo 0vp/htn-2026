@@ -99,4 +99,37 @@ final class VoiceModelTests: XCTestCase {
         XCTAssertNil(VoiceEvent.decode(Data(#"{"type":"response.audio.delta","delta":"ignore"}"#.utf8)))
         XCTAssertNil(VoiceEvent.decode(Data("broken".utf8)))
     }
+
+    func testCaptionsDropSoundAnnotations() {
+        XCTAssertEqual(Caption.spoken("Hello [tongue click] there"), "Hello there")
+        XCTAssertEqual(Caption.spoken("(clicks tongue) okay *sighs* sure"), "okay sure")
+        XCTAssertEqual(Caption.spoken("Turn [tongue"), "Turn", "Hide an annotation until it closes")
+        XCTAssertEqual(Caption.spoken("click] left"), "left", "Drop an orphan left by trimming")
+        XCTAssertEqual(Caption.spoken("  spaced   words "), "spaced words")
+    }
+
+    @MainActor func testSplitAnnotationNeverReachesCaptions() async throws {
+        let peer = FakeVoicePeer()
+        let model = VoiceModel(api: FakeVoiceAPI(), preferences: UserDefaults(suiteName: UUID().uuidString)!,
+                               makePeer: { peer }, permission: { true })
+        model.start()
+        try await Task.sleep(for: .milliseconds(100))
+        for delta in ["Move ", "[tongue ", "click]", " forward"] { peer.receive?(.transcript("You", delta)) }
+        XCTAssertEqual(model.userTranscript, "Move forward")
+        XCTAssertEqual(model.caption, "Move forward")
+    }
+
+    func testSpeechMeterOpensAtOnceAndClosesSmoothly() {
+        var meter = SpeechMeter()
+        XCTAssertEqual(meter.update(.init(energy: 0, duration: 0, level: 0)), 0)
+        // 40 ms slice at RMS 0.2: energy grows by 0.2^2 * 0.04.
+        let open = meter.update(.init(energy: 0.0016, duration: 0.04, level: 0.01))
+        XCTAssertGreaterThan(open, 0.9, "Uses this slice's loudness, not the slow average")
+        let closing = meter.update(.init(energy: 0.0016, duration: 0.08, level: 0.2))
+        XCTAssertLessThan(closing, open)
+        XCTAssertGreaterThan(closing, 0, "Closes over a few frames instead of snapping shut")
+        var shut = closing
+        for step in 3...12 { shut = meter.update(.init(energy: 0.0016, duration: 0.04 * Double(step), level: 0)) }
+        XCTAssertEqual(shut, 0)
+    }
 }

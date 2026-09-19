@@ -29,7 +29,9 @@ struct RobotFace: View {
                     .minimumScaleFactor(0.5).lineLimit(1)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentTransition(.opacity)
+                    // Swap mouth shapes instantly; a cross-fade made the lips trail the voice.
+                    .contentTransition(.identity)
+                    .transaction { $0.animation = nil }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(names[expression]) robot face")

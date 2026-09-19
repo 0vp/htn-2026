@@ -28,6 +28,8 @@ final class VoiceModel: ObservableObject {
     private var watchdog: Task<Void, Never>?
     private var startTask: Task<Void, Never>?
     private var interruption: AnyCancellable?
+    // Raw transcript deltas; the published captions are these with sound annotations removed.
+    private var rawUser = "", rawAssistant = "", rawCaption = ""
     var active: Bool { phase == .connecting || phase == .listening }
     var status: String {
         switch phase {
@@ -63,6 +65,7 @@ final class VoiceModel: ObservableObject {
         let token = UUID(); generation = token
         phase = .connecting; error = nil; caption = ""; speaker = ""; mouth = 0; muted = false
         userTranscript = ""; assistantTranscript = ""; microphoneLevel = 0
+        rawUser = ""; rawAssistant = ""; rawCaption = ""
         packetsSent = 0; packetsReceived = 0; connectionDetail = "Checking voice service…"
         startTask = Task { await connect(token) }
     }
@@ -156,10 +159,16 @@ final class VoiceModel: ObservableObject {
             guard phase == .listening else { return }
             microphoneLevel = muted ? 0 : min(1, max(0, value))
         case .transcript(let role, let delta):
-            if role == "You" { userTranscript = String((userTranscript + delta).suffix(2000)) }
-            else { assistantTranscript = String((assistantTranscript + delta).suffix(2000)) }
-            if speaker != role { speaker = role; caption = "" }
-            caption = String((caption + delta).suffix(600))
+            if role == "You" {
+                rawUser = String((rawUser + delta).suffix(2000))
+                userTranscript = Caption.spoken(rawUser)
+            } else {
+                rawAssistant = String((rawAssistant + delta).suffix(2000))
+                assistantTranscript = Caption.spoken(rawAssistant)
+            }
+            if speaker != role { speaker = role; rawCaption = "" }
+            rawCaption = String((rawCaption + delta).suffix(600))
+            caption = Caption.spoken(rawCaption)
         case .closed: Task { await end() }
         case .lost: Task { await fail("Voice disconnected. Tap Talk to reconnect.") }
         case .failure(let message): Task { await fail(message) }
