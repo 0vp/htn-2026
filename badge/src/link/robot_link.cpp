@@ -4,6 +4,8 @@
 #include <ESPmDNS.h>
 #include <WebSocketsClient.h>
 #include <WiFi.h>
+#include <freertos/semphr.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "settings.h"
@@ -23,6 +25,20 @@ constexpr uint32_t WIFI_RETRY_MS = 5000;
 constexpr uint32_t SOCKET_DOWN_REJOIN_MS = 6000;
 /** Larger frames (LiDAR point batches) are skipped: they don't fit the C3's heap budget. */
 constexpr size_t MAX_MESSAGE = 4096;
+/**
+ * The robot sends telemetry at 5 Hz, which doubles as a heartbeat. ESP32 TCP writes to a dead
+ * peer block for up to 10 s once the send buffer fills, freezing the badge, so stop writing
+ * soon after the robot goes quiet and then drop the connection.
+ */
+constexpr uint32_t QUIET_STOP_SENDING_MS = 600;
+constexpr uint32_t QUIET_CLOSE_MS = 1500;
+constexpr size_t PACKET_MAX = 320;
+
+/** Exposes the library's close-without-writing, so dropping a dead link can't block. */
+class RobotSocket : public WebSocketsClient {
+ public:
+  void drop() { clientDisconnect(&_client); }
+};
 
 struct Target {
   String host;
@@ -31,7 +47,7 @@ struct Target {
   bool valid = false;
 };
 
-WebSocketsClient socket;
+RobotSocket socket;
 Target target;
 String ssid, password;
 bool wifiStarted = false;
@@ -43,6 +59,14 @@ uint32_t socketDownSince = 0;
 uint32_t sent = 0, received = 0;
 uint32_t lastReceiveMs = 0;
 Telemetry latest;
+
+// Handoff between the UI loop and the network task.
+portMUX_TYPE packetLock = portMUX_INITIALIZER_UNLOCKED;
+char packet[PACKET_MAX];
+size_t packetLength = 0;
+SemaphoreHandle_t settingsLock = nullptr;
+String pendingSsid, pendingPassword, pendingUrl;
+bool pendingConfig = false;
 
 Target parseUrl(const String &url) {
   Target t;
@@ -111,6 +135,7 @@ void onEvent(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED:
       socketOpen = true;
+      lastReceiveMs = millis();
       Serial.printf("robot link open: %s:%u%s\n", target.host.c_str(), target.port, target.path.c_str());
       break;
     case WStype_DISCONNECTED:
@@ -142,7 +167,7 @@ void startSocket() {
 }
 
 void stopSocket() {
-  if (socketStarted) socket.disconnect();
+  if (socketStarted) socket.drop();
   socketStarted = false;
   socketOpen = false;
 }
@@ -160,26 +185,43 @@ void startWifi() {
   wifiStarted = true;
 }
 
-}  // namespace
+/** Applies new settings; runs on the network task. */
+void applyConfig() {
+  xSemaphoreTake(settingsLock, portMAX_DELAY);
+  const String newSsid = pendingSsid, newPassword = pendingPassword, url = pendingUrl;
+  pendingConfig = false;
+  xSemaphoreGive(settingsLock);
 
-namespace robotlink {
-
-void begin(const Settings &settings) { reconfigure(settings); }
-
-void reconfigure(const Settings &settings) {
   stopSocket();
-  target = parseUrl(settings.url);
-  if (settings.url.length() && !target.valid) Serial.println("url must look like ws://host:port/path");
-  if (settings.ssid != ssid || settings.password != password || !wifiStarted) {
+  target = parseUrl(url);
+  if (url.length() && !target.valid) Serial.println("url must look like ws://host:port/path");
+  if (newSsid != ssid || newPassword != password || !wifiStarted) {
     if (wifiStarted) WiFi.disconnect(true);
     wifiStarted = false;
-    ssid = settings.ssid;
-    password = settings.password;
+    ssid = newSsid;
+    password = newPassword;
     startWifi();
   }
 }
 
-void loop() {
+void rejoin() {
+  WiFi.disconnect();
+  WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
+}
+
+void sendPending() {
+  char out[PACKET_MAX];
+  portENTER_CRITICAL(&packetLock);
+  const size_t n = packetLength;
+  memcpy(out, packet, n);
+  packetLength = 0;
+  portEXIT_CRITICAL(&packetLock);
+  if (!n || !socketOpen || millis() - lastReceiveMs > QUIET_STOP_SENDING_MS) return;
+  if (socket.sendTXT(out, n)) sent++;
+}
+
+void networkStep() {
+  if (pendingConfig) applyConfig();
   if (!wifiStarted) return;
   if (WiFi.status() != WL_CONNECTED) {
     if (socketStarted) stopSocket();
@@ -187,8 +229,7 @@ void loop() {
     if (!wifiLostSince) wifiLostSince = now;
     if (now - wifiLostSince >= WIFI_RETRY_MS) {
       wifiLostSince = now;
-      WiFi.disconnect();
-      WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
+      rejoin();
     }
     return;
   }
@@ -199,8 +240,14 @@ void loop() {
   }
   startSocket();
   if (socketStarted) socket.loop();
+  sendPending();
 
   const uint32_t now = millis();
+  if (socketOpen && now - lastReceiveMs > QUIET_CLOSE_MS) {
+    Serial.println("robot went quiet; dropping link");
+    socket.drop();
+    socketOpen = false;
+  }
   if (socketOpen) {
     socketDownSince = 0;
   } else if (!socketDownSince) {
@@ -209,22 +256,54 @@ void loop() {
     Serial.println("robot unreachable; rejoining wifi");
     socketDownSince = 0;
     stopSocket();
-    WiFi.disconnect();
-    WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
+    rejoin();
   }
 }
 
+/**
+ * Wi-Fi and socket calls can block for seconds when the robot vanishes, so they live on their
+ * own task and the screen and buttons keep running.
+ */
+void networkTask(void *) {
+  for (;;) {
+    networkStep();
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+}
+
+}  // namespace
+
+namespace robotlink {
+
+void begin(const Settings &settings) {
+  settingsLock = xSemaphoreCreateMutex();
+  reconfigure(settings);
+  xTaskCreate(networkTask, "robotlink", 6144, nullptr, 1, nullptr);
+}
+
+void reconfigure(const Settings &settings) {
+  xSemaphoreTake(settingsLock, portMAX_DELAY);
+  pendingSsid = settings.ssid;
+  pendingPassword = settings.password;
+  pendingUrl = settings.url;
+  pendingConfig = true;
+  xSemaphoreGive(settingsLock);
+}
+
 bool send(const char *json, size_t length) {
-  if (!socketOpen) return false;
-  const bool ok = socket.sendTXT(json, length);
-  if (ok) sent++;
-  return ok;
+  if (length > PACKET_MAX) return false;
+  portENTER_CRITICAL(&packetLock);
+  memcpy(packet, json, length);
+  packetLength = length;
+  portEXIT_CRITICAL(&packetLock);
+  return true;
 }
 
 Status status() {
   if (ssid.isEmpty() || !target.valid) return Status::Unconfigured;
   if (WiFi.status() != WL_CONNECTED) return Status::JoiningWifi;
-  return socketOpen ? Status::Open : Status::Connecting;
+  if (!socketOpen) return Status::Connecting;
+  return isOpen() ? Status::Open : Status::Silent;
 }
 
 const char *statusText() {
@@ -235,12 +314,14 @@ const char *statusText() {
       return "joining wifi";
     case Status::Connecting:
       return "connecting";
+    case Status::Silent:
+      return "robot silent";
     default:
       return "online";
   }
 }
 
-bool isOpen() { return socketOpen; }
+bool isOpen() { return socketOpen && millis() - lastReceiveMs <= QUIET_STOP_SENDING_MS; }
 String localIp() { return WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("-"); }
 int wifiRssi() { return WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0; }
 uint32_t sentCount() { return sent; }

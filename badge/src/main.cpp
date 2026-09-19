@@ -79,7 +79,6 @@ void setup() {
 
 void loop() {
   if (settings::pollConsole()) robotlink::reconfigure(settings::get());
-  robotlink::loop();
 
   const uint32_t now = millis();
   const float dt = (now - lastTick) / 1000.0f;

@@ -13,19 +13,20 @@ struct Settings;
  */
 namespace robotlink {
 
-enum class Status : uint8_t { Unconfigured, JoiningWifi, Connecting, Open };
+enum class Status : uint8_t { Unconfigured, JoiningWifi, Connecting, Silent, Open };
 
+/** Starts the network task. */
 void begin(const Settings &settings);
 
-/** Drops the current connection and reconnects with new settings. */
+/** Hands new settings to the network task, which reconnects with them. */
 void reconfigure(const Settings &settings);
 
-void loop();
-
+/** Queues a packet; the network task sends the latest one. */
 bool send(const char *json, size_t length);
 
 Status status();
 const char *statusText();
+/** Socket open and the robot heard from in the last 0.6 s: safe to stay armed. */
 bool isOpen();
 String localIp();
 int wifiRssi();
