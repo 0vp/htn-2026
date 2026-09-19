@@ -112,3 +112,10 @@ Public B1/B4/B16 TPOT was 9.274 / 12.030 / 10.280 ms, with paired native
 ratios 0.332 / 0.394 / 0.362. The combined graph_fused remains the winner.
 A frontend-only push triggered another run of the identical engine tree;
 that duplicate was canceled before resuming the residual-fusion candidate.
+
+Residual fusion passed at **561.297972 official TPS**, run
+`e7fe5b33-d9c7-47f3-be06-387564860630`, commit `ae5780d`.
+Public B1/B4/B16 TPOT: 6.516 / 9.369 / 7.245 ms; paired native ratios
+0.264 / 0.357 / 0.289. Raw score is 1.78% below graph_fused; paired reference
+timings differ, so this is not proof of a stable regression or improvement.
+Keep graph_fused as the measured best. Next: norm launch tuning and graph_verify.
