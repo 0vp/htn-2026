@@ -1,0 +1,389 @@
+{
+  "firmware": "USB only; Wi-Fi sources and dependency removed",
+  "firmware_sha256": "b81ebed0918f49f82c7363af8239989d1497f8163006f4c52ec910756a142b90",
+  "flashed": true,
+  "tests": {
+    "python_passed": 32,
+    "native_control": "passed",
+    "native_protocol": "passed"
+  },
+  "idle": {
+    "samples": 400,
+    "first": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 29713,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 0,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "last": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 49663,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 0,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "all_stopped": true,
+    "transport": [
+      "usb_serial"
+    ]
+  },
+  "drive_positive": {
+    "before": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 141313,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": -19,
+      "control": {
+        "supervised": true,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "result": {
+      "request": {
+        "skill": "drive_base",
+        "duty": 0.3,
+        "steering_deg": 0.0,
+        "seconds": 0.65
+      },
+      "state": "completed",
+      "dispatched": true,
+      "physical_success": false,
+      "stop_evidence": "reported zero drive duty; not measured base velocity",
+      "stopped_by": null,
+      "commanded_seconds": 0.65,
+      "ran_seconds": 0.67,
+      "release_sent": true,
+      "robot_reports_stopped": true,
+      "encoder_counts_delta": -132,
+      "estimate": {
+        "note": "Motor duty and steering pulse only; no calibrated distance or yaw"
+      },
+      "measurement": "Only motor duty and servo pulse were commanded; wheel encoders are not calibrated, so the robot may have moved less (load, slip) or been stopped by an obstacle."
+    },
+    "after": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 142364,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": -152,
+      "control": {
+        "supervised": true,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "final": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 143266,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": -152,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    }
+  },
+  "drive_negative": {
+    "before": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 172766,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": -152,
+      "control": {
+        "supervised": true,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "result": {
+      "request": {
+        "skill": "drive_base",
+        "duty": -0.3,
+        "steering_deg": 0.0,
+        "seconds": 0.65
+      },
+      "state": "completed",
+      "dispatched": true,
+      "physical_success": false,
+      "stop_evidence": "reported zero drive duty; not measured base velocity",
+      "stopped_by": null,
+      "commanded_seconds": 0.65,
+      "ran_seconds": 0.75,
+      "release_sent": true,
+      "robot_reports_stopped": true,
+      "encoder_counts_delta": 312,
+      "estimate": {
+        "note": "Motor duty and steering pulse only; no calibrated distance or yaw"
+      },
+      "measurement": "Only motor duty and servo pulse were commanded; wheel encoders are not calibrated, so the robot may have moved less (load, slip) or been stopped by an obstacle."
+    },
+    "after": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 174116,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 160,
+      "control": {
+        "supervised": true,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "final": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 174966,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 160,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    }
+  },
+  "steering": [
+    {
+      "command": {
+        "duty": 0,
+        "steering_deg": 5,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "error": null,
+      "last": {
+        "elapsed_s": 0.4645,
+        "type": "telemetry",
+        "drivetrain": "single_steer_v1",
+        "transport": "usb_serial",
+        "uptime_ms": 223666,
+        "reset_reason": 1,
+        "motor_duty": 0,
+        "steering_deg": 5,
+        "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+        "odometry_calibrated": false,
+        "encoder_ticks": 160,
+        "control": {
+          "supervised": false,
+          "estop": false,
+          "owner": "none"
+        },
+        "capabilities": {
+          "drive_base": true,
+          "set_arm": false,
+          "run_winch": false
+        }
+      }
+    },
+    {
+      "command": {
+        "duty": 0,
+        "steering_deg": -5,
+        "seconds": 0.3
+      },
+      "reported_stop": true,
+      "error": null,
+      "last": {
+        "elapsed_s": 0.45,
+        "type": "telemetry",
+        "drivetrain": "single_steer_v1",
+        "transport": "usb_serial",
+        "uptime_ms": 224118,
+        "reset_reason": 1,
+        "motor_duty": 0,
+        "steering_deg": -5,
+        "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+        "odometry_calibrated": false,
+        "encoder_ticks": 160,
+        "control": {
+          "supervised": false,
+          "estop": false,
+          "owner": "none"
+        },
+        "capabilities": {
+          "drive_base": true,
+          "set_arm": false,
+          "run_winch": false
+        }
+      }
+    },
+    {
+      "command": {
+        "duty": 0,
+        "steering_deg": 0,
+        "seconds": 0.3
+      },
+      "reported_stop": false,
+      "error": "Write timeout",
+      "last": {
+        "elapsed_s": 0.1508,
+        "type": "telemetry",
+        "drivetrain": "single_steer_v1",
+        "transport": "usb_serial",
+        "uptime_ms": 224269,
+        "reset_reason": 1,
+        "motor_duty": 0,
+        "steering_deg": -3.500001,
+        "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+        "odometry_calibrated": false,
+        "encoder_ticks": 160,
+        "control": {
+          "supervised": true,
+          "estop": false,
+          "owner": "agent"
+        },
+        "capabilities": {
+          "drive_base": true,
+          "set_arm": false,
+          "run_winch": false
+        }
+      }
+    }
+  ],
+  "recovery": {
+    "samples": 60,
+    "first": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 288319,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 159,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    },
+    "last": {
+      "type": "telemetry",
+      "drivetrain": "single_steer_v1",
+      "transport": "usb_serial",
+      "uptime_ms": 291269,
+      "reset_reason": 1,
+      "motor_duty": 0,
+      "steering_deg": 0,
+      "steering_feedback": "commanded_servo_pulse_not_measured_angle",
+      "odometry_calibrated": false,
+      "encoder_ticks": 159,
+      "control": {
+        "supervised": false,
+        "estop": false,
+        "owner": "none"
+      },
+      "capabilities": {
+        "drive_base": true,
+        "set_arm": false,
+        "run_winch": false
+      }
+    }
+  },
+  "macos_usb_event": "2026-09-19 12:46:39.920: USB Serial 0x1a86/7523 hardware connection lost",
+  "conclusion": "Drive tests completed, steering recenter triggered USB loss. ESP32 uptime remained continuous through recovery. Root cause not proven; wired connection is not yet reliable.",
+  "physical_calibration_complete": false
+}

@@ -3,8 +3,6 @@
 #include <esp_system.h>
 #include "control.h"
 #include "protocol.h"
-#include "runtime.h"
-#include "net/network.h"
 
 namespace {
 constexpr int RPWM = 14, LPWM = 47, SERVO = 13, ENC_A = 41, ENC_B = 42;
@@ -43,17 +41,22 @@ void servo(float offset) {
 }
 
 void packet() {
-  JsonDocument request;
-  if (!deserializeJson(request, buffer, used) && request["type"] == "wifi_info") {
-    network::printSetup(); return;
-  }
-  if (!network::hasController()) applyPacket(buffer, used, true);
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  handlePacket(buffer, used, control, millis());
+  xSemaphoreGive(stateMutex);
+}
+
+void disarm() {
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  control.supervise(false);
+  xSemaphoreGive(stateMutex);
 }
 
 String statusJsonImpl(uint32_t now) {
   JsonDocument doc;
   doc["type"] = "telemetry";
   doc["drivetrain"] = "single_steer_v1";
+  doc["transport"] = "usb_serial";
   doc["uptime_ms"] = now;
   doc["reset_reason"] = int(esp_reset_reason());
   doc["motor_duty"] = appliedDuty;
@@ -74,30 +77,10 @@ String statusJsonImpl(uint32_t now) {
 }
 }  // namespace
 
-void applyPacket(const char* data, size_t size, bool serialSource) {
-  xSemaphoreTake(stateMutex, portMAX_DELAY);
-  handlePacket(data, size, control, millis(), serialSource);
-  xSemaphoreGive(stateMutex);
-}
-bool wirelessSupervision(bool enabled, bool renew) {
-  xSemaphoreTake(stateMutex, portMAX_DELAY);
-  control.tick(millis());
-  if (enabled && renew && !control.supervised) {
-    xSemaphoreGive(stateMutex); return false;
-  }
-  if (enabled) control.superviseFor(millis());
-  else control.supervise(false);
-  const bool accepted = !enabled || control.supervised;
-  xSemaphoreGive(stateMutex);
-  return accepted;
-}
 String statusJson() {
   xSemaphoreTake(stateMutex, portMAX_DELAY);
   String result = statusJsonImpl(millis());
   xSemaphoreGive(stateMutex);
-  JsonDocument doc; deserializeJson(doc, result);
-  network::describe(doc);
-  result = ""; serializeJson(doc, result);
   return result;
 }
 void controlTask(void*) {
@@ -134,7 +117,6 @@ void setup() {
   configASSERT(stateMutex);
   lastStep = millis();
   configASSERT(xTaskCreatePinnedToCore(controlTask, "motor-control", 4096, nullptr, 5, nullptr, 1) == pdPASS);
-  network::begin();
 }
 
 void loop() {
@@ -143,20 +125,18 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') {
       if (!overflow && used) packet();
-      else if (overflow && !network::hasController()) wirelessSupervision(false);
+      else if (overflow) disarm();
       used = 0; overflow = false;
     } else if (!overflow) {
       if (used < sizeof(buffer)) buffer[used++] = c;
-      else { overflow = true; if (!network::hasController()) wirelessSupervision(false); }
+      else { overflow = true; disarm(); }
     }
   }
-  network::poll();
   const uint32_t now = millis();
   if (now - lastTelemetry >= 50) {
     lastTelemetry = now;
     String state = statusJson();
-    network::publish(state);
-    // Never wait for an absent USB host; Wi-Fi works on charger power.
+    // Never block the motor watchdog on a disconnected or stalled USB host.
     if (Serial.availableForWrite() >= int(state.length()+2)) Serial.println(state);
   }
   delay(1);

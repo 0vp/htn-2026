@@ -1,7 +1,7 @@
 # Fixed drive wheel and separate steering wheel
 
-Wi-Fi control is available in this firmware; see [wifi.md](wifi.md) for pairing,
-network setup and supervision. The serial instructions below remain a bench fallback.
+USB serial is the only controller transport. This firmware does not start Wi-Fi.
+The motor watchdog runs independently from serial input/output.
 
 This controller uses the confirmed GOOUUU ESP32-S3-CAM wiring: GPIO14 RPWM,
 GPIO47 LPWM, GPIO13 MG90S steering, GPIO41/42 encoder inputs. It leaves the
@@ -23,10 +23,16 @@ Build without uploading:
 uv tool run --from platformio platformio run -d robot/steering
 ```
 
-The firmware was uploaded and its stopped, unsupervised telemetry verified; see
-[calibration/session.json](calibration/session.json). Two short drive pulses were
-followed by a USB disconnect during a zero-drive steering test. Stop/disarm was
-verified after reconnection; resolve the connection/power issue before more motion.
+The USB-only build was flashed and tested: 400 stopped telemetry samples over 20 seconds,
+then both drive directions through the agent skill/bridge/firmware at 30% duty for
+0.65 seconds. Both commands completed and disarmed. Zero-drive steering to +5 and
+-5 degrees completed, but recentering caused another USB disconnect. macOS logged
+USB Serial hardware connection loss; the ESP32 uptime stayed continuous. Recovery
+verified 60 samples at zero duty, centered servo command and supervision off.
+See [validation/wired.json](validation/wired.json). This does not establish the
+cause of USB loss or calibrate distance/heading. Resolve the intermittent link
+before sustained operation. The bridge closes control on serial errors or 500 ms
+without valid telemetry and never replays movement after reconnection.
 For future flashing, prepare for a bench test with the driven wheel lifted
 and the steering linkage free through the test range. Use the same external
 regulated servo supply/common ground setup as the verified hardware test.
