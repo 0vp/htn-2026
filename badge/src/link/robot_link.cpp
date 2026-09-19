@@ -140,6 +140,9 @@ void startWifi() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);  // Power save adds 100 ms+ of latency to every packet.
   WiFi.setAutoReconnect(true);
+  // Venue networks have many APs; scan every channel and join the strongest, not the first.
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
   WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
   MDNS.begin("robot-badge");
   wifiStarted = true;
