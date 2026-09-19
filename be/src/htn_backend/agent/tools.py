@@ -38,7 +38,8 @@ TOOLS = {
     ),
     "find_objects": (
         Search,
-        "Search observed object labels using lexical search; not open-vocabulary visual search.",
+        "Search object labels and SigLIP 2 visual evidence. "
+        "Results are candidates, not confirmed identities.",
     ),
     "inspect_object": (
         Inspect,

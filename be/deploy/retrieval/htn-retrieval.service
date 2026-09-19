@@ -1,0 +1,26 @@
+[Unit]
+Description=HTN visual evidence retrieval
+After=network-online.target htn-backend.service
+
+[Service]
+User=q
+Group=htn
+WorkingDirectory=/opt/htn/backend
+Environment=HTN_DATA_DIR=/var/lib/htn
+Environment=PYTHONPATH=/opt/htn/backend/src
+Environment=HF_HOME=/var/lib/htn-models
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=2
+ExecStart=/opt/htn/retrieval-env/bin/uvicorn htn_backend.retrieval.service:application --factory --host 127.0.0.1 --port 9082 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=20
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/htn /var/lib/htn-models
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

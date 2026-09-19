@@ -38,7 +38,8 @@ The [linked demo](https://x.com/BdcauntBen/status/2092806371154460865) was inspe
 from its video. Its diagram shows LiDAR occupancy mapping, location-associated
 camera images, CLIP image memory, Codex goal selection, A* planning, Pure Pursuit
 control and a separate safety gate. It demonstrates navigation, not a validated
-general-purpose manipulation system. Our current search is SQLite FTS, not CLIP.
+general-purpose manipulation system. Search now combines SQLite FTS with pinned SigLIP 2 embeddings of object evidence.
+Visual similarity only ranks candidates; it does not establish object identity.
 
 [DimOS](https://github.com/dimensionalOS/dimos), inspected at
 `6ea05bb83318c065f2148dffd2d2b67ad0b77b57`, separates stream-connected hardware
@@ -52,3 +53,29 @@ or claimed compatibility with a physical DimOS robot.
 [Official app-server documentation](https://developers.openai.com/codex/app-server)
 describes the transport used here. This wrapper keeps the upstream agent harness;
 it does not reimplement reasoning or replace it with direct model API calls.
+
+## Firmware telemetry
+
+The teammate `robot/` firmware accepts 20 Hz normalized motor commands over
+`ws://192.168.4.1:81/` and publishes telemetry. Its `goal` field is ignored,
+encoder calibration is unset, and joint angles are commanded estimates.
+The read-only bridge uses non-command heartbeats, never takes motor ownership:
+
+```sh
+uv run --project be python -m htn_backend.agent.bridge ROOMCODE
+```
+
+Run it on a computer connected to both the robot network and the server. The
+ESP32 access point alone does not provide a route from GCP to the robot.
+The scene exposes reported telemetry without treating it as authenticated
+actuator feedback or enabling navigation.
+
+## Visual retrieval
+
+`be/deploy/retrieval/install.sh` provisions a separate loopback-only GPU service.
+It uses an isolated Transformers environment while reusing host CUDA Torch.
+Object-crop vectors are persisted in SQLite, keyed by image digest and model
+revision, encoded in batches of eight, and pruned when evidence disappears.
+Search returns its retrieval mode explicitly if the visual service is unavailable.
+The L4 six-crop check is recorded in `be/benchmarks/retrieval/l4-evidence.json`.
+Detector labels are not ground truth; these timings are not an accuracy benchmark.

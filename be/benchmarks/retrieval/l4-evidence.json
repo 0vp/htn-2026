@@ -1,0 +1,121 @@
+{
+  "model": "google/siglip2-base-patch16-224@75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2",
+  "indexed": 6,
+  "runs": [
+    {
+      "query": "a chair",
+      "http_ms": 592.4949549953453,
+      "service_ms": 586.9373619789258,
+      "top_candidates": [
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.11378462612628937
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.10297542065382004
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.10102859884500504
+        }
+      ]
+    },
+    {
+      "query": "a table",
+      "http_ms": 10.63374598743394,
+      "service_ms": 8.324211987201124,
+      "top_candidates": [
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.11033780872821808
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.10538914799690247
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.07343234121799469
+        }
+      ]
+    },
+    {
+      "query": "a laptop",
+      "http_ms": 10.628431977238506,
+      "service_ms": 8.521627984009683,
+      "top_candidates": [
+        {
+          "existing_detector_label": "laptop",
+          "similarity": 0.14332596957683563
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.11746758967638016
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.09399005770683289
+        }
+      ]
+    },
+    {
+      "query": "a water bottle",
+      "http_ms": 10.544978023972362,
+      "service_ms": 8.531066006980836,
+      "top_candidates": [
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.08600036799907684
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.07935133576393127
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.06722013652324677
+        }
+      ]
+    },
+    {
+      "query": "an elephant",
+      "http_ms": 10.13489399338141,
+      "service_ms": 8.249588951002806,
+      "top_candidates": [
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.050766803324222565
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.03633110970258713
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.028073865920305252
+        }
+      ]
+    },
+    {
+      "query": "a chair",
+      "http_ms": 2.021897991653532,
+      "service_ms": 0.22950000129640102,
+      "top_candidates": [
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.11378462612628937
+        },
+        {
+          "existing_detector_label": "chair",
+          "similarity": 0.10297542065382004
+        },
+        {
+          "existing_detector_label": "dining table",
+          "similarity": 0.10102859884500504
+        }
+      ]
+    }
+  ],
+  "accuracy": "Not scored; existing detector labels are not ground truth. Negative query deliberately returns ranked candidates, not a detection."
+}

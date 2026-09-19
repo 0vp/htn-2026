@@ -5,12 +5,14 @@ import time
 
 from ..storage.database import StoreError
 from .observations import Observations
+from .telemetry import RobotState
 
 
 class Scene:
     def __init__(self, state):
         self.state = state
         self.observations = Observations(state)
+        self.robot_state = RobotState(state.store)
 
     def read(self, room_id):
         with self.state.store.lock:
@@ -37,6 +39,7 @@ class Scene:
             coordinate_system="right_handed_y_up_meters",
             map_publication_age_s=max(0, now - snapshot["updated_at"]) if snapshot else None,
             processing=status,
+            robot_reports=self.robot_state.read(room_id),
             observation=observation,
             objects=objects,
             capabilities=dict(
