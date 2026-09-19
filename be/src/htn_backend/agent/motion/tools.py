@@ -16,7 +16,7 @@ class DriveBase(Empty):
     steering_deg: float = Field(
         ge=-20,
         le=20,
-        description="Servo offset: positive lowers the 90-degree center pulse angle; not measured yaw",
+        description="Servo offset: positive lowers servo angle from 90 degrees; not measured yaw",
     )
     seconds: float = Field(gt=0, le=2)
 
