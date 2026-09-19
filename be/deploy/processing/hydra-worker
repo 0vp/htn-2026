@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec docker --config /tmp exec -i --user 1000:1000 htn-hydra bash -c '
+source /work/hydra_ws/install/setup.bash
+export PYTHONPATH=/work/backend/src:/work/hydra_ws/build/hydra/python:/work/hydra_ws/src/spark_dsg/python
+export LD_LIBRARY_PATH=/work/hydra_ws/build/hydra:$LD_LIBRARY_PATH
+export HYDRA_ROOT=/work/hydra_ws/src/hydra
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=2
+exec python3 -m htn_backend.mapping.hydra.worker'

@@ -1,0 +1,20 @@
+[Unit]
+Description=HTN private GPU inference
+After=network-online.target
+
+[Service]
+User=q
+WorkingDirectory=/opt/htn/models
+EnvironmentFile=/etc/htn/gpu.env
+Environment=PYTHONPATH=/opt/htn/backend/src:/opt/htn/models/XFeat
+Environment=OMP_NUM_THREADS=4
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/htn/gpu-env/bin/python -m uvicorn htn_backend.inference.worker:application --factory --host 127.0.0.1 --port 9081 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=300
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

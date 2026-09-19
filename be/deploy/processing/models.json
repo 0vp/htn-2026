@@ -1,0 +1,8 @@
+{
+  "segmentation": "rf-detr-seg-medium",
+  "features": "xfeat-1600",
+  "xfeat_commit": "e92685f57f8318b18725c5c8c0bd28c7fe188d9a",
+  "native_image": "sha256:d724dfb15832629f33d3eb64ea1bb0b5453f786a7804125a6da5defe5c95c111",
+  "mapping_voxel_m": 0.04,
+  "capture_depth_m": [0.15, 5.0]
+}

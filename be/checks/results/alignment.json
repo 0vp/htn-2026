@@ -1,0 +1,108 @@
+{
+  "test": "controlled_two_origin_replay",
+  "room_id": "4EBBC4A1",
+  "frames": 32,
+  "status": {
+    "room_id": "4EBBC4A1",
+    "received": 32,
+    "mapped": 32,
+    "awaiting_alignment": 0,
+    "skipped_tracking": 0,
+    "pending": 0,
+    "worker": {
+      "id": 1,
+      "heartbeat": 1789799962.125856,
+      "state": "running",
+      "detail": "",
+      "healthy": true
+    },
+    "error": null,
+    "map": {
+      "revision": 21,
+      "updated_at": 1789799964.1322181,
+      "backend": "hydra",
+      "coordinate_system": "right_handed_y_up_meters",
+      "integrated_frames": 32,
+      "through_sequence": 98,
+      "vertices": 46796,
+      "triangles": 56433,
+      "batch_ms": 728.8008439936675,
+      "object_events": [],
+      "loop_constraints": 0,
+      "replaying": false
+    },
+    "alignments": {
+      "[\"reference\",\"reference\",1]": {
+        "status": "anchor",
+        "room_from_local": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "[\"second\",\"second\",1]": {
+        "status": "aligned",
+        "method": "rgbd_seed_icp_withheld_views",
+        "room_from_local": [
+          0.939616016430167,
+          4.503376318886207e-05,
+          -0.3422305358086341,
+          0.0,
+          4.414007810503117e-05,
+          0.9999999670773669,
+          0.00025277839645642937,
+          0.0,
+          0.34223053592506614,
+          -0.00025262071249828694,
+          0.93961598350774,
+          0.0,
+          1.200694146875925,
+          -0.0019241621799083429,
+          0.7986459710480528,
+          1.0
+        ],
+        "reference_views": 5,
+        "available_reference_views": 15,
+        "fit_overlap": 1.0,
+        "check_overlap": 0.7157695939565628,
+        "fit_rmse_m": 0.017089403248198704,
+        "observability": 0.11753987740541971,
+        "translation_disagreement_m": 0.008703416666593258,
+        "rotation_disagreement_deg": 0.0559775262733535,
+        "training_visual": {
+          "inliers": 1082,
+          "fraction": 0.980072463768116,
+          "cells": 378,
+          "rmse_m": 0.022767782119880838
+        },
+        "withheld_visual": {
+          "inliers": 718,
+          "fraction": 0.9849108367626886,
+          "cells": 239,
+          "rmse_m": 0.034553229085516605
+        },
+        "evidence": "RGB-D proposal; separate new capture views verify appearance and geometry",
+        "latency_ms": 324.30093199945986
+      }
+    }
+  },
+  "transform_error": {
+    "translation_m": 0.0024530867050834857,
+    "rotation_deg": 0.01951264426536198
+  },
+  "limitations": "Same measured images re-expressed in two origins; not a real independent multi-phone accuracy benchmark.",
+  "passed": true
+}

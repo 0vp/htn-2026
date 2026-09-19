@@ -6,23 +6,28 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .api.mapping import router as mapping_router
 from .api.rooms import router as rooms_router
 from .api.uploads import router as uploads_router
 from .capture.codec import MAX_FRAME_BYTES
+from .processing.state import ProcessingState
 from .storage.database import Store, StoreError
 
 
 def create_app(data_dir: Path | None = None) -> FastAPI:
     store = Store(data_dir or Path(os.environ.get("HTN_DATA_DIR", "data")))
 
+    processing = ProcessingState(store)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         yield
         store.close()
 
-    app = FastAPI(title="HTN API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="HTN API", version="0.3.0", lifespan=lifespan)
     app.state.store = store
 
     @app.exception_handler(StoreError)
@@ -41,13 +46,21 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return {
             "status": "ok",
             "service": "htn-backend",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "storage": "durable",
-            "processing": "not_running",
+            "processing": processing.worker(),
             "protocols": ["R3D1", "R3Z1", "R3S1"],
             "max_frame_bytes": MAX_FRAME_BYTES,
         }
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "If-None-Match"],
+        expose_headers=["ETag"],
+    )
+    app.include_router(mapping_router(processing))
     app.include_router(rooms_router(store))
     app.include_router(uploads_router(store))
     return app
