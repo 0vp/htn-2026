@@ -8,8 +8,8 @@ The current robot is shown in [reference photos](../reference/calibration.md).
 The firmware boots with zero motor output and the servo at its 90-degree neutral
 pulse. It accepts newline JSON over the USB serial adapter at 115200 baud.
 Limits are 30% signed duty, 20 degrees of servo offset, a 30 deg/s servo slew,
-and a 300 ms motor watchdog. Positive steering offset means a commanded left
-servo offset (90 minus offset in the known test's angle convention), **not** a
+and a 300 ms motor watchdog. Positive steering offset lowers the commanded servo angle from 90 degrees
+(90 minus offset in the known test's angle convention), **not** a
 measured chassis turn or measured wheel angle. Encoder ticks are raw; steering,
 wheel circumference, counts/revolution and stopping distance remain uncalibrated.
 The steering link can have a non-linear ratio; no distance or yaw is promised.
