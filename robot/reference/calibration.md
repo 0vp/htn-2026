@@ -30,5 +30,7 @@ Before measured autonomous movement, record:
 The separate `robot/steering` firmware is the interactive bench controller for
 the supplied GPIO wiring. It does not execute the existing automatic startup
 sequence. The stopped-by-default firmware has now been uploaded and telemetry verified.
-No drive pulse has been sent; physical movement calibration is still pending.
+Two low-duty drive pulses returned to reported stop with opposite encoder signs.
+The zero-drive steering test lost USB connectivity; the cause is unresolved.
+Metric movement and steering calibration remain incomplete.
 See [session evidence](../steering/calibration/session.json).

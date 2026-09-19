@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-19T15:25:33.622974+00:00",
+  "recorded_at": "2026-09-19T15:33:46.538455+00:00",
   "board": "ESP32-S3",
   "port": "/dev/cu.usbserial-110",
   "firmware_uploaded": true,
@@ -13,14 +13,54 @@
     "encoder_ticks": 0
   },
   "camera": "MacBook Air M3 FaceTime HD Camera via Photo Booth",
-  "preview_observation": "Small steering wheel at screen-left; preview mirroring and movement signs not calibrated",
-  "movement_commands_sent": false,
+  "preview_observation": "Cable moved clear by user; refreshed Photo Booth view inspected between pulses; displacement too small to quantify",
+  "movement_commands_sent": true,
   "metric_calibration_complete": false,
-  "blocking_observation": "Thick black cable crosses beneath chassis; USB slack not established",
+  "blocking_observation": "USB write timeout/device disconnected during zero-drive +5-degree servo command; cause unknown",
   "measurements": {
     "meters_per_tick": null,
     "steering_angle_per_servo_degree": null,
     "forward_command_sign": null,
     "turn_command_sign": null
-  }
+  },
+  "drive_pulses": [
+    {
+      "command": {
+        "duty": 0.1,
+        "steering_deg": 0,
+        "seconds": 0.2
+      },
+      "reported_stop": true,
+      "encoder_start": 0,
+      "encoder_end": -2,
+      "peak_abs_reported_duty": 0.1,
+      "physical_displacement_m": null
+    },
+    {
+      "command": {
+        "duty": -0.1,
+        "steering_deg": 0,
+        "seconds": 0.2
+      },
+      "reported_stop": true,
+      "encoder_start": 0,
+      "encoder_end": 10,
+      "peak_abs_reported_duty": 0.1,
+      "physical_displacement_m": null
+    }
+  ],
+  "steering_attempt": {
+    "duty": 0,
+    "steering_deg": 5,
+    "seconds": 0.25,
+    "outcome": "serial write timeout then device not configured; no complete trace",
+    "physical_steering_angle_verified": false
+  },
+  "recovery": {
+    "stop_disarm_sent": true,
+    "consecutive_stopped_unsupervised_samples": 39,
+    "last_encoder_ticks": 0,
+    "last_steering_deg": 0
+  },
+  "interpretation": "Command signs produce opposite raw encoder changes. Too few counts for scale or reliability; reset/reconnect loses count continuity. No physical forward/left/right sign or metric calibration established."
 }

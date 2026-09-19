@@ -57,3 +57,19 @@ def test_estop_never_arms():
         pulse(device, 0.1, 0, 0.02)
     assert not any(v.get("armed") for v in device.sent)
     assert not device.supervised
+
+
+def test_disconnect_preserves_evidence_without_claiming_stop():
+    import serial
+
+    class DisconnectingDevice(Device):
+        def write(self, raw):
+            if len(self.sent) >= 3:
+                raise serial.SerialException("link lost")
+            super().write(raw)
+
+    result = pulse(DisconnectingDevice(), 0, 5, 0.02)
+    assert result["error"] == "link lost"
+    assert result["samples"]
+    assert not result["reported_stop"]
+    assert not result["physical_stop_verified"]

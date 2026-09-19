@@ -21,7 +21,9 @@ uv tool run --from platformio platformio run -d robot/steering
 ```
 
 The firmware was uploaded and its stopped, unsupervised telemetry verified; see
-[calibration/session.json](calibration/session.json). No drive pulse has been sent.
+[calibration/session.json](calibration/session.json). Two short drive pulses were
+followed by a USB disconnect during a zero-drive steering test. Stop/disarm was
+verified after reconnection; resolve the connection/power issue before more motion.
 For future flashing, prepare for a bench test with the driven wheel lifted
 and the steering linkage free through the test range. Use the same external
 regulated servo supply/common ground setup as the verified hardware test.
