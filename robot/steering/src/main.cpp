@@ -3,12 +3,15 @@
 #include <esp_system.h>
 #include "control.h"
 #include "protocol.h"
+#include "runtime.h"
+#include "net/network.h"
 
 namespace {
 constexpr int RPWM = 14, LPWM = 47, SERVO = 13, ENC_A = 41, ENC_B = 42;
 // Channels 0/1 share the 10kHz motor timer; channel 2 uses a separate 50Hz timer.
 constexpr int FORWARD = 0, REVERSE = 1, STEERING = 2;
 SteeringControl control;
+SemaphoreHandle_t stateMutex;
 char buffer[512];
 size_t used = 0;
 bool overflow = false;
@@ -39,11 +42,15 @@ void servo(float offset) {
   ledcWrite(STEERING, uint32_t(pulseUs / 20000 * 16383));
 }
 
-void packet() { handlePacket(buffer, used, control, millis()); }
+void packet() {
+  JsonDocument request;
+  if (!deserializeJson(request, buffer, used) && request["type"] == "wifi_info") {
+    network::printSetup(); return;
+  }
+  if (!network::hasController()) applyPacket(buffer, used, true);
+}
 
-void telemetry(uint32_t now) {
-  if (now - lastTelemetry < 50) return;
-  lastTelemetry = now;
+String statusJsonImpl(uint32_t now) {
   JsonDocument doc;
   doc["type"] = "telemetry";
   doc["drivetrain"] = "single_steer_v1";
@@ -63,10 +70,52 @@ void telemetry(uint32_t now) {
   doc["capabilities"]["drive_base"] = true;
   doc["capabilities"]["set_arm"] = false;
   doc["capabilities"]["run_winch"] = false;
-  serializeJson(doc, Serial);
-  Serial.println();
+  String result; serializeJson(doc, result); return result;
 }
 }  // namespace
+
+void applyPacket(const char* data, size_t size, bool serialSource) {
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  handlePacket(data, size, control, millis(), serialSource);
+  xSemaphoreGive(stateMutex);
+}
+bool wirelessSupervision(bool enabled, bool renew) {
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  control.tick(millis());
+  if (enabled && renew && !control.supervised) {
+    xSemaphoreGive(stateMutex); return false;
+  }
+  if (enabled) control.superviseFor(millis());
+  else control.supervise(false);
+  const bool accepted = !enabled || control.supervised;
+  xSemaphoreGive(stateMutex);
+  return accepted;
+}
+String statusJson() {
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  String result = statusJsonImpl(millis());
+  xSemaphoreGive(stateMutex);
+  JsonDocument doc; deserializeJson(doc, result);
+  network::describe(doc);
+  result = ""; serializeJson(doc, result);
+  return result;
+}
+void controlTask(void*) {
+  TickType_t wake = xTaskGetTickCount();
+  for (;;) {
+    const uint32_t now = millis();
+    xSemaphoreTake(stateMutex, portMAX_DELAY);
+    control.tick(now);
+    const float dt = min(uint32_t(now - lastStep), uint32_t(50)) / 1000.f;
+    lastStep = now;
+    if (!control.active) appliedDuty = 0;
+    else appliedDuty += constrain(control.duty-appliedDuty, -.5f*dt, .5f*dt);
+    appliedSteering += constrain(control.steering-appliedSteering, -30.f*dt, 30.f*dt);
+    motor(appliedDuty); servo(appliedSteering);
+    xSemaphoreGive(stateMutex);
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(2));
+  }
+}
 
 void setup() {
   pinMode(RPWM, OUTPUT); digitalWrite(RPWM, LOW);
@@ -79,8 +128,13 @@ void setup() {
   previous = (digitalRead(ENC_A) << 1) | digitalRead(ENC_B);
   attachInterrupt(ENC_A, encoder, CHANGE);
   attachInterrupt(ENC_B, encoder, CHANGE);
+  Serial.setTxBufferSize(2048);
   Serial.begin(115200);
+  stateMutex = xSemaphoreCreateMutex();
+  configASSERT(stateMutex);
   lastStep = millis();
+  configASSERT(xTaskCreatePinnedToCore(controlTask, "motor-control", 4096, nullptr, 5, nullptr, 1) == pdPASS);
+  network::begin();
 }
 
 void loop() {
@@ -89,25 +143,21 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') {
       if (!overflow && used) packet();
-      else if (overflow) control.stop();
+      else if (overflow && !network::hasController()) wirelessSupervision(false);
       used = 0; overflow = false;
     } else if (!overflow) {
       if (used < sizeof(buffer)) buffer[used++] = c;
-      else { overflow = true; control.stop(); }
+      else { overflow = true; if (!network::hasController()) wirelessSupervision(false); }
     }
   }
+  network::poll();
   const uint32_t now = millis();
-  control.tick(now);
-  const float dt = min(uint32_t(now - lastStep), uint32_t(50)) / 1000.f;
-  lastStep = now;
-  // Immediate electrical stop; bounded acceleration and steering slew otherwise.
-  if (!control.active) appliedDuty = 0;
-  else {
-    const float error = control.duty - appliedDuty;
-    appliedDuty += constrain(error, -.5f * dt, .5f * dt);
+  if (now - lastTelemetry >= 50) {
+    lastTelemetry = now;
+    String state = statusJson();
+    network::publish(state);
+    // Never wait for an absent USB host; Wi-Fi works on charger power.
+    if (Serial.availableForWrite() >= int(state.length()+2)) Serial.println(state);
   }
-  appliedSteering += constrain(control.steering-appliedSteering, -30.f*dt, 30.f*dt);
-  motor(appliedDuty); servo(appliedSteering);
-  telemetry(now);
   delay(1);
 }

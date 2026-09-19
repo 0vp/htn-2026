@@ -8,13 +8,19 @@ struct SteeringControl {
   bool active = false;
   bool estop = false;
   uint32_t heard = 0;
+  uint32_t supervisionAt = 0;
+  bool leasedSupervision = false;
   float duty = 0;
   float steering = 0;  // Servo offset: subtract from 90 degrees; wheel direction uncalibrated.
 
   void stop() { active = false; duty = 0; }
   void supervise(bool enabled) {
     supervised = enabled;
+    leasedSupervision = false;
     if (!enabled) stop();
+  }
+  void superviseFor(uint32_t now) {
+    supervised = !estop; leasedSupervision = true; supervisionAt = now;
   }
   bool command(bool armed, bool emergency, float speed, float angle, uint32_t now) {
     if (emergency) { estop = true; supervised = false; stop(); return false; }
@@ -27,6 +33,10 @@ struct SteeringControl {
     return true;
   }
   void tick(uint32_t now) {
-    if (active && uint32_t(now - heard) > 300) stop();
+    if (leasedSupervision && uint32_t(now - supervisionAt) > 2000) supervise(false);
+    if (active && uint32_t(now - heard) > 300) {
+      stop();
+      if (leasedSupervision) supervise(false);
+    }
   }
 };

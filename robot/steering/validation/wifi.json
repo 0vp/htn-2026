@@ -1,0 +1,20 @@
+{
+  "firmware_build": "SUCCESS; no compiler warnings in final upload log",
+  "firmware_uploaded": true,
+  "firmware_sha256": "1d6dbe87910af1802f697cba2579b635121b1e2b934930eae81720899a9ad5be",
+  "python_checks_passed": 28,
+  "native_checks": [
+    "control_test passed",
+    "protocol_test passed",
+    "wifi_control_test passed"
+  ],
+  "setup_page_javascript_syntax": "passed",
+  "hardware_boot_samples": 80,
+  "all_samples_stopped_unsupervised": true,
+  "ap_ip_reported": "192.168.4.1",
+  "station_connected": false,
+  "wifi_client_end_to_end_tested": false,
+  "charger_power_tested": false,
+  "movement_commands_sent_during_wifi_update": false,
+  "credentials_committed": false
+}
