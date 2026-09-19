@@ -65,7 +65,8 @@ remain hypotheses. The root cause has not been isolated.
 
 The supplied close-up shows GOOUUU ESP32-S3-CAM, with the connected port labeled
 TTL and the empty port labeled OTG. TTL is our observed CH340 USB-to-UART path.
-Current firmware sets `ARDUINO_USB_CDC_ON_BOOT=0` and uses UART `Serial`.
+The earlier firmware set `ARDUINO_USB_CDC_ON_BOOT=0` and used UART `Serial`.
+The current build enables native hardware USB CDC on OTG instead.
 OTG is the native USB path; switching control to it requires a deliberately
 configured and tested firmware/host-port change, not just moving the cable.
 Espressif documents native USB on GPIO19/20 and CDC support in its
@@ -76,3 +77,9 @@ supply support. The photo does not establish that. Do not describe two connected
 USB cables as double power or a confirmed fix. Use one port for now; a native
 USB-only experiment could isolate the external serial bridge without Wi-Fi,
 but cannot establish or fix a shared power issue on its own.
+
+A subsequent native-USB build was flashed through `/dev/cu.usbmodem101`.
+It passed a 20-second stopped telemetry check and +5/-5/0 degree zero-drive
+steering without the previous disconnect. This is preliminary comparative
+evidence, not proof of the TTL fault's cause or long-term OTG reliability.
+See [native USB results](../steering/validation/native-usb.json).
