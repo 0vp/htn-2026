@@ -46,8 +46,13 @@ status
 The robot (`robot/`) runs the `htn-robot` access point; its password is in the robot's git-ignored
 `src/secrets.h`. Any other network works too, as long as the badge can reach the robot over IPv4.
 
-Settings live in NVS and survive reflashing. `help` lists the other commands (`buttons` prints
-raw shift-register bytes, `lcd invert 0|1` fixes inverted colours).
+Settings live in NVS and survive reflashing. `help` lists the other commands: `buttons` prints
+raw shift-register bytes, `lcd invert 0|1` fixes inverted colours, `mode drive|arm|winch` switches
+the screen, and `shot` dumps the frame. To save a screenshot (opening the port restarts the badge):
+
+```sh
+python badge/tools/badge_shot.py /dev/cu.usbmodem2101 screen.png
+```
 
 ## Build and flash
 

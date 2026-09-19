@@ -68,6 +68,7 @@ void setup() {
   Settings &cfg = settings::get();
 
   if (!display::begin(cfg.invertLcd, cfg.flipLcd)) Serial.println("frame buffer allocation failed");
+  ui::begin();
   ui::splash("starting...");
   leds::begin();
   buttons::begin(cfg.buttons);
@@ -87,6 +88,8 @@ void loop() {
   const ButtonState &input = buttons::poll();
   controller.update(input, dt, robotlink::isOpen());
   if (settings::monitoringButtons()) probeButtons(input);
+  const int mode = settings::takeModeRequest();
+  if (mode >= 0) controller.setMode(static_cast<Mode>(mode));
 
   if (now - lastPacket >= PACKET_MS) {
     lastPacket = now;
@@ -104,6 +107,7 @@ void loop() {
                         robotlink::wifiRssi(),
                         robotlink::silenceMs()};
     ui::render(model);
+    if (settings::takeShotRequest()) ui::dumpFrame();
   }
 
   updateLeds();
