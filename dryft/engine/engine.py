@@ -14,6 +14,7 @@ from components.adapters import install
 from components.execution import Execution
 from components.speculation import generate as speculative_generate
 from components.verification import reference_cases, verify
+from components.graph_verification import GraphVerifier
 
 
 class Engine:
@@ -35,6 +36,7 @@ class Engine:
         checks = reference_cases(self.model) if ACTIVE != 'baseline' else []
         install(self.model, self.options)
         self.execution = Execution(self.model, self.options)
+        self.verifier = GraphVerifier(self.model) if self.options.graph_verification else None
         if checks:
             verify(self, checks)
 
@@ -45,6 +47,9 @@ class Engine:
         exactly max_new_tokens times. Every sequence has the same length.
         Never stops at end-of-sequence tokens.
         """
+        if self.verifier is not None:
+            yield from self.verifier.generate(input_ids, max_new_tokens)
+            return
         if (self.options.speculative and (len(input_ids) == 1 or self.options.batched_speculation)
                 and max_new_tokens > 0):
             yield from speculative_generate(self.model, input_ids, max_new_tokens,

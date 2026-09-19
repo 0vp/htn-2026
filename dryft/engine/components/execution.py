@@ -2,7 +2,7 @@ import torch
 from transformers import DynamicCache, StaticCache
 
 
-def forward(model, ids, cache, positions, capacity=None):
+def forward(model, ids, cache, positions, capacity=None, all_positions=False):
     base = model.model
     x = base.embed_tokens(ids)
     pos_ids = positions.unsqueeze(0)
@@ -19,7 +19,8 @@ def forward(model, ids, cache, positions, capacity=None):
                   past_key_value=cache, use_cache=True, cache_position=positions,
                   position_embeddings=rope)[0]
     # Last-position normalization is independent along tokens.
-    return model.lm_head(base.norm(x[:, -1:, :])).argmax(-1)
+    selected = x if all_positions else x[:, -1:, :]
+    return model.lm_head(base.norm(selected)).argmax(-1)
 
 
 class Execution:

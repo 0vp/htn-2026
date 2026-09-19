@@ -167,3 +167,20 @@ attribution and multi-token verification, but several conclusions are rejected:
 
 Retain the useful proposals while measuring their costs and acceptance against
 the actual fused winner. Do not adopt an inferred ceiling as a proven limit.
+
+## First implementation candidate
+
+`graph_verify` adds a reusable `GraphVerifier` with captured input widths
+1/2/3/4, using the fused winner's operations and native dynamic prefill. It
+verifies adaptive request-local suffix proposals, computes predictions at every
+verification position, and retains the batch's common accepted prefix plus the
+correction token. Logical cache rollback hides rejected slots; every subsequently
+visible slot is overwritten before attention. This first experiment intentionally
+isolates verifier overhead before adding new proposal algorithms or per-row progress.
+
+CPU orchestration tests cover exact output count, accepted-prefix generation,
+batch output, and consecutive requests. Packaging and tooling checks pass.
+CUDA capture, numerical correctness, warmup cost and performance are unverified
+until the official candidate runs. Four graph widths can increase warmup time
+and memory; neither is assumed free. It is queued after residual fusion and norm
+warp tuning. The active pending residual submission is unchanged remotely.

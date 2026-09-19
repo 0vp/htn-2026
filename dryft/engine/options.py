@@ -20,6 +20,7 @@ class Options:
     batched_speculation: bool = False
     head_gemv: bool = False
     residual_norm: bool = False
+    graph_verification: bool = False
 
     def __post_init__(self):
         if self.norm_warps not in (0, 4, 8, 16):
@@ -36,6 +37,8 @@ class Options:
             raise ValueError('Speculation modifiers require speculative execution')
         if self.folded_gqa and self.custom_attention:
             raise ValueError('Choose folded native or custom decode attention, not both')
+        if self.graph_verification and not self.native_prefill:
+            raise ValueError('Graph verification requires native-prefill graph configuration')
 
 
 VARIANTS = {
@@ -66,4 +69,5 @@ VARIANTS = {
                         graph=True, swiglu=True, packed=True),
 }
 VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
+VARIANTS['graph_verify'] = replace(VARIANTS['graph_fused'], graph_verification=True)
 ACTIVE = 'graph_residual'
