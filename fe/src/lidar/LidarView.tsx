@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { startDemo } from './demoScan';
-import { connectSocket, feed, initialSourceUrl, rememberSourceUrl, type LinkState } from './feed';
+import { useEffect, useRef, useState } from 'react';
+import { feed } from './feed';
 import { LidarRenderer, type CloudStats, type ColorMode, type ViewMode } from './renderer';
 import { CameraFeed } from '../camera/CameraFeed';
 import { canMove, control, useControl } from '../control/store';
 import { usePlayer } from '../session/player';
 import { Segmented, TextButton } from '../ui/controls';
+import { useRoomStream, type RoomLink } from '../rooms/useRoomStream';
 
 const compact = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
 
-const LINK_LABEL: Record<LinkState, string> = {
-  demo: 'Demo scan',
-  connecting: 'Connecting',
-  live: 'Live',
-  retrying: 'Retrying',
+const LINK_LABEL: Record<RoomLink, string> = {
+  connecting: 'Connecting to backend',
+  live: 'Live room map',
+  waiting: 'Waiting for map',
+  offline: 'Backend offline',
 };
 
 export function LidarView() {
@@ -23,10 +23,6 @@ export function LidarView() {
   const [view, setView] = useState<ViewMode>('orbit');
   const [color, setColor] = useState<ColorMode>('height');
   const [paused, setPaused] = useState(false);
-  const [url, setUrl] = useState(initialSourceUrl);
-  const [draft, setDraft] = useState(url);
-  const [link, setLink] = useState<LinkState>('demo');
-  const [attempt, setAttempt] = useState(0);
   const [stats, setStats] = useState<CloudStats | null>(null);
   const [camera, setCamera] = useState(true);
   const [picking, setPicking] = useState(false);
@@ -34,6 +30,7 @@ export function LidarView() {
   const { goal } = controlState;
   const player = usePlayer();
   const replaying = !!player && !player.error;
+  const room = useRoomStream();
 
   useEffect(() => {
     if (!host.current) return;
@@ -50,13 +47,10 @@ export function LidarView() {
   }, []);
 
   useEffect(() => {
-    if (!url) {
-      setLink('demo');
-      return startDemo();
-    }
-    feed.emit({ xyz: new Float32Array(0), reset: true });
-    return connectSocket(url, setLink);
-  }, [url, attempt]);
+    if (room.mesh) void renderer.current?.loadRoomMesh(room.mesh);
+  }, [room.mesh]);
+
+  useEffect(() => renderer.current?.clearRoomMesh(), [room.roomId]);
 
   useEffect(() => renderer.current?.setView(view), [view]);
   useEffect(() => renderer.current?.setColorMode(color), [color]);
@@ -73,20 +67,10 @@ export function LidarView() {
     );
   }, [picking]);
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const next = draft.trim();
-    rememberSourceUrl(next);
-    setUrl(next);
-    setAttempt((n) => n + 1);
-  };
-
   const pose = stats?.pose;
   const goalDistance = goal && pose ? Math.hypot(goal.x - pose.x, goal.z - pose.z) : null;
   const canGo = canMove(controlState) && !replaying;
   if (picking && !canGo) setPicking(false);
-  const stale = link === 'live' && stats && performance.now() - stats.lastBatchAt > 2000;
-
   return (
     <section id="lidar" className="relative bg-blue text-white">
       <div ref={host} className="h-[78vh] min-h-[520px] w-full cursor-grab active:cursor-grabbing" />
@@ -166,30 +150,29 @@ export function LidarView() {
       <div className="absolute inset-x-0 bottom-0 px-6 sm:px-9">
         <div className="hairline-light flex flex-wrap items-center gap-x-6 gap-y-2 border-b py-4 label text-white/85">
           <span className="flex items-center gap-2">
-            <span className={`size-2 ${replaying ? 'bg-signal' : link === 'live' && !stale ? 'bg-white' : link === 'demo' ? 'bg-blue-soft' : 'bg-signal'}`} />
-            {replaying ? 'Replay' : stale ? 'Stalled' : LINK_LABEL[link]}
+            <span className={`size-2 ${replaying ? 'bg-signal' : room.link === 'live' ? 'bg-white' : room.link === 'waiting' ? 'bg-blue-soft' : 'bg-signal'}`} />
+            {replaying ? 'Replay' : LINK_LABEL[room.link]}
           </span>
-          <span>{compact(stats?.pointsPerSecond ?? 0)} pts/s</span>
+          <span>{room.status ? `${room.status.mapped}/${room.status.received} frames mapped` : 'No frames'}</span>
           <span>{stats?.fps ?? 0} fps</span>
           <span>
             {pose ? `x ${pose.x.toFixed(2)}  z ${pose.z.toFixed(2)}  θ ${((pose.yaw * 180) / Math.PI).toFixed(0)}°` : 'No pose'}
           </span>
-          <form onSubmit={submit} className="ml-auto flex items-center gap-2">
-            <label htmlFor="lidar-url" className="text-blue-soft">
-              Source
-            </label>
-            <input
-              id="lidar-url"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="ws://robot.local:8765 · empty = demo"
-              spellCheck={false}
-              className="hairline-light w-64 border bg-transparent px-2 py-1 font-mono text-[11px] tracking-normal normal-case text-white placeholder:text-white/45 focus:outline-none"
-            />
-            <button type="submit" className="bg-paper px-3 py-1 text-blue hover:bg-white">
-              {draft.trim() === url ? 'Reconnect' : 'Connect'}
-            </button>
-          </form>
+          <label htmlFor="room-source" className="ml-auto text-blue-soft">Room</label>
+          <select
+            id="room-source"
+            value={room.roomId}
+            onChange={(event) => room.setRoomId(event.target.value)}
+            className="hairline-light w-64 border bg-blue px-2 py-1 font-mono text-[11px] tracking-normal normal-case text-white focus:outline-none"
+          >
+            {!room.rooms.length && <option value="">No backend rooms</option>}
+            {room.rooms.map((item) => (
+              <option key={item.room_id} value={item.room_id}>
+                {item.name} · {item.room_id}{item.closed ? ' · closed' : ''}
+              </option>
+            ))}
+          </select>
+          {room.error && <span className="max-w-64 truncate text-signal" title={room.error}>{room.error}</span>}
         </div>
       </div>
     </section>

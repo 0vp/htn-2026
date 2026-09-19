@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { LidarBatch, Pose } from './protocol';
 
 export type ViewMode = 'orbit' | 'top' | 'follow';
@@ -79,6 +80,8 @@ export class LidarRenderer {
   private goalLine: THREE.Line;
   private pick: ((point: { x: number; z: number }) => void) | null = null;
   private pressedAt: { x: number; y: number } | null = null;
+  private roomMesh: THREE.Group | null = null;
+  private meshVertices = 0;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
@@ -302,6 +305,40 @@ export class LidarRenderer {
     this.trail.geometry.setDrawRange(0, 0);
   }
 
+  async loadRoomMesh(data: ArrayBuffer): Promise<void> {
+    const gltf = await new Promise<Awaited<ReturnType<GLTFLoader['parseAsync']>>>((resolve, reject) => {
+      new GLTFLoader().parse(data, '', resolve, reject);
+    });
+    if (this.roomMesh) this.scene.remove(this.roomMesh);
+    this.roomMesh = gltf.scene;
+    this.meshVertices = 0;
+    this.roomMesh.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const position = object.geometry.getAttribute('position');
+      this.meshVertices += position?.count ?? 0;
+      object.material = new THREE.MeshBasicMaterial({
+        color: 0xd8e0ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.82,
+      });
+    });
+    this.scene.add(this.roomMesh);
+    const bounds = new THREE.Box3().setFromObject(this.roomMesh);
+    if (!bounds.isEmpty()) {
+      const center = bounds.getCenter(new THREE.Vector3());
+      this.controls.target.copy(center);
+      this.setView(this.view);
+    }
+    this.lastBatchAt = performance.now();
+  }
+
+  clearRoomMesh(): void {
+    if (this.roomMesh) this.scene.remove(this.roomMesh);
+    this.roomMesh = null;
+    this.meshVertices = 0;
+  }
+
   setPaused(paused: boolean): void {
     this.paused = paused;
   }
@@ -330,7 +367,7 @@ export class LidarRenderer {
     this.rateWindow = this.rateWindow.filter((entry) => now - entry.t < 1000);
     this.frames = this.frames.filter((t) => now - t < 1000);
     return {
-      points: this.filled,
+      points: this.filled || this.meshVertices,
       capacity: CAPACITY,
       pointsPerSecond: this.rateWindow.reduce((sum, entry) => sum + entry.n, 0),
       fps: this.frames.length,
