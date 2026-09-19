@@ -2,8 +2,9 @@
   "esam": {
     "source": "https://github.com/xuxw98/ESAM",
     "revision": "188fc6de44f7577fecec2d69b75c7adbd9992251",
-    "checkpoint": "https://huggingface.co/XXXCARREY/EmbodiedSAM/resolve/main/ESAM-E_online_epoch_128.pth",
-    "sha256": "161f575838d2ef11d35fc17fecb8e3b292f4d0813945de457e7bc89f643a2329"
+    "checkpoint": "https://huggingface.co/XXXCARREY/EmbodiedSAM/resolve/main/ESAM-E_CA_online_epoch_128.pth",
+    "sha256": "c1a46a58f3e7caf9d903e5d73d51762382e1f0018a7a88b9dc6c01b636edce47",
+    "compatibility_patch": "Place pooled sparse coordinates on the feature tensor's device"
   },
   "fastsam": {
     "source": "https://github.com/CASIA-IVA-Lab/FastSAM",
@@ -13,7 +14,11 @@
   },
   "minkowski": {
     "source": "https://github.com/NVIDIA/MinkowskiEngine",
-    "revision": "9f81ae66b33b883cd08ee4f64d08cf633608b118"
+    "revision": "9f81ae66b33b883cd08ee4f64d08cf633608b118",
+    "compatibility_patches": [
+      "Include ATen/ATen.h before CUDAContext in src/spmm.cu for Torch 2.1",
+      "Import Sequence from collections.abc for Python 3.10"
+    ]
   },
   "nvtx": {
     "source": "https://github.com/NVIDIA/NVTX",

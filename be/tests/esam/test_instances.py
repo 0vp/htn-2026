@@ -149,3 +149,23 @@ def test_empty_result_keeps_previously_observed_instances():
         frame, [], dict(points=np.empty((0, 3)), offsets=np.array([0]), scores=np.empty(0))
     )
     assert len(objects) == 4
+
+
+def test_superseded_window_queries_are_retired_but_older_windows_remain():
+    frame, detections, result = scene()
+    catalog = InstanceCatalog()
+    result["window_frames"] = 1
+    catalog.update(frame, detections, result)
+    one = dict(
+        points=result["points"][:64],
+        offsets=np.array([0, 64]),
+        scores=np.array([0.9]),
+        window_frames=2,
+    )
+    objects, _ = catalog.update(frame, detections, one)
+    assert len(objects) == 1
+    # A fresh inference window only sees one different table. The previous
+    # window's observed object must survive that bounded model-memory reset.
+    one.update(points=result["points"][64:128], window_frames=1)
+    objects, _ = catalog.update(frame, detections, one)
+    assert len(objects) == 2

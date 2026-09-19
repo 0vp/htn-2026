@@ -1,0 +1,38 @@
+{
+  "date": "2026-09-19",
+  "hardware": "NVIDIA L4",
+  "dataset": "17 retained real RGB-D captures; incomplete scan; no instance annotations",
+  "production_default": "HydraClient",
+  "candidate_name": "HydraEsam with ESAM-E class-agnostic checkpoint",
+  "promoted": false,
+  "baseline": {
+    "frames_mapped": 17,
+    "confirmed_objects": 3,
+    "elapsed_including_startup_seconds": 7.82465
+  },
+  "candidate": {
+    "frames_mapped": 17,
+    "confirmed_objects": 9,
+    "checkpoint_objects": 9,
+    "elapsed_including_startup_seconds": 42.90171,
+    "sampled_instance_update_ms": [420.338, 656.789, 568.149, 908.462, 830.317],
+    "interpretation": "Higher object count is not evidence of higher accuracy"
+  },
+  "blockers": [
+    "Four-table layout has not been recovered reliably",
+    "Incorrect large and tiny table regions acquire furniture labels",
+    "Duplicate or overlapping chair instances remain",
+    "Semantic head and image detector disagree on some objects",
+    "Instance export and association cost grows with the active window",
+    "No annotated accuracy score or long-duration window-reset validation yet",
+    "ESAM instance segmentation does not repair incomplete Hydra walls"
+  ],
+  "discarded_experiment": {
+    "method": "Shared global voxel indexing for instance surface export",
+    "exact_point_equivalence_test": "passed",
+    "elapsed_including_startup_seconds": 39.49268,
+    "sampled_instance_update_ms": [378.978, 512.327, 649.854, 822.404, 876.695],
+    "decision": "No consistent latency improvement; reverted"
+  },
+  "validation_limits": "Single sparse room replay is not a SOTA benchmark. Live services remained healthy; candidate was isolated and not published."
+}

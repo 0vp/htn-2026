@@ -41,7 +41,7 @@ for name, metadata in models.items():
     if "checkpoint" not in metadata:
         continue
     Path("weights").mkdir(exist_ok=True)
-    filename = "ESAM-E_online_epoch_128.pth" if name == "esam" else "FastSAM-x.pt"
+    filename = "ESAM-E_CA_online_epoch_128.pth" if name == "esam" else "FastSAM-x.pt"
     path = Path("weights") / filename
     if not path.exists():
         temporary = path.with_suffix(".download")
@@ -53,8 +53,35 @@ for name, metadata in models.items():
             digest.update(block)
     if digest.hexdigest() != metadata["sha256"]:
         raise RuntimeError(f"Checkpoint checksum mismatch: {name}")
+
+# Torch 2.1's CUDAUtils needs the complete Tensor type before CUDAContext.
+# This header-order compatibility patch does not change sparse convolution math.
+path = Path("minkowski/src/spmm.cu")
+text = path.read_text()
+before = "#include <ATen/cuda/CUDAContext.h>"
+after = "#include <ATen/ATen.h>\n" + before
+if after not in text:
+    if text.count(before) != 1:
+        raise RuntimeError("Unexpected MinkowskiEngine include layout")
+    path.write_text(text.replace(before, after))
+for path in Path("minkowski/MinkowskiEngine").rglob("*.py"):
+    text = path.read_text()
+    updated = text.replace(
+        "from collections import Sequence, namedtuple",
+        "from collections import namedtuple\nfrom collections.abc import Sequence",
+    ).replace("from collections import Sequence", "from collections.abc import Sequence")
+    if updated != text:
+        path.write_text(updated)
+path = Path("upstream/oneformer3d/multilevel_memory.py")
+text = path.read_text()
+before, after = "coordinates=coords_sp,", "coordinates=coords_sp.to(feats_sp.device),"
+if after not in text:
+    if text.count(before) != 1:
+        raise RuntimeError("Unexpected ESAM pooling coordinate layout")
+    path.write_text(text.replace(before, after))
 PY
 export CUDA_HOME="$root/cuda"
+export LD_LIBRARY_PATH="$root/cuda/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export PATH="$root/env/bin:$PATH"
 export CPLUS_INCLUDE_PATH="$root/nvtx/c/include"
 export CC=gcc-11 CXX=g++-11 MAX_JOBS=2 TORCH_CUDA_ARCH_LIST=8.9 OMP_NUM_THREADS=2

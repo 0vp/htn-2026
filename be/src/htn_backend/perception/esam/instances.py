@@ -18,6 +18,8 @@ class InstanceCatalog:
     def __init__(self):
         self.tracks = {}
         self.next_id = 0
+        self.window = 0
+        self.window_frames = 0
 
     def update(self, frame, detections, result):
         points = np.asarray(result["points"], dtype=np.float32)
@@ -39,6 +41,10 @@ class InstanceCatalog:
         ):
             raise ValueError("Invalid ESAM instance output")
         candidates = []
+        window_frames = int(result.get("window_frames", self.window_frames + 1))
+        if window_frames == 1 and self.window_frames > 0:
+            self.window += 1
+        self.window_frames = window_frames
         for i, score in enumerate(scores):
             cloud = points[offsets[i] : offsets[i + 1]].copy()
             if score < 0.3 or len(cloud) < 20:
@@ -62,6 +68,12 @@ class InstanceCatalog:
                     score=score,
                     low=cloud.min(axis=0),
                     high=cloud.max(axis=0),
+                    model_label=str(result["semantic_names"][i])
+                    if "semantic_names" in result
+                    else None,
+                    model_purity=float(result["semantic_purity"][i])
+                    if "semantic_purity" in result
+                    else None,
                 )
             )
         keys = list(self.tracks)
@@ -80,19 +92,32 @@ class InstanceCatalog:
         if overlap.size:
             rows, cols = linear_sum_assignment(-overlap)
             matches = {i: keys[j] for i, j in zip(rows, cols, strict=True) if overlap[i, j] >= 0.1}
+        updated = set()
         for i, candidate in enumerate(candidates):
             key = matches.get(i)
             if key is None:
                 key = f"instance-{self.next_id}"
                 self.next_id += 1
                 self.tracks[key] = dict(votes={}, observations=0)
+            updated.add(key)
             track = self.tracks[key]
+            track["window"] = self.window
             # The upstream merger already fuses geometry within its active window.
             # Across windows this update uses measured surfaces, not invented extents.
             track.update({k: candidate[k] for k in ("points", "voxels", "score", "low", "high")})
+            track.update({k: candidate[k] for k in ("model_label", "model_purity")})
             for label, vote in candidate["votes"].items():
                 track["votes"][label] = track["votes"].get(label, 0.0) + vote
             track["observations"] += 1
+        if candidates:
+            # The upstream merger returns the WHOLE active window, not just this
+            # frame. Keeping superseded queries creates duplicate objects. Older
+            # windows remain cumulative until matched again or the segment seals.
+            self.tracks = {
+                key: track
+                for key, track in self.tracks.items()
+                if key in updated or track["window"] != self.window
+            }
         return self.snapshot()
 
     def snapshot(self):
@@ -114,6 +139,8 @@ class InstanceCatalog:
                     points=len(track["points"]),
                     state="mapped",
                     identity_status="esam_instance",
+                    model_semantic_label=track["model_label"],
+                    model_semantic_purity=track["model_purity"],
                     source_devices=[],
                     geometry_status="observed surface bounds; hidden shape unknown",
                     extent_kind="visible_surface_estimate",

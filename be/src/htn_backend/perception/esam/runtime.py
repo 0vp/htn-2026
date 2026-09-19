@@ -15,7 +15,7 @@ from ...mapping.hydra.packet import MAX_PACKET, Y_TO_Z, pack, unpack
 from .preprocess import Preprocessor
 
 REVISION = "188fc6de44f7577fecec2d69b75c7adbd9992251"
-CHECKPOINT_SHA256 = "161f575838d2ef11d35fc17fecb8e3b292f4d0813945de457e7bc89f643a2329"
+CHECKPOINT_SHA256 = "c1a46a58f3e7caf9d903e5d73d51762382e1f0018a7a88b9dc6c01b636edce47"
 FASTSAM_SHA256 = "c0be4e7ddbe4c15333d15a859c676d053c486d0a746a3be6a7a9790d52a9b6d7"
 WINDOW_FRAMES = 32
 
@@ -38,6 +38,9 @@ class Runtime:
         from mmdet3d.registry import MODELS
 
         config = Config.fromfile(str(Path(upstream) / "configs/ESAM-E_CA/ESAM-E_online_stream.py"))
+        from oneformer3d.scannet_dataset import ScanNet200SegDataset_
+
+        self.class_names = ScanNet200SegDataset_.METAINFO["classes"]
         init_default_scope("mmdet3d")
         self.model = MODELS.build(config.model)
         load_checkpoint(self.model, checkpoint, map_location="cpu", strict=True)
@@ -61,6 +64,7 @@ class Runtime:
         if getattr(self.model, "memory", None) is not None:
             self.model.memory.reset()
         self.points = []
+        self.semantics = []
 
     def predict(self, arrays):
         from mmdet3d.structures import Det3DDataSample, PointData
@@ -87,11 +91,13 @@ class Runtime:
             result = self.model.test_step(batch)[0].pred_pts_seg
         inferred = time.perf_counter()
         self.points.append(points[:, :3].astype(np.float32))
+        self.semantics.append(np.asarray(result.pts_semantic_mask[0]))
+        semantic = np.concatenate(self.semantics)
         cloud = np.concatenate(self.points) @ Y_TO_Z.astype(np.float32)
         masks, scores = result.pts_instance_mask[0], result.instance_scores
         if masks.shape != (len(scores), len(cloud)):
             raise ValueError("ESAM merger masks do not match accumulated point history")
-        instances, kept_scores = [], []
+        instances, kept_scores, semantic_names, semantic_purity = [], [], [], []
         for mask, score in zip(masks, scores, strict=True):
             if score < 0.3 or np.count_nonzero(mask) < 20:
                 continue
@@ -102,10 +108,18 @@ class Runtime:
                 xyz = xyz[np.linspace(0, len(xyz) - 1, 4000).astype(int)]
             instances.append(xyz)
             kept_scores.append(score)
+            ids, counts = np.unique(semantic[np.asarray(mask, dtype=bool)], return_counts=True)
+            winner = int(ids[np.argmax(counts)])
+            semantic_names.append(
+                self.class_names[winner] if 0 <= winner < len(self.class_names) else "unknown"
+            )
+            semantic_purity.append(float(counts.max() / counts.sum()))
         return dict(
             points=np.concatenate(instances) if instances else np.empty((0, 3), dtype=np.float32),
             offsets=np.cumsum([0] + [len(x) for x in instances], dtype=np.int64),
             scores=np.asarray(kept_scores, dtype=np.float32),
+            semantic_names=np.asarray(semantic_names, dtype="U64"),
+            semantic_purity=np.asarray(semantic_purity, dtype=np.float32),
             elapsed_ms=np.array((time.perf_counter() - start) * 1000),
             preprocess_ms=np.array((preprocessed - start) * 1000),
             network_ms=np.array((inferred - preprocessed) * 1000),
