@@ -13,8 +13,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Response
 
 from ..robotics.actions import SkillRequest
+from ..robotics.grounding import RegionRequest
+from ..storage.database import StoreError
 from .control.feedback import measure
 from .controller import Controller
+from .mechanics import depth
 from .mechanics.vision import camera_metadata, exploration_targets, visible_objects
 from .world import World
 
@@ -31,6 +34,7 @@ class Simulation:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mujoco")
         self.receipts, self.requests = {}, {}
         self.views = OrderedDict()
+        self.depth_frames = OrderedDict()
         self.frames = deque(maxlen=240)
         self.revision, self.sequence, self.active = 1, 0, None
         self.last_capture = -1.0
@@ -60,6 +64,7 @@ class Simulation:
         if not force and w.data.time - self.last_capture < 0.75:
             return
         image = w.image()
+        depth_frame = depth.capture(w, self.sequence + 1, image)
         self.last_capture = float(w.data.time)
         visible = visible_objects(w)
         for name, pixels in visible.items():
@@ -103,6 +108,8 @@ class Simulation:
             observation = dict(
                 sequence=self.sequence,
                 rgb_available=True,
+                depth_available=True,
+                depth_source="ideal rendered depth; not a calibrated iPhone sensor",
                 received_at=time.time(),
                 capture_timestamp_s=float(w.data.time),
                 storage_source="simulation",
@@ -114,9 +121,11 @@ class Simulation:
                 execution_domain="simulation",
             )
             self.views[self.sequence] = (observation, image)
+            self.depth_frames[self.sequence] = depth_frame
             self.frames.append(image)
             while len(self.views) > 32:
                 self.views.popitem(last=False)
+                self.depth_frames.popitem(last=False)
             self.snapshot = dict(
                 room_id=ROOM,
                 revision=self.revision,
@@ -328,10 +337,16 @@ def create_app(seed=0, layout="detour"):
         return Response(image, media_type="image/jpeg")
 
     @app.post(prefix + "/observations/ground")
-    def ground():
-        raise HTTPException(
-            409, "RGB-only simulated POV; depth-region grounding is not implemented"
-        )
+    def ground(body: RegionRequest):
+        sim = app.state.sim
+        with sim.lock:
+            observation, _ = sim.view(body.sequence)
+            frame = sim.depth_frames[body.sequence]
+            current_time = sim.feedback["simulation_time_s"]
+        try:
+            return depth.ground(frame, body, observation["received_at"], current_time)
+        except StoreError as error:
+            raise HTTPException(error.status, str(error)) from error
 
     @app.post(prefix + "/actions")
     def submit(body: SkillRequest):

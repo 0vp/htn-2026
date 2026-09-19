@@ -46,7 +46,7 @@ def test_same_agent_tools_and_idempotency_without_physical_success():
         assert len(client.app.state.sim.receipts) == 1
         assert client.post(path, json={**request, "request_id": "stale"}).status_code == 409
         assert client.get("/v1/rooms/AAAAAAAA/scene").status_code == 404
-        assert client.post(f"/v1/rooms/{ROOM}/observations/ground", json={}).status_code == 409
+        assert client.post(f"/v1/rooms/{ROOM}/observations/ground", json={}).status_code == 422
 
 
 def test_stop_cancels_running_action_and_has_measured_simulated_receipt():
