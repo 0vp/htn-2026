@@ -54,6 +54,7 @@ struct VoiceAPI: VoiceServing {
     private func perform<T: Decodable>(_ original: URLRequest) async throws -> T {
         var request = original
         request.timeoutInterval = 25
+        request.networkServiceType = .responsiveData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }

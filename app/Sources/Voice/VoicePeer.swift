@@ -5,7 +5,13 @@ import WebRTC
 @MainActor
 final class VoicePeer: NSObject, VoiceTransport {
     var receive: ((VoiceEvent) -> Void)?
-    private static let factory = RTCPeerConnectionFactory()
+    private static let sharedFactory = RTCPeerConnectionFactory()
+    private let factory: RTCPeerConnectionFactory
+
+    init(factory: RTCPeerConnectionFactory? = nil) {
+        self.factory = factory ?? Self.sharedFactory
+        super.init()
+    }
     private var peer: RTCPeerConnection?
     private var channel: RTCDataChannel?
     private var microphone: RTCAudioTrack?
@@ -24,12 +30,13 @@ final class VoicePeer: NSObject, VoiceTransport {
         try configureAudio()
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
-        guard let peer = Self.factory.peerConnection(with: config,
+        config.enableDscp = true
+        guard let peer = factory.peerConnection(with: config,
             constraints: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil), delegate: self)
         else { throw APIError(message: "Could not prepare voice audio.") }
         self.peer = peer
-        let source = Self.factory.audioSource(with: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil))
-        let track = Self.factory.audioTrack(with: source, trackId: "microphone")
+        let source = factory.audioSource(with: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil))
+        let track = factory.audioTrack(with: source, trackId: "microphone")
         track.isEnabled = false // Wait for the server's session.started before sending speech.
         microphone = track
         peer.add(track, streamIds: ["voice"])
@@ -64,6 +71,16 @@ final class VoicePeer: NSObject, VoiceTransport {
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
+        prioritizeAudio()
+    }
+    private func prioritizeAudio() {
+        for sender in peer?.senders ?? [] where sender.track?.kind == "audio" {
+            let parameters = sender.parameters
+            for encoding in parameters.encodings {
+                encoding.networkPriority = .high
+            }
+            sender.parameters = parameters
+        }
     }
     func startMetering() {
         metering?.cancel()
@@ -77,11 +94,16 @@ final class VoicePeer: NSObject, VoiceTransport {
                     let input = report.statistics.values.filter {
                         $0.type == "media-source" && ($0.values["kind"] as? String == "audio")
                     }.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max() ?? 0
+                    let sent = report.statistics.values.filter { $0.type == "outbound-rtp" }
+                        .compactMap { ($0.values["packetsSent"] as? NSNumber)?.intValue }.reduce(0, +)
+                    let received = report.statistics.values.filter { $0.type == "inbound-rtp" }
+                        .compactMap { ($0.values["packetsReceived"] as? NSNumber)?.intValue }.reduce(0, +)
                     Task { @MainActor [weak self] in
                         guard let self, self.peer != nil else { return }
                         // Incoming speech envelope; never animate from text generation timing.
                         self.receive?(.level(min(1, max(0, level - 0.008) * 8)))
                         self.receive?(.inputLevel(min(1, input * 8)))
+                        self.receive?(.packets(sent, received))
                     }
                 }
                 try? await Task.sleep(for: .milliseconds(80))

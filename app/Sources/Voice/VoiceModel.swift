@@ -14,6 +14,9 @@ final class VoiceModel: ObservableObject {
     @Published private(set) var userTranscript = ""
     @Published private(set) var assistantTranscript = ""
     @Published private(set) var microphoneLevel: Double = 0
+    @Published private(set) var packetsSent = 0
+    @Published private(set) var packetsReceived = 0
+    @Published private(set) var connectionDetail = "Connecting voice…"
     @Published private(set) var codexEnabled: Bool
     private let api: any VoiceServing
     private let makePeer: @MainActor () -> any VoiceTransport
@@ -29,7 +32,7 @@ final class VoiceModel: ObservableObject {
     var status: String {
         switch phase {
         case .idle: return "Ready to talk"
-        case .connecting: return "Connecting voice…"
+        case .connecting: return connectionDetail
         case .ending: return "Ending conversation…"
         case .failed: return "Voice unavailable"
         case .listening: return muted ? "Microphone muted" : (mouth > 0.08 ? "Speaking" : "Listening")
@@ -60,6 +63,7 @@ final class VoiceModel: ObservableObject {
         let token = UUID(); generation = token
         phase = .connecting; error = nil; caption = ""; speaker = ""; mouth = 0; muted = false
         userTranscript = ""; assistantTranscript = ""; microphoneLevel = 0
+        packetsSent = 0; packetsReceived = 0; connectionDetail = "Checking voice service…"
         startTask = Task { await connect(token) }
     }
     private func connect(_ token: UUID) async {
@@ -70,6 +74,7 @@ final class VoiceModel: ObservableObject {
             guard !codexEnabled || capability.codex_available else {
                 throw APIError(message: "Codex is not connected yet. Turn off Connect to Codex to test conversation only.")
             }
+            connectionDetail = "Checking microphone access…"
             guard await permission() else { throw APIError(message: "Allow microphone access for HTN in Settings to talk.") }
             try validate(token)
             let peer = makePeer(); self.peer = peer
@@ -77,9 +82,11 @@ final class VoiceModel: ObservableObject {
                 guard let self, self.generation == token else { return }
                 self.handle(event)
             }
+            connectionDetail = "Preparing audio connection…"
             let sdp = try await peer.offer()
             try validate(token)
             let mode = codexEnabled
+            connectionDetail = "Starting GPT-Live…"
             let creation = Task { try await api.create(sdp: sdp, codex: mode, requestID: token.uuidString) }
             let result = try await creation.value
             // Even a late success must be hung up so it cannot leave a billed session behind.
@@ -91,6 +98,7 @@ final class VoiceModel: ObservableObject {
             guard result.codex_enabled == codexEnabled else {
                 throw APIError(message: "The server did not apply the requested Codex mode. Voice was stopped.")
             }
+            connectionDetail = "Connecting audio…"
             try await peer.answer(result.sdp)
             if phase == .connecting {
                 watchdog = Task { [weak self] in
@@ -141,6 +149,9 @@ final class VoiceModel: ObservableObject {
         case .level(let value):
             guard phase == .listening else { return }
             mouth = min(1, max(0, value))
+        case .packets(let sent, let received):
+            guard phase == .listening else { return }
+            packetsSent = sent; packetsReceived = received
         case .inputLevel(let value):
             guard phase == .listening else { return }
             microphoneLevel = muted ? 0 : min(1, max(0, value))

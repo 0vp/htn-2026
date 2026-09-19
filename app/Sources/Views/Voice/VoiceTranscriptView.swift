@@ -15,6 +15,11 @@ struct VoiceTranscriptView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }.font(.subheadline).accessibilityIdentifier("voiceStatus")
+            if voice.phase == .listening {
+                Text("Audio packets · sent \(voice.packetsSent) · received \(voice.packetsReceived)")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .accessibilityIdentifier("voiceTransport")
+            }
             if let error = voice.error {
                 Text(error).font(.footnote).foregroundStyle(.red)
                     .accessibilityIdentifier("roomVoiceError")

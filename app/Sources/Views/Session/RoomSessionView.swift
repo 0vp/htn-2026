@@ -67,7 +67,16 @@ struct RoomSessionView: View {
             }.padding(.horizontal, 24).padding(.bottom, 16)
         }
         .padding(.top, 12)
-        .background(Color(uiColor: .systemBackground))
+        .background {
+            ZStack {
+                Color.black
+                if ScanModel.supported {
+                    CameraBackground(session: scan.capture.session, active: scan.capturing)
+                    Color.black.opacity(0.72)
+                }
+            }.ignoresSafeArea().allowsHitTesting(false).accessibilityHidden(true)
+        }
+        .preferredColorScheme(.dark)
         .sheet(isPresented: $sync) { SyncSheet(session: session, scan: scan) }
         .sheet(isPresented: $voiceSettings) { VoiceSheet(voice: voice) }
         .confirmationDialog("Room actions", isPresented: $confirmLeave, titleVisibility: .visible) {
