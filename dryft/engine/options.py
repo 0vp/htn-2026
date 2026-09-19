@@ -45,6 +45,8 @@ VARIANTS = {
     'graph': Options(direct=True, static=True, graph=True),
     'graph_hybrid': Options(direct=True, static=True, graph=True, native_prefill=True),
     'graph_folded': Options(direct=True, static=True, graph=True, native_prefill=True, folded_gqa=True),
+    'graph_fused': Options(norms='all', direct=True, static=True, graph=True,
+                           native_prefill=True, folded_gqa=True, packed=True, swiglu=True),
     'graph_norms': Options(norms='all', direct=True, static=True, graph=True),
     'swiglu': Options(swiglu=True),
     'packed': Options(packed=True),
