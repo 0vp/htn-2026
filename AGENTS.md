@@ -8,3 +8,4 @@
 - Never commit credentials, recordings, datasets, model weights or local environments.
 - Build or smoke-test each changed component before committing. Record actual checks
   and distinguish simulator builds from physical-device validation.
+- Make focused local commits only. Do not push unless explicitly requested.
