@@ -10,3 +10,6 @@
 - Build or smoke-test each changed component before committing. Record actual checks
   and distinguish simulator builds from physical-device validation.
 - Make focused local commits only. Do not push unless explicitly requested.
+
+- Before changing robot hardware, transport or calibration, read
+  `robot/reference/base-bringup.md`; preserve measured facts versus hypotheses.
