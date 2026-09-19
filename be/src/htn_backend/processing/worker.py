@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ..inference.client import Detector
 from ..storage.database import Store
+from ..storage.retention import cleanup
 from .room import RoomProcessor
 from .state import ProcessingState
 
@@ -31,6 +32,7 @@ def run() -> None:
         signal.signal(signal.SIGTERM, lambda *_: stopping.set())
         signal.signal(signal.SIGINT, lambda *_: stopping.set())
         rooms, cooldown, completed = OrderedDict(), {}, {}
+        last_cleanup = 0.0
 
         def heartbeat():
             while not stopping.wait(5):
@@ -41,6 +43,11 @@ def run() -> None:
         state.heartbeat("running")
         try:
             while not stopping.is_set():
+                if time.monotonic() - last_cleanup > 30:
+                    for _ in range(8):
+                        if cleanup(store)["frames_cleaned"] < 128:
+                            break
+                    last_cleanup = time.monotonic()
                 if not detector.ready():
                     state.heartbeat("waiting_for_gpu")
                     stopping.wait(2)
@@ -59,10 +66,12 @@ def run() -> None:
                                 idle = next((r for r in rooms if r in completed), None)
                                 if idle is None:
                                     continue
-                                rooms.pop(idle).close()
+                                rooms.pop(idle).close(checkpoint=True)
                             rooms[code] = RoomProcessor(state, code, detector)
                         processor = rooms[code]
                         rooms.move_to_end(code)
+                        if completed.get(code) != room["frames_stored"]:
+                            completed.pop(code, None)
                         changed = processor.step()
                         worked |= changed
                         state.error(code, None)
@@ -85,7 +94,7 @@ def run() -> None:
             stopping.set()
             pulse.join(timeout=6)
             for processor in rooms.values():
-                processor.close()
+                processor.close(checkpoint=True)
             detector.close()
             state.heartbeat("stopped")
             store.close()

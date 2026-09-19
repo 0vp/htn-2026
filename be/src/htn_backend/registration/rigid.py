@@ -3,7 +3,7 @@
 import numpy as np
 
 MAX_GRAVITY_DEG = 8
-MAX_ORIGIN_M = 12
+MAX_ORIGIN_M = 10_000
 
 
 def fit(source: np.ndarray, target: np.ndarray) -> np.ndarray:

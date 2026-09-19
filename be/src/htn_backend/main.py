@@ -15,6 +15,7 @@ from .api.uploads import router as uploads_router
 from .capture.codec import MAX_FRAME_BYTES
 from .processing.state import ProcessingState
 from .storage.database import Store, StoreError
+from .storage.retention import RAW_HISTORY_SECONDS, RAW_TARGET_BYTES
 
 
 def create_app(data_dir: Path | None = None) -> FastAPI:
@@ -27,7 +28,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         yield
         store.close()
 
-    app = FastAPI(title="HTN API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="HTN API", version="0.4.0", lifespan=lifespan)
     app.state.store = store
 
     @app.exception_handler(StoreError)
@@ -46,11 +47,18 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return {
             "status": "ok",
             "service": "htn-backend",
-            "version": "0.3.0",
+            "version": "0.4.0",
             "storage": "durable",
             "processing": processing.worker(),
             "protocols": ["R3D1", "R3Z1", "R3S1"],
             "max_frame_bytes": MAX_FRAME_BYTES,
+            "mapping_frame_limit": None,
+            "retention": {
+                "raw_history_seconds": RAW_HISTORY_SECONDS,
+                "raw_pressure_target_bytes": RAW_TARGET_BYTES,
+                "requires_committed_checkpoint": True,
+                "preserves_sparse_alignment_references": True,
+            },
         }
 
     app.add_middleware(

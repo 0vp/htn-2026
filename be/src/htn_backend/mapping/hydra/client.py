@@ -46,11 +46,6 @@ class HydraClient:
     def integrate(self, frame, detections, loops=()):
         if self.failed:
             raise RuntimeError("Hydra worker failed; room replay required")
-        if self.frames >= 1800:
-            raise ValueError("live map frame limit reached; start a new map")
-        pose = frame.header.camera_to_world
-        if sum(pose[i] ** 2 for i in (12, 13, 14)) > 144:
-            raise ValueError("map radius limit reached; start a new map")
         arrays, calibration = prepare(frame, detections, self.calibration)
         if loops:
             arrays["loops"] = np.array(json.dumps(encode_edges(loops)))

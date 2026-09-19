@@ -3,6 +3,7 @@
 import json
 import time
 
+from ..storage.counters import initialize_processing
 from ..storage.database import Store, StoreError
 
 
@@ -41,6 +42,10 @@ class ProcessingState:
                 );
             """)
 
+        with store.lock, store.db:
+            store.db.execute("BEGIN IMMEDIATE")
+            initialize_processing(store.db)
+
     def heartbeat(self, state: str, detail: str = "") -> None:
         with self.store.lock, self.store.db:
             self.store.db.execute(
@@ -58,13 +63,24 @@ class ProcessingState:
                 return {"state": "starting", "healthy": False}
             return {**dict(row), "healthy": time.time() - row["heartbeat"] < 30}
 
+    def checkpoint(self, room_id: str) -> dict | None:
+        with self.store.lock:
+            exists = self.store.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='atlas_state'"
+            ).fetchone()
+            if not exists:
+                return None
+            row = self.store.db.execute(
+                "SELECT generation,frames,through_sequence FROM atlas_state WHERE room_id=?",
+                (room_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
     def status(self, room_id: str) -> dict:
         with self.store.lock:
             room = self.store.room(room_id)
             rows = self.store.db.execute(
-                "SELECT p.state,COUNT(*) AS n FROM processing p JOIN frames f "
-                "ON p.sequence=f.sequence WHERE f.room_id=? GROUP BY p.state",
-                (room_id,),
+                "SELECT state,count AS n FROM processing_counts WHERE room_id=?", (room_id,)
             ).fetchall()
             counts = {r["state"]: r["n"] for r in rows}
             error = self.store.db.execute(
@@ -77,12 +93,16 @@ class ProcessingState:
             return {
                 "room_id": room_id,
                 "received": room["frames_stored"],
+                "raw_frames_retained": room["raw_frames_retained"] or 0,
+                "raw_bytes_retained": room["bytes_stored"],
+                "raw_frames_cleaned": room["frames_stored"] - (room["raw_frames_retained"] or 0),
                 "mapped": counts.get("mapped", 0),
                 "awaiting_alignment": counts.get("awaiting_alignment", 0),
                 "skipped_tracking": counts.get("skipped_tracking", 0),
                 "pending": room["frames_stored"] - sum(counts.values()),
                 "worker": self.worker(),
                 "error": dict(error) if error else None,
+                "checkpoint": self.checkpoint(room_id),
                 "map": (
                     {
                         "revision": published["revision"],
@@ -107,7 +127,9 @@ class ProcessingState:
     def mark(self, sequence: int, state: str, detail: str = "") -> None:
         with self.store.lock, self.store.db:
             self.store.db.execute(
-                "INSERT OR REPLACE INTO processing VALUES(?,?,?)", (sequence, state, detail)
+                "INSERT INTO processing VALUES(?,?,?) ON CONFLICT(sequence) "
+                "DO UPDATE SET state=excluded.state,detail=excluded.detail",
+                (sequence, state, detail),
             )
 
     def transforms(self, room_id: str) -> dict:
@@ -143,7 +165,8 @@ class ProcessingState:
                 (room_id, time.time(), meta, mesh, encoded),
             )
             self.store.db.executemany(
-                "INSERT OR REPLACE INTO processing VALUES(?,?,?)",
+                "INSERT INTO processing VALUES(?,?,?) ON CONFLICT(sequence) "
+                "DO UPDATE SET state=excluded.state,detail=excluded.detail",
                 [(n, "mapped", "") for n in sequences],
             )
             self.store.db.execute("DELETE FROM object_search WHERE room_id=?", (room_id,))

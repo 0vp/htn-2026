@@ -16,14 +16,20 @@ from ..mapping.objects.confirmation import ObjectConfirmation
 from ..mapping.objects.lifecycle import ObjectLifecycle
 from ..mapping.objects.orientation import AxialOrientation
 from ..mapping.objects.surfaces import samples
+from ..storage.retention import cleanup
 from .alignment import Alignment
+from .atlas.store import Atlas
 from .mesh import glb
 
 
 class RoomProcessor:
+    segment_frames = 256
+    segment_radius_m = 8.0
+
     def __init__(self, state, room_id, detector, mapper_factory=HydraClient):
         self.state, self.room_id, self.detector = state, room_id, detector
         self.mapper_factory = mapper_factory
+        self.atlas = Atlas(state.store, room_id)
         self.alignment = Alignment(state, room_id, detector.features)
         self.pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="inference")
         self.last_work = time.monotonic()
@@ -42,6 +48,9 @@ class RoomProcessor:
         self.cursor = 0
         self.count = 0
         self.unpublished = []
+        self.segment_sequences = []
+        self.last_composed = None
+        self.origin = None
         current = self.state.status(self.room_id)["map"]
         self.publish_after = current.get("through_sequence", 0) if current else 0
         self.confirmation = ObjectConfirmation()
@@ -49,10 +58,13 @@ class RoomProcessor:
         self.orientation = AxialOrientation()
 
     def step(self) -> bool:
-        rows = self.state.store.frames(self.room_id, self.cursor, 4)
+        rows = self.state.store.active_frames(self.room_id, self.cursor, 4)
         if not rows:
             edges = self.anchors.resolve(self.loops.take(self.generation)) if self.loops else []
             if not edges or not self.count:
+                # Seal idle captures too, so short scans do not retain raw data forever.
+                if self.count and time.monotonic() - self.last_work > 30:
+                    self.seal()
                 return False
             result = self.mapper.flush(edges)
             self.submitted_loops += len(edges)
@@ -79,6 +91,20 @@ class RoomProcessor:
                 self.cursor = row["sequence"]
                 continue
             pose = transform @ np.array(frame.header.camera_to_world).reshape(4, 4, order="F")
+            if self.origin is None:
+                self.origin = pose[:3, 3].copy()
+            boundary = (
+                self.count + len(ready) >= self.segment_frames
+                or np.linalg.norm(pose[:3, 3] - self.origin) > self.segment_radius_m
+            )
+            if boundary:
+                if ready:
+                    rows = rows[: rows.index(row)]
+                    break
+                if self.count:
+                    self.seal()
+                    return True
+            pose[:3, 3] -= self.origin
             # Native integration time is ordered server sequence, NOT phone wall time.
             header = frame.header.model_copy(
                 update={
@@ -118,6 +144,7 @@ class RoomProcessor:
         if result is None or not result.get("updated", True):
             raise RuntimeError("Native graph did not publish after flush")
         self.unpublished.extend(row["sequence"] for row, _, _ in ready)
+        self.segment_sequences.extend(row["sequence"] for row, _, _ in ready)
         self.cursor = rows[-1]["sequence"]
         self.publish(result, observations, self.cursor, began)
         return True
@@ -134,35 +161,59 @@ class RoomProcessor:
                 confirmed = self.confirmation.update(frame, detections, objects, surfaces)
                 confirmed = self.lifecycle.update(frame, confirmed, surfaces)
         confirmed = self.orientation.update(confirmed)
-        if self.cursor < self.publish_after:
+        # Native geometry is local to a bounded segment; publication is always in room space.
+        vertices = mesh[0] + self.origin
+        for obj in confirmed:
+            obj["center_m"] = (np.array(obj["center_m"]) + self.origin).tolist()
+        evidence = {
+            o["object_id"]: self.confirmation.tracks[o["object_id"]]["evidence"]
+            for o in confirmed
+            if self.confirmation.tracks[o["object_id"]].get("evidence")
+        }
+        vertices, faces, objects, evidence, groups = self.atlas.compose(
+            vertices, mesh[1], confirmed, evidence
+        )
+        self.last_composed = groups, objects, evidence
+        if (
+            self.cursor < self.publish_after
+            and self.atlas.frames + self.count < self.state.status(self.room_id)["mapped"]
+        ):
             return
         self.state.publish(
             self.room_id,
-            glb(mesh[0], mesh[1]),
-            confirmed,
+            glb(vertices, faces),
+            objects,
             {
                 "backend": "hydra",
                 "coordinate_system": "right_handed_y_up_meters",
-                "integrated_frames": self.count,
-                "through_sequence": through_sequence,
-                "vertices": len(mesh[0]),
-                "triangles": len(mesh[1]),
+                "integrated_frames": self.atlas.frames + self.count,
+                "through_sequence": max(self.atlas.through, through_sequence),
+                "vertices": len(vertices),
+                "triangles": len(faces),
                 "batch_ms": (time.perf_counter() - began) * 1000,
                 "object_events": list(self.lifecycle.events),
                 "loop_constraints": self.submitted_loops,
                 "loop_detection": dict(self.loops.status) if self.loops else {},
                 "replaying": False,
+                "sealed_segments": self.atlas.generation,
+                "active_segment_frames": self.count,
+                "mapping_frame_limit": None,
             },
             self.unpublished,
-            {
-                o["object_id"]: self.confirmation.tracks[o["object_id"]]["evidence"]
-                for o in confirmed
-                if self.confirmation.tracks[o["object_id"]].get("evidence")
-            },
+            evidence,
         )
         self.unpublished.clear()
 
-    def close(self):
+    def seal(self):
+        if self.last_composed is None or not self.segment_sequences:
+            return
+        self.atlas.seal(*self.last_composed, self.segment_sequences)
+        cleanup(self.state.store)
+        self.reset()
+
+    def close(self, checkpoint=False):
+        if checkpoint:
+            self.seal()
         if self.loops:
             self.loops.close()
         self.pool.shutdown(wait=True, cancel_futures=True)

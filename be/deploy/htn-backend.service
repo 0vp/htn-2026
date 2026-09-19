@@ -9,9 +9,10 @@ Group=htn
 WorkingDirectory=/opt/htn/backend
 Environment=HTN_DATA_DIR=/var/lib/htn
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/opt/htn/venv/bin/uvicorn htn_backend.main:create_app --factory --host 127.0.0.1 --port 8790 --workers 1 --ws-max-size 14000000 --ws-max-queue 1 --no-access-log
+ExecStart=/opt/htn/venv/bin/uvicorn htn_backend.main:create_app --factory --host 127.0.0.1 --port 8790 --workers 1 --ws-max-size 14000000 --ws-max-queue 1 --no-access-log --timeout-graceful-shutdown 10
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=20
 StateDirectory=htn
 NoNewPrivileges=true
 PrivateTmp=true
