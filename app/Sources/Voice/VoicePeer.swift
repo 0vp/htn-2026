@@ -130,6 +130,8 @@ final class VoicePeer: NSObject, VoiceTransport {
         var row: [String: Any] = ["event": "sample", "capture": capture, "muted": muted,
                                   "packets_sent": sent, "ice_state": peer?.iceConnectionState.rawValue ?? -1]
         row["capture_seconds"] = duration
+        row["microphone_energy"] = source.compactMap { ($0.values["totalAudioEnergy"] as? NSNumber)?.doubleValue }.max()
+        row["microphone_level"] = source.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max()
         row["uplink_reports"] = remote.map { stat -> [String: Any] in
             var fields: [String: Any] = ["id": stat.id, "timestamp_us": stat.timestamp_us]
             for key in ["packetsLost", "fractionLost", "roundTripTime", "reportsReceived"] {

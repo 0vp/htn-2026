@@ -37,6 +37,7 @@ final class VoiceTrace {
         row["sample_rate"] = audio.sampleRate
         row["input_available"] = audio.isInputAvailable
         row["mode"] = audio.mode.rawValue
+        row["microphone_mode"] = AVCaptureDevice.activeMicrophoneMode.rawValue
         row["thermal"] = ProcessInfo.processInfo.thermalState.rawValue
         guard var bytes = try? JSONSerialization.data(withJSONObject: row, options: [.sortedKeys]) else { return }
         bytes.append(10)
