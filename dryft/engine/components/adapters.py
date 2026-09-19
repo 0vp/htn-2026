@@ -34,11 +34,20 @@ def attention(self, hidden_states, position_embeddings, attention_mask, past_key
     if past_key_value is not None:
         k, v = past_key_value.update(k, v, self.layer_idx,
                                     {'sin': sin, 'cos': cos, 'cache_position': cache_position})
-    if not self.native_gqa:
+    folded = self.folded_gqa and q.shape[-2] == 1
+    custom_decode = self.custom_attention and q.shape[-2] == 1
+    if not self.native_gqa and not folded and not custom_decode:
         k = k.repeat_interleave(self.num_key_value_groups, dim=1)
         v = v.repeat_interleave(self.num_key_value_groups, dim=1)
     mask = attention_mask[..., :k.shape[-2]] if attention_mask is not None else None
-    if self.custom_attention and q.shape[-2] == 1:
+    if folded:
+        # Each row is a different query head at the SAME absolute position.
+        # Therefore no causal relationship exists between these four rows.
+        folded_q = q.reshape(q.shape[0], k.shape[1], self.num_key_value_groups, self.head_dim)
+        result = torch.nn.functional.scaled_dot_product_attention(
+            folded_q.contiguous(), k, v, attn_mask=mask, dropout_p=0.0,
+            is_causal=False, scale=self.scaling).reshape(q.shape)
+    elif custom_decode:
         result = decode_attention(q, k, v, mask, self.scaling)
     else:
         result = torch.nn.functional.scaled_dot_product_attention(
@@ -84,8 +93,9 @@ def install(model, options):
             del attn.q_proj, attn.k_proj, attn.v_proj
             layer.mlp.packed_gate_up = packed_linear((layer.mlp.gate_proj, layer.mlp.up_proj))
             del layer.mlp.gate_proj, layer.mlp.up_proj
-        if options.gqa or options.packed:
+        if options.gqa or options.packed or options.folded_gqa or options.custom_attention:
             attn.native_gqa = options.gqa
+            attn.folded_gqa = options.folded_gqa
             attn.custom_attention = options.custom_attention
             attn.forward = MethodType(attention, attn)
         if options.swiglu or options.packed:
