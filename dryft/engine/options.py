@@ -70,4 +70,4 @@ VARIANTS = {
 }
 VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
 VARIANTS['graph_verify'] = replace(VARIANTS['graph_fused'], graph_verification=True)
-ACTIVE = 'graph_residual'
+ACTIVE = 'graph_tuned'
