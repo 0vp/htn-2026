@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "htn-backend"
+version = "0.1.0"
+description = "HTN API scaffold"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/htn_backend"]

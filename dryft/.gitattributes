@@ -1,0 +1,2 @@
+# Preserve downloaded source snapshots exactly, including upstream whitespace.
+docs/upstream/**/*.html -text -whitespace

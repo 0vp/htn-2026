@@ -1,0 +1,64 @@
+{
+  "fetched_at_utc": "2026-09-19T04:00:30.184016+00:00",
+  "sources": [
+    {
+      "name": "home",
+      "url": "https://htn.dryft.ai/",
+      "status": 200,
+      "final_url": "https://htn.dryft.ai/",
+      "sha256": "3ce6bd91bb07f7cc652a390ef1277f5f514a1d9560adeaa9029595149e9a4075",
+      "links": [
+        "https://hackthenorth.slack.com/archives/C0BVD7G20KY",
+        "https://htn.dryft.ai/",
+        "https://htn.dryft.ai/#main-content",
+        "https://htn.dryft.ai/bench",
+        "https://htn.dryft.ai/docs",
+        "https://htn.dryft.ai/leaderboard",
+        "https://htn.dryft.ai/repos",
+        "https://htn.dryft.ai/team",
+        "https://htn.dryft.ai/tokens"
+      ]
+    },
+    {
+      "name": "participant-guide",
+      "url": "https://htn.dryft.ai/docs",
+      "status": 200,
+      "final_url": "https://htn.dryft.ai/docs",
+      "sha256": "92bca4a472f80751dbceade905a1f189b65aebe833b0ac8671b0d3023c866655",
+      "links": [
+        "https://github.com/Dryft-Kernels/starter",
+        "https://github.com/Dryft-Kernels/starter/blob/main/QWEN_ENGINE_CONTRACT.md",
+        "https://hackthenorth.slack.com/archives/C0BVD7G20KY",
+        "https://htn.dryft.ai/bench",
+        "https://htn.dryft.ai/docs",
+        "https://htn.dryft.ai/docs#access",
+        "https://htn.dryft.ai/docs#api",
+        "https://htn.dryft.ai/docs#cli",
+        "https://htn.dryft.ai/docs#engine",
+        "https://htn.dryft.ai/docs#glossary",
+        "https://htn.dryft.ai/docs#help",
+        "https://htn.dryft.ai/docs#main-content",
+        "https://htn.dryft.ai/docs#push",
+        "https://htn.dryft.ai/docs#quickstart",
+        "https://htn.dryft.ai/docs#results",
+        "https://htn.dryft.ai/docs#scoring",
+        "https://htn.dryft.ai/leaderboard",
+        "https://htn.dryft.ai/repos",
+        "https://htn.dryft.ai/team",
+        "https://htn.dryft.ai/tokens"
+      ]
+    },
+    {
+      "name": "starter",
+      "url": "https://github.com/Dryft-Kernels/starter",
+      "status": 404,
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "name": "engine-contract",
+      "url": "https://github.com/Dryft-Kernels/starter/blob/main/QWEN_ENGINE_CONTRACT.md",
+      "status": 404,
+      "error": "HTTP Error 404: Not Found"
+    }
+  ]
+}
