@@ -83,3 +83,10 @@ It passed a 20-second stopped telemetry check and +5/-5/0 degree zero-drive
 steering without the previous disconnect. This is preliminary comparative
 evidence, not proof of the TTL fault's cause or long-term OTG reliability.
 See [native USB results](../steering/validation/native-usb.json).
+
+The user subsequently supplied a different two-wheel layout, recorded in
+[current-base.json](current-base.json). Do not flash either the old single-steer
+firmware or the legacy `robot/src` differential firmware without confirming the
+new controller and pin map. The legacy differential code targets another board.
+Approximate footprint is not wheel-contact spacing; neither supplies encoder
+scale. Unequal wheel loading should be measured, not hidden by an assumed trim.

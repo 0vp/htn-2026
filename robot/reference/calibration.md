@@ -1,5 +1,10 @@
 # Physical robot reference
 
+The latest supplied photos show a changed two-wheel layout. See
+[current base](current-base.json) for the reported approximate 45 × 41 cm size
+and unconfirmed wiring. The measurements/tests below concern the earlier base;
+do not reuse its steering protocol or calibration on the new layout.
+
 The five supplied Downloads photographs are saved as full-resolution JPEGs in
 [photos](photos). Image orientation is normalized and metadata is omitted; the
 original HEIC files remain in Downloads. Names map directly to IMG_4449–4453.
