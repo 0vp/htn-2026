@@ -124,17 +124,31 @@ def main() -> None:
     if git('diff', '--cached', '--name-only'):
         subprocess.run(['git', 'commit', '-m', f'Select measured Dryft configuration: {winner}'], cwd=ROOT, check=True)
         subprocess.run(['git', 'push', 'origin', 'HEAD:main'], cwd=ROOT, check=True)
-        confirmation = discover(api, git('rev-parse', 'HEAD'))
+        state['confirmation_commit'] = git('rev-parse', 'HEAD')
+        save(STATE, state)
+    if not state.get('confirmation_run'):
+        if state.get('confirmation_commit'):
+            confirmation = discover(api, state['confirmation_commit'])
+        else:
+            # The last candidate can already be the winner. Confirm it independently.
+            import uuid
+            if not state.get('confirmation_key'):
+                state['confirmation_key'] = str(uuid.uuid4())
+                save(STATE, state)
+            entry = state['experiments'][winner]
+            confirmation = api.start_run(entry['submission_id'], mode='official',
+                                         idempotency_key=state['confirmation_key'])
         state['confirmation_run'] = confirmation['id']
         save(STATE, state)
-        checked = wait_run(api, confirmation['id'])
-        state['confirmation_result'] = checked
-        save(STATE, state)
-        collect(api, {'run_id': checked['id'], 'submission_id': checked['submissionId'],
-                      'label': 'confirmation', 'commit': checked.get('commitSha')}, False)
-        if (checked['state'] != 'succeeded' or not (checked.get('result') or {}).get('ranked')
-                or checked['challengeSpecDigest'] != state['spec_digest']):
-            raise RuntimeError('Final confirmation did not pass; selection is not verified.')
+    checked = wait_run(api, state['confirmation_run'])
+    state['confirmation_result'] = checked
+    save(STATE, state)
+    collect(api, {'run_id': checked['id'], 'submission_id': checked['submissionId'],
+                  'label': 'confirmation', 'commit': checked.get('commitSha')}, False)
+    if (checked['state'] != 'succeeded' or not (checked.get('result') or {}).get('ranked')
+            or checked['challengeSpecDigest'] != state['spec_digest']
+            or (checked['result']['score'] <= state['control_result']['score'] and winner != 'baseline')):
+        raise RuntimeError('Final confirmation did not pass or beat control; selection is not verified.')
     state.update(complete=True, selected=winner)
     save(STATE, state)
     print(f'Sweep complete; selected {winner}', flush=True)
