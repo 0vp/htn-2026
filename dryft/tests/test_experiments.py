@@ -1,10 +1,26 @@
 import unittest
 from unittest.mock import Mock, patch
-from scripts.experiments import choose_winner, wait_run
+from scripts.experiments import choose_winner, wait_run, ensure_pushed
 from agent.client import ApiError
 
 
 class ExperimentSelectionTests(unittest.TestCase):
+    def test_delivered_commit_resumes_without_pushing_newer_local_work(self):
+        with patch('scripts.experiments.subprocess.run') as run, patch('scripts.experiments.git') as git:
+            run.return_value.returncode = 0
+            ensure_pushed('delivered')
+        git.assert_not_called()
+        self.assertEqual(len(run.call_args_list), 2)
+        self.assertFalse(any('push' in call.args[0] for call in run.call_args_list))
+
+    def test_unpushed_experiment_rejects_changed_checkout(self):
+        with patch('scripts.experiments.subprocess.run') as run, patch('scripts.experiments.git') as git:
+            run.return_value.returncode = 1
+            git.return_value = 'different-head'
+            with self.assertRaises(RuntimeError):
+                ensure_pushed('unpublished')
+        self.assertFalse(any('push' in call.args[0] for call in run.call_args_list))
+
     def state(self, entries):
         return {'control_result': {'score': 200}, 'spec_digest': 'same',
                 'experiments': entries}

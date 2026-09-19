@@ -69,6 +69,20 @@ def wait_run(api, run_id: str) -> dict:
         time.sleep(20)
 
 
+def ensure_pushed(commit: str) -> None:
+    """Resume observing a delivered commit without pushing newer local work."""
+    subprocess.run(['git', 'fetch', 'origin'], cwd=ROOT, check=True)
+    ancestry = subprocess.run(
+        ['git', 'merge-base', '--is-ancestor', commit, 'origin/main'], cwd=ROOT)
+    if ancestry.returncode == 0:
+        return
+    if ancestry.returncode != 1:
+        raise RuntimeError('Cannot verify experiment ancestry on origin/main.')
+    if git('rev-parse', 'HEAD') != commit or git('status', '--porcelain'):
+        raise RuntimeError('Checkout differs from unpushed experiment; reconcile before pushing.')
+    subprocess.run(['git', 'push', 'origin', 'HEAD:main'], cwd=ROOT, check=True)
+
+
 def discover(api, commit: str) -> dict:
     deadline = time.monotonic() + 300
     while time.monotonic() < deadline:
@@ -121,9 +135,7 @@ def main() -> None:
             record['commit'] = git('rev-parse', 'HEAD')
             save(STATE, state)
         if not record.get('run_id'):
-            if git('rev-parse', 'HEAD') != record['commit'] or git('status', '--porcelain'):
-                raise RuntimeError('Checkout differs from recorded experiment; reconcile before pushing.')
-            subprocess.run(['git', 'push', 'origin', 'HEAD:main'], cwd=ROOT, check=True)
+            ensure_pushed(record['commit'])
             run = discover(api, record['commit'])
             record.update(run_id=run['id'], submission_id=run['submissionId'])
             save(STATE, state)
