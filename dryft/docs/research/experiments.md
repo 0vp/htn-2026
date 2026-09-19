@@ -68,3 +68,21 @@ gain from adaptive suffix does not yet justify further speculation tuning.
 Graph-only, native-prefill graph, folded-head graph, and norms-plus-graph will
 test larger dispatch and KV-copy reductions before the remaining leaf variants.
 Every originally listed candidate remains in the sequential sweep.
+
+## Static graph result and next decision
+
+Run `dc47faa4-524c-42a5-b226-5eb207546ab2` passed all public correctness checks
+but failed the overall latency gate; it has no ranked official score.
+
+| Public shape | Candidate/native TTFT ms | Candidate/native TPOT ms |
+| --- | --- | --- |
+| B1 S512 O32 | 22.75 / 22.42 | 9.25 / 18.99 |
+| B4 S2048 O32 | 261.74 / 201.75 | 17.29 / 20.86 |
+| B16 S512 O128 | 209.51 / 191.86 | 18.74 / 22.78 |
+
+B1 decode improved substantially. B4 first-token latency exceeded the 1.10x
+gate (1.297x). Native dynamic prefill followed by graph decode is therefore the
+next experiment, already implemented as graph_hybrid. Graph_folded then tests
+avoiding KV repetition; graph_norms tests fusion. These measurements do not
+uniquely identify a kernel bottleneck and do not establish the 2000 TPS goal.
+The actual results have been sent to Fable for the next research iteration.
