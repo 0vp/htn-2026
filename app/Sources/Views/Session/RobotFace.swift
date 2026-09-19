@@ -9,23 +9,30 @@ struct RobotFace: View {
     private let faces = ["0_0", "^_^", ">_<"]
     private let names = ["Curious", "Happy", "Playful"]
 
-    private var face: String {
+    /// Left eye, mouth and right eye, kept apart so the mouth can sit lower than the eyes.
+    private var parts: (String, String, String) {
         let eyes = voicePhase == .failed ? ">" : (voicePhase == .connecting ? "·" : (expression == 1 ? "^" : "0"))
         if voicePhase == .listening {
             let eye = blinking ? "−" : eyes
-            return "\(eye)\(mouth > 0.4 ? "O" : mouth > 0.08 ? "o" : "_")\(eye)"
+            return (eye, mouth > 0.4 ? "O" : mouth > 0.08 ? "o" : "_", eye)
         }
-        if blinking { return "−_−" }
-        if voicePhase == .connecting { return "·_·" }
-        if voicePhase == .failed { return ">_<" }
-        return faces[expression]
+        if blinking { return ("−", "_", "−") }
+        if voicePhase == .connecting { return ("·", "_", "·") }
+        if voicePhase == .failed { return (">", "_", "<") }
+        let face = Array(faces[expression])
+        return (String(face[0]), String(face[1]), String(face[2]))
     }
 
     var body: some View {
         GeometryReader { geometry in
+            let size = min(geometry.size.width * 0.42, geometry.size.height * 0.75, 180)
+            let (left, lips, right) = parts
+            // "o" and "O" sit mid-line while "_" rests on the baseline, so round mouths are
+            // dropped to keep the mouth low on the face instead of jumping up when speaking.
+            let drop = lips == "_" ? 0 : -size * 0.21
             Button { expression = (expression + 1) % faces.count } label: {
-                Text(face)
-                    .font(.system(size: min(geometry.size.width * 0.42, geometry.size.height * 0.75, 180), weight: .medium, design: .monospaced))
+                Text("\(left)\(Text(lips).baselineOffset(drop))\(right)")
+                    .font(.system(size: size, weight: .medium, design: .monospaced))
                     .minimumScaleFactor(0.5).lineLimit(1)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
