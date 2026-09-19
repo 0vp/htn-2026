@@ -12,5 +12,5 @@ scene.scene.traverse(node => {
   const input = node.geometry.index?.count ?? node.geometry.getAttribute('position').count;
   const output = roomSurfaces(node.geometry, objects);
   console.log(JSON.stringify({ inputTriangles: input/3, outputTriangles: output.geometry.index!.count/3,
-    ...output.stats, elapsedMs: performance.now()-start }));
+    ...output.stats, ground:output.ground, elapsedMs: performance.now()-start }));
 });

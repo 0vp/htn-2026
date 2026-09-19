@@ -31,7 +31,13 @@ export function categoryModel(label: string, template?: THREE.Group): THREE.Grou
     copy.traverse((node) => {
       if (!(node instanceof THREE.Mesh)) return;
       node.geometry = node.geometry.clone();
-      node.material = new THREE.MeshStandardMaterial({ color: 0xbac6ce, roughness: 0.85 });
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      const copies = materials.map(material => {
+        const copy = material.clone();
+        if (copy instanceof THREE.MeshStandardMaterial) { copy.roughness = 0.8; copy.metalness = 0.05; }
+        return copy;
+      });
+      node.material = Array.isArray(node.material) ? copies : copies[0];
       node.castShadow = true;
       node.receiveShadow = true;
     });

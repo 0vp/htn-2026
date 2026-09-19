@@ -13,6 +13,7 @@ self.onmessage = (event) => {
       normals: result.geometry.getAttribute('normal').array,
       indices: result.geometry.index!.array,
       stats: result.stats,
+      ground: result.ground,
     };
     self.postMessage(output, { transfer: [output.positions.buffer, output.normals.buffer, output.indices.buffer] });
   } catch (error) {

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadModels } from '../objects/models';
+import type { Ground } from '../scene/ground';
 import { prepareSurfaces } from '../scene/prepare';
 import { ObjectLayer, disposeTree } from '../objects/layer';
 import type { RoomScene } from '../rooms/api';
@@ -86,6 +87,7 @@ export class LidarRenderer {
   private pressedAt: { x: number; y: number } | null = null;
   private roomMesh: THREE.Group | null = null;
   private meshVertices = 0;
+  private groundGrid = new THREE.GridHelper(24, 24, 0xffffff, 0xffffff);
   private meshGeneration = 0;
   private surfaceAbort = new AbortController();
   private objectLayer = new ObjectLayer();
@@ -126,7 +128,7 @@ export class LidarRenderer {
     cloud.frustumCulled = false;
     this.scene.add(cloud);
 
-    const grid = new THREE.GridHelper(24, 24, 0xffffff, 0xffffff);
+    const grid = this.groundGrid;
     const gridMaterial = grid.material as THREE.Material;
     gridMaterial.transparent = true;
     gridMaterial.opacity = 0.1;
@@ -338,9 +340,11 @@ export class LidarRenderer {
     }
     const meshes: THREE.Mesh[] = [];
     gltf.scene.traverse((node) => { if (node instanceof THREE.Mesh) meshes.push(node); });
+    let ground: Ground | null = null;
     try {
       for (const object of meshes) {
         const surface = await prepareSurfaces(object.geometry, data.objects, signal);
+        if (surface.ground && (!ground || surface.ground.area > ground.area)) ground = surface.ground;
         object.geometry.dispose();
         object.geometry = surface.geometry;
         object.receiveShadow = true;
@@ -361,7 +365,9 @@ export class LidarRenderer {
     this.roomMesh = gltf.scene;
     this.meshVertices = meshes.reduce((count, object) => count + object.geometry.getAttribute('position').count, 0);
     this.scene.add(this.roomMesh);
-    this.objectLayer.update(data.objects, templates);
+    this.objectLayer.update(data.objects, templates, ground);
+    this.groundGrid.position.y = ground?.height ?? 0;
+    this.groundGrid.visible = ground !== null;
     const bounds = new THREE.Box3().setFromObject(this.roomMesh);
     if (first && !bounds.isEmpty()) {
       this.controls.target.copy(bounds.getCenter(new THREE.Vector3()));

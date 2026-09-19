@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { smoothSurface } from './smoothing.ts';
+import { estimateGround } from './ground.ts';
 import type { RoomObject } from '../rooms/api';
 
 type Face = { ids: number[]; center: THREE.Vector3; normal: THREE.Vector3; area: number };
@@ -15,6 +17,7 @@ function inside(point: THREE.Vector3, object: RoomObject): boolean {
 
 /** Presentation geometry only. Preserve connectivity and holes; never add inferred walls. */
 export function roomSurfaces(source: THREE.BufferGeometry, objects: RoomObject[] = []) {
+  const ground = estimateGround(source);
   const geometry = source.clone();
   const positions = geometry.getAttribute('position');
   const index = geometry.getIndex();
@@ -71,12 +74,12 @@ export function roomSurfaces(source: THREE.BufferGeometry, objects: RoomObject[]
       && face.ids.every((id) => inside(a.fromBufferAttribute(positions, id), object)))) continue;
     keep.push(...face.ids);
     if (Math.abs(face.normal.y) > 0.3) continue;
-    const plane = planes.filter((p) => Math.abs(p.normal.dot(face.normal)) > 0.96
-      && Math.abs(p.normal.dot(face.center) - p.distance) < 0.045)
+    const plane = planes.filter((p) => Math.abs(p.normal.dot(face.normal)) > 0.90
+      && Math.abs(p.normal.dot(face.center) - p.distance) < 0.09)
       .sort((a, b) => b.area - a.area)[0];
     if (plane) for (const id of face.ids) {
       a.fromBufferAttribute(positions, id);
-      if (Math.abs(plane.normal.dot(a) - plane.distance) <= 0.045) snap.set(id, plane);
+      if (Math.abs(plane.normal.dot(a) - plane.distance) <= 0.09) snap.set(id, plane);
     }
   }
   for (const [id, plane] of snap) {
@@ -85,7 +88,17 @@ export function roomSurfaces(source: THREE.BufferGeometry, objects: RoomObject[]
     positions.setXYZ(id, a.x, a.y, a.z);
   }
   geometry.setIndex(keep);
+  smoothSurface(geometry);
+  // Re-project supported planes after denoising to retain flat walls.
+  for (const [id, plane] of snap) {
+    a.fromBufferAttribute(positions, id);
+    a.addScaledVector(plane.normal, plane.distance - plane.normal.dot(a));
+    positions.setXYZ(id, a.x, a.y, a.z);
+  }
+  if (ground) for (let id=0; id<positions.count; id++) {
+    if (Math.abs(positions.getY(id)-ground.height)<0.06) positions.setY(id,ground.height);
+  }
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  return { geometry, stats: { ceilingTriangles, planarVertices: snap.size, wallPlanes: planes.length } satisfies SurfaceStats };
+  return { geometry, ground, stats: { ceilingTriangles, planarVertices: snap.size, wallPlanes: planes.length } satisfies SurfaceStats };
 }

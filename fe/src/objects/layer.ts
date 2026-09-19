@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groundedObject, type Ground } from '../scene/ground.ts';
 import { categoryModel } from './models.ts';
 import type { RoomObject } from '../rooms/api';
 
@@ -15,10 +16,11 @@ export class ObjectLayer {
   readonly group = new THREE.Group();
   private selected: string | null = null;
 
-  update(objects: RoomObject[], templates = new Map<string, THREE.Group>()): void {
+  update(objects: RoomObject[], templates = new Map<string, THREE.Group>(), ground: Ground | null = null): void {
     disposeTree(this.group);
     this.group.clear();
-    for (const object of objects) {
+    for (const observed of objects) {
+      const object = groundedObject(observed, ground);
       if (![...object.center_m, ...object.size_m, object.yaw_rad].every(Number.isFinite)
           || object.size_m.some((value) => value <= 0)) continue;
       const box = new THREE.BoxGeometry(...object.size_m);

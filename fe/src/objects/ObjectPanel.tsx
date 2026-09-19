@@ -19,7 +19,7 @@ export function ObjectPanel({ roomId, objects, selected, onSelect }: {
         ))}
       </select>
       {object && <div className="mt-3 space-y-2">
-        <p>{object.size_m.map((value) => value.toFixed(2)).join(' × ')} m</p>
+        <p>Observed: {object.size_m.map((value) => value.toFixed(2)).join(' × ')} m</p>
         <p className="text-xs text-blue-soft">Category model · estimated fit · facing unknown</p>
         <p className="text-xs">Confirmed in {object.confirmed_views ?? 0} views</p>
         {object.evidence_digest && <img key={object.evidence_digest}
