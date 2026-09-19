@@ -33,6 +33,7 @@
 		C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6F159FDEB7119D871A715B /* RoomsModel.swift */; };
 		C7BCAFCD21BC1373145666B2 /* VoiceAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE68C5CA6FA89688BBF1D316 /* VoiceAPI.swift */; };
 		C851B3EE94E1B2B855A93F74 /* VoiceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB702EC78CC57385C4D84E2 /* VoiceSheet.swift */; };
+		CFFA882CEBC374DAD92F08BE /* SpeechAccuracy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E93FFE93825850286E1295E /* SpeechAccuracy.swift */; };
 		D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E21FD7A85332B934F46E8DB /* RoomAPI.swift */; };
 		D73B8705C58C512CA31EA0CE /* RoomQRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */; };
 		DDA331CAD7055D1260332844 /* RoomSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6459AA12B44B8D02E19C32 /* RoomSessionView.swift */; };
@@ -86,6 +87,7 @@
 		6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomEntrySheet.swift; sourceTree = "<group>"; };
 		777B111EC0599DA5BC7CEA1A /* RoomLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomLinkTests.swift; sourceTree = "<group>"; };
 		7E21FD7A85332B934F46E8DB /* RoomAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomAPI.swift; sourceTree = "<group>"; };
+		7E93FFE93825850286E1295E /* SpeechAccuracy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAccuracy.swift; sourceTree = "<group>"; };
 		80A57E1EF17145DB4B413531 /* FramePacket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacket.swift; sourceTree = "<group>"; };
 		83E4882BB9EC46F47268AD52 /* VoicePeer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePeer.swift; sourceTree = "<group>"; };
 		A6FBF161AD662835D743E453 /* RoomFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomFlowTests.swift; sourceTree = "<group>"; };
@@ -251,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				3493723541F08FFC2E6BCEAC /* FixtureAudioDevice.swift */,
+				7E93FFE93825850286E1295E /* SpeechAccuracy.swift */,
 				2408C4C3E3AD9A074389E9B4 /* VoiceLiveTests.swift */,
 				1FBEF5E80C97A99C9DDC4BEC /* VoiceModelTests.swift */,
 				EF5D2C0FC83720AC8FC51704 /* VoiceSpeechTests.swift */,
@@ -416,6 +419,7 @@
 				99201365142F281D00D681EF /* CaptureBufferTests.swift in Sources */,
 				12FB73999BC8610D785B38F7 /* FixtureAudioDevice.swift in Sources */,
 				8E9ACC22ADEB4C3549F36A09 /* RoomLinkTests.swift in Sources */,
+				CFFA882CEBC374DAD92F08BE /* SpeechAccuracy.swift in Sources */,
 				1792814C7EB8142083034FFC /* TransportTests.swift in Sources */,
 				B8A7DE0A28CFC09C1807D5D8 /* VoiceLiveTests.swift in Sources */,
 				B81072F95B7416B005BDE03E /* VoiceModelTests.swift in Sources */,

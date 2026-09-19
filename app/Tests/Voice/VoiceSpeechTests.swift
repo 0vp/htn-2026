@@ -13,6 +13,12 @@ final class VoiceSpeechTests: XCTestCase {
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.fileDoesNotExist) }
             pcm = data
         } catch { throw XCTSkip("Explicit PCM fixture server not running") }
+        let (referenceData, referenceResponse) = try await URLSession.shared.data(from: URL(string: "http://127.0.0.1:8810/reference.txt")!)
+        guard (referenceResponse as? HTTPURLResponse)?.statusCode == 200,
+              let reference = String(data: referenceData, encoding: .utf8),
+              let lastWord = SpeechAccuracy.words(reference).last else {
+            XCTFail("Provide reference.txt with the exact fixture phrase"); return
+        }
         let device = FixtureAudioDevice(pcm: pcm)
         let factory = RTCPeerConnectionFactory(encoderFactory: nil, decoderFactory: nil, audioDevice: device)
         let peer = VoicePeer(factory: factory)
@@ -37,7 +43,7 @@ final class VoiceSpeechTests: XCTestCase {
             if case .transcript(let role, let text) = event {
                 if role == "You" {
                     userText += text
-                    if !receivedInput && userText.lowercased().contains("hello") { receivedInput = true; recognized.fulfill() }
+                    if !receivedInput && SpeechAccuracy.words(userText).contains(lastWord) { receivedInput = true; recognized.fulfill() }
                 } else {
                     assistantText += text
                     if !receivedOutput && !text.isEmpty { receivedOutput = true; replied.fulfill() }
@@ -49,6 +55,10 @@ final class VoiceSpeechTests: XCTestCase {
         do {
             try await peer.answer(session.sdp)
             await fulfillment(of: [recognized, replied, audible], timeout: 35)
+            let errorRate = SpeechAccuracy.errorRate(reference: reference, hypothesis: userText)
+            XCTAssertEqual(SpeechAccuracy.words(userText).first, SpeechAccuracy.words(reference).first, "Opening word must survive startup")
+            XCTAssertLessThanOrEqual(errorRate, 0.10, "Full-phrase word error rate: \(errorRate); transcript: \(userText)")
+            print("Word error rate: \(errorRate)")
             print("Native speech test seconds: \(Date().timeIntervalSince(started)); input: \(userText); reply: \(assistantText)")
             try await api.end(sessionID: session.session_id)
         } catch {

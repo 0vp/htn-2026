@@ -39,7 +39,10 @@ final class VoicePeer: NSObject, VoiceTransport {
         self.peer = peer
         let source = factory.audioSource(with: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil))
         let track = factory.audioTrack(with: source, trackId: "microphone")
-        track.isEnabled = false // Wait for the server's session.started before sending speech.
+        // Match the official WebRTC sample: capture continuously and let the transport
+        // send as soon as it connects. Waiting for the UI's session.started callback
+        // needlessly replaces opening audio with silence. Explicit user mute still applies.
+        track.isEnabled = true
         microphone = track
         peer.add(track, streamIds: ["voice"])
         let channel = peer.dataChannel(forLabel: "oai-events", configuration: RTCDataChannelConfiguration())

@@ -61,32 +61,32 @@ struct SpeechMeter {
 }
 
 enum Caption {
-    /// GPT-Live transcribes some non-speech sounds as annotations such as "[tongue click]",
-    /// "(clicks tongue)" or "*sighs*". Captions show spoken words only. An annotation can arrive
-    /// split across several deltas, so this cleans the whole accumulated text and hides an
-    /// unfinished one until it closes.
+    // Only hide known non-speech annotations. Punctuation around genuine spoken
+    // words is not evidence that those words should disappear from the transcript.
+    private static let sounds = ["tongue click", "clicks tongue", "click", "sighs", "sigh",
+                                 "laughs", "laughter", "coughs", "cough", "breathing"]
     static func spoken(_ raw: String) -> String {
-        var words = ""
-        var closing: Character?
-        // Trimming old text can cut into an annotation; drop that fragment up to its closer.
-        var text = Substring(raw)
-        if let close = text.firstIndex(where: { "])".contains($0) }),
-           !text[..<close].contains(where: { "[(".contains($0) }) {
-            text = text[text.index(after: close)...]
-        }
-        for character in text {
-            if let end = closing {
-                if character == end { closing = nil }
-                continue
-            }
-            switch character {
-            case "[": closing = "]"
-            case "(": closing = ")"
-            case "*": closing = "*"
-            case "]", ")": continue  // stray closer with no opener
-            default: words.append(character)
+        var text = raw
+        for sound in sounds {
+            for (open, close) in [("[", "]"), ("(", ")"), ("*", "*")] {
+                text = text.replacingOccurrences(of: open + sound + close, with: "", options: .caseInsensitive)
             }
         }
-        return words.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        // Withhold only an unfinished suffix that could still be a known sound.
+        if let index = text.lastIndex(where: { "[(*".contains($0) }) {
+            let suffix = text[text.index(after: index)...].lowercased()
+            if !suffix.isEmpty, sounds.contains(where: { $0.hasPrefix(suffix) }) {
+                text = String(text[..<index])
+            }
+        }
+        // A bounded caption may begin in the middle of a recognized annotation.
+        for sound in sounds {
+            for close in ["]", ")"] {
+                if text.lowercased().hasPrefix(sound + close) {
+                    text = String(text.dropFirst(sound.count + 1))
+                }
+            }
+        }
+        return text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 }

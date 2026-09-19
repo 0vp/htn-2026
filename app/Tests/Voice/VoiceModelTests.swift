@@ -42,6 +42,8 @@ final class VoiceModelTests: XCTestCase {
         peer.receive?(.transcript("You", " again"))
         XCTAssertEqual(model.userTranscript, "Hi again")
         XCTAssertEqual(model.assistantTranscript, "Hello there")
+        peer.receive?(.inputLevel(0))
+        XCTAssertFalse(peer.muted, "Silence must never mute capture or gate the next word")
         peer.receive?(.inputLevel(0.4))
         XCTAssertEqual(model.microphoneLevel, 0.4)
         peer.receive?(.packets(120, 80))
@@ -106,6 +108,9 @@ final class VoiceModelTests: XCTestCase {
         XCTAssertEqual(Caption.spoken("Turn [tongue"), "Turn", "Hide an annotation until it closes")
         XCTAssertEqual(Caption.spoken("click] left"), "left", "Drop an orphan left by trimming")
         XCTAssertEqual(Caption.spoken("  spaced   words "), "spaced words")
+        XCTAssertEqual(Caption.spoken("Please (keep these words) and [these words]"), "Please (keep these words) and [these words]")
+        XCTAssertEqual(Caption.spoken("The result is (twenty"), "The result is (twenty")
+        XCTAssertEqual(Caption.spoken("Use *three* bottles"), "Use *three* bottles")
     }
 
     @MainActor func testSplitAnnotationNeverReachesCaptions() async throws {
@@ -117,6 +122,11 @@ final class VoiceModelTests: XCTestCase {
         for delta in ["Move ", "[tongue ", "click]", " forward"] { peer.receive?(.transcript("You", delta)) }
         XCTAssertEqual(model.userTranscript, "Move forward")
         XCTAssertEqual(model.caption, "Move forward")
+    }
+
+    func testSpeechAccuracyDetectsMissingOpeningWords() {
+        XCTAssertEqual(SpeechAccuracy.errorRate(reference: "Please bring the bottle", hypothesis: "Please bring the bottle."), 0)
+        XCTAssertEqual(SpeechAccuracy.errorRate(reference: "Please bring the bottle", hypothesis: "bring the bottle"), 0.25)
     }
 
     func testSpeechMeterOpensAtOnceAndClosesSmoothly() {
