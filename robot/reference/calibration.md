@@ -34,3 +34,7 @@ Two low-duty drive pulses returned to reported stop with opposite encoder signs.
 The zero-drive steering test lost USB connectivity; the cause is unresolved.
 Metric movement and steering calibration remain incomplete.
 See [session evidence](../steering/calibration/session.json).
+
+For mistakes learned and the procedure to use on another chassis, see
+[base bring-up lessons](base-bringup.md). The latest USB-only results are in
+[wired validation](../steering/validation/wired.json).
