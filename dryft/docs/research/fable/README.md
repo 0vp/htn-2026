@@ -59,3 +59,23 @@ not fresh source inspection, so we do not treat those labels as verification.
 We also clarified that graph objects and shape buffers may persist across calls;
 only prompt-dependent content and positions must reset. Capture should occur
 during warmup, not recur for each measured prompt of the same shape.
+
+## Code review and measured-result follow-up
+
+The third review (`results/claude-fable-code-review.json`) motivated early
+option validation and installing custom attention independently of other flags.
+Those fixes are implemented and locally tested. Existing presets already
+satisfied the option dependencies. The review found no token-position,
+head-fold mapping or speculative cache-crop error in the supplied code.
+
+Its claim that mask alignment must be 16 elements was rejected after checking
+the actual [PyTorch 2.5.1 source](https://raw.githubusercontent.com/pytorch/pytorch/v2.5.1/aten/src/ATen/native/transformers/attention.cpp):
+`preprocess_mask` uses `mem_eff_alignment = 8`. The implementation retains 8.
+
+The fourth response (`results/claude-fable-graph-results.json`) recommends norm
+fusion inside graph decode. Its bandwidth calculations use incorrect model
+dimensions (4 KV heads, 28 layers, and a 7B weight estimate), so those numbers
+and resulting cost attributions are discarded. Norm fusion remains worth
+testing because of our own paired measurements. The prioritized graph_fused
+candidate combines native prefill, folded heads, all norms, packed projections
+and SwiGLU; standalone candidates remain queued for attribution if needed.
