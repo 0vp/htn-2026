@@ -21,6 +21,15 @@ final class RoomFlowTests: XCTestCase {
         app.buttons["Create"].tap()
         XCTAssertTrue(app.buttons["robotFace"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["Room leader"].exists)
+        app.buttons["voiceControls"].tap()
+        let toggle = app.switches["connectCodex"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+        save(app, "voice-options")
+        app.buttons["startVoice"].tap()
+        XCTAssertTrue(app.staticTexts["voiceError"].waitForExistence(timeout: 10))
+        save(app, "voice-unavailable")
+        app.buttons["Done"].tap()
         app.buttons["robotFace"].tap()
         save(app, "leader-face")
         XCUIDevice.shared.orientation = .landscapeLeft

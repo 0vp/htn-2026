@@ -9,16 +9,23 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+packages:
+  WebRTC:
+    url: https://github.com/stasel/WebRTC.git
+    exactVersion: 153.0.0
 targets:
   HTNApp:
     type: application
     platform: iOS
     sources:
       - Sources
+    dependencies:
+      - package: WebRTC
     info:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: HTN
+        NSMicrophoneUsageDescription: Talk to your room assistant using GPT-Live.
         NSCameraUsageDescription: Camera and LiDAR stream to your shared room. The camera also scans room QR codes.
         UILaunchScreen: {}
         UIApplicationSceneManifest:

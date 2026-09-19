@@ -4,6 +4,8 @@ import UIKit
 struct RoomSessionView: View {
     @StateObject private var session: RoomSessionModel
     @StateObject private var scan: ScanModel
+    @StateObject private var voice: VoiceModel
+    @State private var voiceSettings = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var sync = false
     @State private var confirmLeave = false
@@ -12,6 +14,7 @@ struct RoomSessionView: View {
     init(room: Room, device: String, api: RoomAPI, leave: @escaping () -> Void) {
         _session = StateObject(wrappedValue: RoomSessionModel(room: room, device: device, api: api))
         _scan = StateObject(wrappedValue: ScanModel(room: room, device: device))
+        _voice = StateObject(wrappedValue: VoiceModel(api: VoiceAPI(base: api.base, room: room.id, device: device)))
         self.leave = leave
     }
 
@@ -29,7 +32,7 @@ struct RoomSessionView: View {
                 }.accessibilityLabel("Room actions")
             }.padding(.horizontal, 24)
             if session.isLeader {
-                RobotFace()
+                RobotFace(mouth: voice.mouth, voicePhase: voice.phase)
             } else {
                 VStack(spacing: 20) {
                     Image(systemName: "viewfinder").font(.system(size: 64, weight: .light)).foregroundStyle(.tint)
@@ -47,12 +50,20 @@ struct RoomSessionView: View {
                     Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     Button("Retry camera") { Task { await scan.start() } }.disabled(session.room.closed)
                 }
-                syncButton
+                if session.isLeader {
+                    HStack(spacing: 20) {
+                        Button { voiceSettings = true } label: {
+                            Label(voice.active ? voice.status : "Talk", systemImage: voice.muted ? "mic.slash" : "waveform")
+                        }.buttonStyle(.bordered).controlSize(.large).accessibilityIdentifier("voiceControls")
+                        syncButton
+                    }
+                } else { syncButton }
             }.padding(.horizontal, 24).padding(.bottom, 16)
         }
         .padding(.top, 12)
         .background(Color(uiColor: .systemBackground))
         .sheet(isPresented: $sync) { SyncSheet(session: session, scan: scan) }
+        .sheet(isPresented: $voiceSettings) { VoiceSheet(voice: voice) }
         .confirmationDialog("Room actions", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button(scan.uploads.pending > 0 ? "Discard pending frames and leave" : "Leave room", role: .destructive) {
                 scan.finish()
@@ -68,11 +79,14 @@ struct RoomSessionView: View {
         .task { await session.observe() }
         .task { UIApplication.shared.isIdleTimerDisabled = true; await scan.start() }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { scan.pause() }
+            if phase != .active {
+                scan.pause()
+                if phase == .background { Task { await voice.end() } }
+            }
             else if !session.room.closed { Task { await scan.start() } }
         }
-        .onChange(of: session.room.closed) { _, closed in if closed { scan.pause() } }
-        .onDisappear { scan.finish(); UIApplication.shared.isIdleTimerDisabled = false }
+        .onChange(of: session.room.closed) { _, closed in if closed { scan.pause(); Task { await voice.end() } } }
+        .onDisappear { scan.finish(); Task { await voice.end() }; UIApplication.shared.isIdleTimerDisabled = false }
     }
 
     private var status: String {

@@ -38,6 +38,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera and LiDAR stream to your shared room. The camera also scans room QR codes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Talk to your room assistant using GPT-Live.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
