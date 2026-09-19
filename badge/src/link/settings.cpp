@@ -75,14 +75,13 @@ bool handle(String cmdLine) {
     Serial.printf("saved wifi '%s'\n", current.ssid.c_str());
     return true;
   } else if (cmd == "scan") {
-    WiFi.disconnect();  // A pending join blocks scanning; the link retries afterwards.
+    WiFi.disconnect();  // A pending join blocks scanning; the link rejoins within 5 s.
     const int n = WiFi.scanNetworks();
     for (int i = 0; i < n; i++) {
       Serial.printf("  %-32s ch%-2d %4d dBm %s\n", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i),
                     WiFi.encryptionType(i) == WIFI_AUTH_WPA2_ENTERPRISE ? "enterprise" : "");
     }
     Serial.printf("%d networks\n", n);
-    WiFi.reconnect();
   } else if (cmd == "url") {
     current.url = nextToken(cmdLine);
     settings::save();

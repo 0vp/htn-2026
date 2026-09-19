@@ -11,6 +11,16 @@
 namespace {
 
 constexpr uint32_t RECONNECT_MS = 1500;
+/**
+ * The core's auto-reconnect backs off to ~90 s after an AP vanishes (e.g. robot reboot), and
+ * WiFi.reconnect() doesn't recover it either, so retry with a fresh join.
+ */
+constexpr uint32_t WIFI_RETRY_MS = 5000;
+/**
+ * After the robot reboots, the badge can stay "associated" with an AP that no longer knows it,
+ * so the socket never reopens. If it stays down this long with Wi-Fi up, rejoin from scratch.
+ */
+constexpr uint32_t SOCKET_DOWN_REJOIN_MS = 6000;
 /** Larger frames (LiDAR point batches) are skipped: they don't fit the C3's heap budget. */
 constexpr size_t MAX_MESSAGE = 4096;
 
@@ -28,6 +38,8 @@ bool wifiStarted = false;
 bool socketStarted = false;
 bool socketOpen = false;
 bool timeRequested = false;
+uint32_t wifiLostSince = 0;
+uint32_t socketDownSince = 0;
 uint32_t sent = 0, received = 0;
 uint32_t lastReceiveMs = 0;
 Telemetry latest;
@@ -171,14 +183,35 @@ void loop() {
   if (!wifiStarted) return;
   if (WiFi.status() != WL_CONNECTED) {
     if (socketStarted) stopSocket();
+    const uint32_t now = millis();
+    if (!wifiLostSince) wifiLostSince = now;
+    if (now - wifiLostSince >= WIFI_RETRY_MS) {
+      wifiLostSince = now;
+      WiFi.disconnect();
+      WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
+    }
     return;
   }
+  wifiLostSince = 0;
   if (!timeRequested) {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
     timeRequested = true;
   }
   startSocket();
   if (socketStarted) socket.loop();
+
+  const uint32_t now = millis();
+  if (socketOpen) {
+    socketDownSince = 0;
+  } else if (!socketDownSince) {
+    socketDownSince = now;
+  } else if (now - socketDownSince >= SOCKET_DOWN_REJOIN_MS) {
+    Serial.println("robot unreachable; rejoining wifi");
+    socketDownSince = 0;
+    stopSocket();
+    WiFi.disconnect();
+    WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
+  }
 }
 
 bool send(const char *json, size_t length) {
