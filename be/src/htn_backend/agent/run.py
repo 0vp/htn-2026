@@ -8,6 +8,8 @@ import tempfile
 
 import httpx
 
+from .motion.link import RobotLink
+from .motion.skills import Motion
 from .protocol import AppServer
 from .tools import RobotTools, definitions
 
@@ -26,6 +28,18 @@ A blocked receipt means nothing was executed. Inspect only retrieves historical 
 Never report a robot stopped, navigated, picked or placed unless physical feedback confirms it.
 For ambiguous targets, ask the user which one. Explain missing hardware or observations plainly.
 The reasoning model chooses goals; local controllers own motion and obstacle stopping.
+"""
+
+MOTION_INSTRUCTIONS = """
+Motion tools (drive, turn, set_arm, run_winch, stop) move the real robot.
+They only work while a human supervises with the badge in AUTO mode and armed.
+Call robot_status first; if can_move is false, explain the blockers and ask the user.
+Move in short steps, then observe or read robot_status before the next step.
+The robot has no obstacle sensing: if you are unsure what is in front of it, do not drive.
+Distances and angles are estimated from time, not measured. Say so when you report them.
+A completed result means the command ran for its duration, not that a place was reached.
+Any badge button stops you and only a human can clear it. Never retry around a stop.
+Call stop whenever something looks wrong.
 """
 
 
@@ -73,11 +87,11 @@ async def run_turn(server, thread_id, text, emit=print):
         raise
 
 
-async def run(room_id, prompt, backend, binary):
+async def run(room_id, prompt, backend, binary, motion=None):
     # Empty workspace avoids inheriting repository instructions or editing source files.
     with tempfile.TemporaryDirectory(prefix="room-agent-") as workspace:
         with httpx.Client(base_url=backend, timeout=15, follow_redirects=False) as client:
-            tools = RobotTools(client, room_id)
+            tools = RobotTools(client, room_id, motion)
             server = AppServer([binary, "app-server"], tools)
             try:
                 await server.start()
@@ -89,8 +103,9 @@ async def run(room_id, prompt, backend, binary):
                         "ephemeral": True,
                         "approvalPolicy": "never",
                         "sandbox": "read-only",
-                        "developerInstructions": INSTRUCTIONS,
-                        "dynamicTools": definitions(),
+                        "developerInstructions": INSTRUCTIONS
+                        + (MOTION_INSTRUCTIONS if motion else ""),
+                        "dynamicTools": definitions(motion=motion is not None),
                         "config": {"features.shell_tool": False, "web_search": "disabled"},
                     },
                 )
@@ -112,10 +127,20 @@ def main():
     if not binary:
         parser.error("Build agent/codex or install the official Codex CLI, then run codex login")
     backend = os.environ.get("HTN_SERVER_URL", "https://qasim-test.35-253-10-71.sslip.io")
+    # Motion tools are only offered when the laptop can reach the robot base directly.
+    link = None
+    robot_url, robot_token = os.environ.get("HTN_ROBOT_URL"), os.environ.get("HTN_ROBOT_TOKEN")
+    if robot_url and robot_token:
+        link = RobotLink(robot_url, robot_token)
+        link.start()
     try:
-        asyncio.run(run(args.room_id.upper(), args.command, backend, binary))
+        motion = Motion(link) if link else None
+        asyncio.run(run(args.room_id.upper(), args.command, backend, binary, motion))
     except (RuntimeError, TimeoutError, httpx.HTTPError) as error:
         parser.exit(1, f"Agent task failed: {error}\n")
+    finally:
+        if link:
+            link.close()
 
 
 if __name__ == "__main__":

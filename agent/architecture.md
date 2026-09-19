@@ -19,7 +19,7 @@ continuous voice sessions and physical robot drivers are not implemented here.
 
 The agent reads scene context, retrieves images, resolves object identities and
 requests bounded skills. The server records idempotent receipts tied to the
-observed scene revision. No motor command is dispatched by this implementation.
+observed scene revision. Server-side skills dispatch no motor command:
 `inspect` retrieves stored evidence; `navigate`, `pick`, `place` and `stop` report
 blocked until a calibrated hardware executor is implemented. No deferred motion
 queue is accumulated for later execution. A future actuator interface must add
@@ -31,6 +31,24 @@ treated as synchronized clocks. Stored observations and estimated furniture
 bounds do not prove current free space, graspability or physical task success.
 The server now serves camera observations independently of mapping progress;
 the robot controller must ultimately obtain current sensors locally.
+
+## Supervised motion
+
+With `HTN_ROBOT_URL` (e.g. `ws://172.20.10.12:81`) and `HTN_ROBOT_TOKEN` set, the
+launcher also offers `robot_status`, `drive`, `turn`, `set_arm`, `run_winch` and
+`stop` (`be/src/htn_backend/agent/motion`). They talk to the robot base directly
+from the laptop over its WebSocket, never through the server, and:
+
+- only move while a human has the badge in AUTO mode and armed; the robot drops
+  the agent within 300 ms of that heartbeat stopping, and any badge button is an
+  E-STOP that only a human can clear (`robot/src/net/authority.cpp`);
+- are bounded to 1 m, 180 degrees, 30% duty and 12 s per call, block until done
+  and report what the robot's telemetry said, including why a move was cut short;
+- estimate distance and angle from time, because the encoders are uncalibrated.
+
+This covers command expiry, cancellation and feedback from the list above. It
+does not provide calibrated transforms or independent obstacle stopping, so it is
+for short supervised moves only; `navigate` to an object stays blocked.
 
 ## Reference architecture
 

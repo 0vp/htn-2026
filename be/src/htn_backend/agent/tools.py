@@ -9,6 +9,8 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..robotics.actions import SkillRequest
+from .motion import tools as motion_tools
+from .motion.skills import Motion
 
 
 class Empty(BaseModel):
@@ -57,7 +59,8 @@ TOOLS = {
 }
 
 
-def definitions():
+def definitions(motion: bool = False):
+    tools = {**TOOLS, **motion_tools.MOTION_TOOLS} if motion else TOOLS
     return [
         dict(
             type="function",
@@ -65,15 +68,15 @@ def definitions():
             description=description,
             inputSchema=model.model_json_schema(),
         )
-        for name, (model, description) in TOOLS.items()
+        for name, (model, description) in tools.items()
     ]
 
 
 class RobotTools:
-    def __init__(self, client: httpx.Client, room_id: str):
+    def __init__(self, client: httpx.Client, room_id: str, motion: Motion | None = None):
         if not re.fullmatch(r"[A-F0-9]{8}", room_id):
             raise ValueError("Invalid room code")
-        self.client = client
+        self.client, self.motion = client, motion
         self.prefix = f"/v1/rooms/{room_id}"
 
     def get(self, suffix, **kwargs):
@@ -98,6 +101,9 @@ class RobotTools:
 
     def call(self, name, arguments):
         try:
+            if self.motion and name in motion_tools.MOTION_TOOLS:
+                result = motion_tools.call(self.motion, name, arguments)
+                return {"success": True, "contentItems": [self.text(result)]}
             if name not in TOOLS:
                 raise ValueError("Unknown robot tool")
             args = TOOLS[name][0].model_validate(arguments)
