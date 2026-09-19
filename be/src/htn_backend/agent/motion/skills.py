@@ -1,8 +1,8 @@
 """Bounded, supervised motion primitives for the robot base, arm and winches.
 
 Every skill blocks until its command has run for its duration or something stopped it, and
-reports what the robot's own telemetry said. Distances and angles are estimated from time
-(the encoders are uncalibrated), so results describe commanded motion, not measured motion.
+reports what the robot's own telemetry said. Encoder counts are uncalibrated;
+results describe commanded duty and servo offsets, not measured distance or yaw.
 """
 
 import math
@@ -10,9 +10,6 @@ import time
 
 from .link import RobotLink
 
-# 40 RPM gearbox, 95 mm wheels, no load; a loaded robot is slower, so estimates run long.
-WHEEL_MPS_AT_FULL_DUTY = 40 / 60 * math.pi * 0.095
-TRACK_M = 0.30  # CALIBRATE: distance between the drive wheels
 SERVO_DEG_PER_S = 60  # robot/src/config.h slew limit
 MAX_SECONDS = 12.0
 TELEMETRY_STALE_S = 1.0
@@ -20,7 +17,7 @@ GRANT_TIMEOUT_S = 0.8
 POLL_S = 0.05
 
 NOT_MEASURED = (
-    "Motion is estimated from commanded speed and time; wheel encoders are not calibrated, "
+    "Only motor duty and servo pulse were commanded; wheel encoders are not calibrated, "
     "so the robot may have moved less (load, slip) or been stopped by an obstacle."
 )
 
@@ -38,7 +35,13 @@ class Motion:
             owner=control.get("owner"),
             supervised_by_badge=control.get("supervised", False),
             estop=control.get("estop", True),
-            duty=telemetry.get("duty"),
+            drivetrain=telemetry.get("drivetrain"),
+            motor_duty=telemetry.get("motor_duty"),
+            steering_deg=telemetry.get("steering_deg"),
+            steering_feedback=telemetry.get("steering_feedback"),
+            encoder_ticks=telemetry.get("encoder_ticks"),
+            odometry_calibrated=telemetry.get("odometry_calibrated", False),
+            capabilities=telemetry.get("capabilities", {}),
             servo_deg=telemetry.get("servoDeg"),
             winch_position=telemetry.get("winchPos"),
             end_stops=telemetry.get("limits"),
@@ -54,34 +57,29 @@ class Motion:
             return ["robot_silent: no recent telemetry"]
         control = telemetry.get("control", {})
         reasons = []
+        if telemetry.get("drivetrain") != "single_steer_v1":
+            reasons.append("drivetrain_mismatch: expected fixed drive wheel and steering servo")
         if control.get("estop", True):
-            reasons.append("estop_latched: a human must clear it on the badge")
+            reasons.append("estop_latched: a human must inspect and reset the controller")
         if not control.get("supervised", False):
-            reasons.append("not_supervised: ask the user to arm AUTO mode on the badge")
+            reasons.append("not_supervised: human supervision must be enabled at the controller")
         if control.get("owner") not in (None, "none", "agent"):
             reasons.append("human_in_control: someone is driving manually")
         return reasons
 
-    def drive(self, distance_m: float, speed: float) -> dict:
-        seconds = abs(distance_m) / (speed * WHEEL_MPS_AT_FULL_DUTY)
-        duty = math.copysign(speed, distance_m)
+    def drive_base(self, duty: float, steering_deg: float, seconds: float) -> dict:
+        if (
+            not all(math.isfinite(v) for v in (duty, steering_deg, seconds))
+            or abs(duty) > 0.3
+            or abs(steering_deg) > 20
+            or not 0 < seconds <= 2
+        ):
+            return dict(state="rejected", dispatched=False, reason="invalid_bounded_base_command")
         return self._run(
-            {"drive": {"left": duty, "right": duty}},
+            {"drive": {"duty": duty, "steering_deg": steering_deg}},
             seconds,
-            dict(skill="drive", distance_m=distance_m, speed=speed),
-            estimate={"distance_m": distance_m},
-        )
-
-    def turn(self, degrees: float, speed: float) -> dict:
-        # Positive degrees turn left (counter-clockwise seen from above): wheels run opposite.
-        arc = math.radians(abs(degrees)) * TRACK_M / 2
-        seconds = arc / (speed * WHEEL_MPS_AT_FULL_DUTY)
-        duty = math.copysign(speed, degrees)
-        return self._run(
-            {"drive": {"left": -duty, "right": duty}},
-            seconds,
-            dict(skill="turn", degrees=degrees, speed=speed),
-            estimate={"degrees": degrees},
+            dict(skill="drive_base", duty=duty, steering_deg=steering_deg, seconds=seconds),
+            estimate={"note": "Motor duty and steering pulse only; no calibrated distance or yaw"},
         )
 
     def set_arm(self, target: dict[str, float]) -> dict:
@@ -123,7 +121,14 @@ class Motion:
         if blockers:
             return dict(request=request, state="blocked", dispatched=False, reasons=blockers)
 
-        start_counts = telemetry.get("encoders")
+        if telemetry.get("capabilities", {}).get(request["skill"]) is not True:
+            return dict(
+                request=request,
+                state="blocked",
+                dispatched=False,
+                reasons=["hardware_capability_unavailable"],
+            )
+        start_counts = telemetry.get("encoder_ticks")
         started = time.monotonic()
         granted, stopped_by = False, None
         self.link.set_command(command)
@@ -138,9 +143,9 @@ class Motion:
                 elif age > TELEMETRY_STALE_S:
                     stopped_by = "robot_silent"
                 elif control.get("estop"):
-                    stopped_by = "estop: a human pressed stop on the badge"
+                    stopped_by = "estop: the controller reported an emergency stop"
                 elif not control.get("supervised"):
-                    stopped_by = "supervision_lost: the badge left AUTO"
+                    stopped_by = "supervision_lost: the controller withdrew supervision"
                 elif control.get("owner") == "agent":
                     granted = True
                 elif granted:
@@ -149,30 +154,38 @@ class Motion:
                     stopped_by = f"control_not_granted (owner {control.get('owner')})"
                 if stopped_by or elapsed >= seconds:
                     break
+                self.link.set_command(command)  # Renew only after checking live supervision.
         finally:
             released = self.link.release()
 
         elapsed = time.monotonic() - started
         settled = self._wait_until_still()
-        end_counts = self.link.telemetry()[0].get("encoders")
+        end_counts = self.link.telemetry()[0].get("encoder_ticks")
+        if stopped_by is None:
+            if not granted:
+                stopped_by = "control_not_granted"
+            elif not released:
+                stopped_by = "release_not_sent"
+            elif not settled:
+                stopped_by = "stop_not_reported"
         result = dict(
             request=request,
             state="completed" if stopped_by is None else "interrupted",
             dispatched=granted,
+            physical_success=False,
+            stop_evidence="reported zero drive duty; not measured base velocity",
             stopped_by=stopped_by,
             commanded_seconds=round(seconds, 2),
             ran_seconds=round(elapsed, 2),
             release_sent=released,
             robot_reports_stopped=settled,
-            encoder_counts_delta={
-                side: end_counts[side] - start_counts[side] for side in ("left", "right")
-            }
-            if start_counts and end_counts
+            encoder_counts_delta=end_counts - start_counts
+            if isinstance(start_counts, int) and isinstance(end_counts, int)
             else None,
         )
         if stopped_by is None:
             result["estimate"] = estimate
-        if request["skill"] in ("drive", "turn"):
+        if request["skill"] == "drive_base":
             result["measurement"] = NOT_MEASURED
         return result
 
@@ -180,8 +193,14 @@ class Motion:
         deadline = time.monotonic() + 1.0
         while time.monotonic() < deadline:
             telemetry, age = self.link.telemetry()
-            duty = telemetry.get("duty") or {}
-            if age < TELEMETRY_STALE_S and not duty.get("left") and not duty.get("right"):
+            values = [telemetry.get("motor_duty")]
+            if age < TELEMETRY_STALE_S and all(
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+                and abs(value) < 0.01
+                for value in values
+            ):
                 return True
             time.sleep(POLL_S)
         return False

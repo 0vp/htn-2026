@@ -21,7 +21,7 @@ class FakeRobot:
         self.supervised = False
         self.estop = False
         self.owner = "none"
-        self.duty = {"left": 0.0, "right": 0.0}
+        self.duty = 0.0
         self.packets: list[dict] = []
         self.paths: list[str] = []
         self.loop = asyncio.new_event_loop()
@@ -48,15 +48,21 @@ class FakeRobot:
                 self.packets.append(packet)
                 allowed = packet["armed"] and self.supervised and not self.estop
                 self.owner = "agent" if allowed else "none"
-                self.duty = packet["drive"] if allowed else {"left": 0.0, "right": 0.0}
+                self.duty = packet["drive"]["duty"] if allowed else 0.0
         finally:
             sender.cancel()
 
     async def _telemetry(self, ws):
         while True:
             control = {"owner": self.owner, "supervised": self.supervised, "estop": self.estop}
-            frame = {"type": "telemetry", "control": control, "duty": self.duty}
-            frame["encoders"] = {"left": 0, "right": 0}
+            frame = {
+                "type": "telemetry",
+                "control": control,
+                "motor_duty": self.duty,
+                "drivetrain": "single_steer_v1",
+                "encoder_ticks": 0,
+                "capabilities": {"drive_base": True},
+            }
             await ws.send(json.dumps(frame))
             await asyncio.sleep(0.05)
 
@@ -103,7 +109,7 @@ def test_link_sends_token_and_idles_disarmed(robot):
 
 def test_motion_is_blocked_without_badge_supervision(robot):
     fake, motion = robot
-    result = motion.drive(0.02, 0.3)
+    result = motion.drive_base(0.3, 0, 0.4)
     assert result["state"] == "blocked" and not result["dispatched"]
     assert any("not_supervised" in reason for reason in result["reasons"])
     assert not any(p["armed"] for p in fake.packets)
@@ -112,12 +118,14 @@ def test_motion_is_blocked_without_badge_supervision(robot):
 def test_supervised_drive_runs_then_releases(robot):
     fake, motion = robot
     supervise(fake, motion)
-    result = motion.drive(0.02, 0.3)
+    result = motion.drive_base(0.3, 0, 0.4)
     assert result["state"] == "completed" and result["dispatched"]
     assert result["robot_reports_stopped"]
-    assert "not measured" in result["measurement"].lower() or "estimated" in result["measurement"]
+    assert (
+        "not measured" in result["measurement"].lower() or "not calibrated" in result["measurement"]
+    )
     armed = [p for p in fake.packets if p["armed"]]
-    assert armed and all(p["drive"] == {"left": 0.3, "right": 0.3} for p in armed)
+    assert armed and all(p["drive"] == {"duty": 0.3, "steering_deg": 0} for p in armed)
     assert released(fake)
 
 
@@ -126,7 +134,7 @@ def test_losing_supervision_interrupts_the_move(robot):
     supervise(fake, motion)
     threading.Timer(0.4, lambda: setattr(fake, "supervised", False)).start()
     started = time.monotonic()
-    result = motion.drive(0.2, 0.2)
+    result = motion.drive_base(0.2, 10, 2)
     assert result["state"] == "interrupted"
     assert result["stopped_by"].startswith("supervision_lost")
     assert time.monotonic() - started < 2
@@ -137,30 +145,69 @@ def test_estop_interrupts_and_blocks_retry(robot):
     fake, motion = robot
     supervise(fake, motion)
     threading.Timer(0.4, lambda: setattr(fake, "estop", True)).start()
-    assert motion.turn(90, 0.1)["stopped_by"].startswith("estop")
-    assert motion.turn(10, 0.1)["state"] == "blocked"
+    assert motion.drive_base(0.1, 15, 2)["stopped_by"].startswith("estop")
+    assert motion.drive_base(0.1, 10, 1)["state"] == "blocked"
 
 
 def test_tool_bounds_reject_unsafe_arguments(robot):
     fake, motion = robot
     supervise(fake, motion)
     tools = RobotTools(None, "ABCDEF12", motion)
-    assert not tools.call("drive", {"distance_m": 5})["success"]
-    assert not tools.call("drive", {"distance_m": 0.1, "speed": 1.0})["success"]
+    assert not tools.call("drive_base", {"duty": 5, "steering_deg": 0, "seconds": 1})["success"]
+    assert not tools.call("drive_base", {"duty": 0.1, "steering_deg": 90, "seconds": 1})["success"]
     assert not tools.call("run_winch", {"winch": 1, "direction": "in", "seconds": 10})["success"]
     assert not tools.call("set_arm", {})["success"]
-    assert not tools.call("drive", {"distance_m": 0.1, "shell": "rm"})["success"]
-    long_move = json.loads(
-        tools.call("drive", {"distance_m": 1.0, "speed": 0.05})["contentItems"][0]["text"]
-    )
+    assert not tools.call(
+        "drive_base", {"duty": 0.1, "steering_deg": 0, "seconds": 1, "shell": "rm"}
+    )["success"]
+    long_move = motion.drive_base(0.1, 0, 10)
     assert long_move["state"] == "rejected"
     assert not any(p["armed"] for p in fake.packets)
 
 
 def test_motion_tools_are_only_offered_with_a_robot_link():
     names = {d["name"] for d in definitions()}
-    assert "drive" not in names
-    assert {"drive", "turn", "stop", "robot_status"} <= {
-        d["name"] for d in definitions(motion=True)
-    }
+    assert "drive_base" not in names
+    assert {"drive_base", "stop", "robot_status"} <= {d["name"] for d in definitions(motion=True)}
     assert set(motion_tools.MOTION_TOOLS) <= {d["name"] for d in definitions(motion=True)}
+
+
+def test_background_heartbeat_cannot_keep_an_unrenewed_command_armed(robot):
+    fake, motion = robot
+    supervise(fake, motion)
+    motion.link.set_command({"drive": {"duty": 0.1, "steering_deg": 0}})
+    time.sleep(0.12)
+    assert any(p["armed"] for p in fake.packets)
+    time.sleep(0.3)
+    assert released(fake)
+    assert not fake.packets[-1]["armed"]
+
+
+def test_missing_duty_is_unknown_not_stopped(robot, monkeypatch):
+    _, motion = robot
+    monkeypatch.setattr(motion.link, "telemetry", lambda: ({"type": "telemetry"}, 0.0))
+    assert not motion._wait_until_still()
+
+
+def test_unverified_final_stop_cannot_report_completed_motion(robot, monkeypatch):
+    fake, motion = robot
+    supervise(fake, motion)
+    monkeypatch.setattr(motion, "_wait_until_still", lambda: False)
+    result = motion.drive_base(0.3, 0, 0.4)
+    assert result["state"] == "interrupted"
+    assert result["stopped_by"] == "stop_not_reported"
+    assert not result["physical_success"]
+    assert "estimate" not in result
+
+
+def test_old_differential_firmware_cannot_receive_motion(robot, monkeypatch):
+    fake, motion = robot
+    supervise(fake, motion)
+    frame, _ = motion.link.telemetry()
+    frame.pop("drivetrain")
+    monkeypatch.setattr(motion.link, "telemetry", lambda: (frame, 0.0))
+    result = motion.drive_base(0.1, 0, 1)
+    assert result["state"] == "blocked" and not result["dispatched"]
+    assert any("drivetrain_mismatch" in r for r in result["reasons"])
+    assert not any(p["armed"] for p in fake.packets)
+    assert "turn" not in {d["name"] for d in definitions(motion=True)}

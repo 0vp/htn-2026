@@ -9,8 +9,8 @@ wheel from the side. IMG_4451 shows the rail-end servo/small-wheel assembly.
 IMG_4452 and IMG_4453 provide opposite and upper views of the drive mount.
 
 The photographs show a central powered wheel and four **swivel wheel casters**,
-not ball casters. The MG90S appears to actuate a separate small wheel at one
-end of the center rail. Confirm the linkage before assuming which wheel steers.
+not ball casters. The user confirmed that the MG90S steers the separate small wheel at one
+end of the center rail, while the large powered wheel remains fixed.
 The simulator's previous front powered-steering contact and spherical corner
 supports therefore are not a calibrated digital twin of this chassis.
 

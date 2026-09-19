@@ -2,7 +2,9 @@
 
 The robot stops on its own if packets stop for 300 ms, so this link streams at 20 Hz for as
 long as it runs: an idle packet (armed false) when no motion is requested, which never moves
-anything and releases control, and the active command otherwise.
+anything and releases control, and a leased command otherwise. Active commands
+must be renewed by the skill loop; a stalled caller cannot keep moving via the
+background heartbeat.
 """
 
 import asyncio
@@ -15,6 +17,7 @@ from urllib.parse import quote
 import websockets
 
 RATE_HZ = 20
+COMMAND_LEASE_S = 0.25
 
 
 class RobotLink:
@@ -25,6 +28,7 @@ class RobotLink:
         self._lock = threading.Lock()
         self._sent = threading.Condition(self._lock)
         self._command: dict | None = None
+        self._command_deadline = 0.0
         # Bumped on every set_command; tracks which command the last sent packet carried.
         self._generation = 0
         self._sent_generation = 0
@@ -51,6 +55,7 @@ class RobotLink:
         """`command` holds drive/arm/winch fields; None sends idle (disarmed) packets."""
         with self._lock:
             self._command = command
+            self._command_deadline = time.monotonic() + COMMAND_LEASE_S if command else 0.0
             self._generation += 1
 
     def release(self, timeout: float = 0.5) -> bool:
@@ -74,6 +79,8 @@ class RobotLink:
     def _packet(self) -> tuple[str, int]:
         with self._lock:
             command, generation = self._command, self._generation
+            if time.monotonic() >= self._command_deadline:
+                command = None
         self._seq += 1
         packet = {
             "type": "command",
@@ -82,7 +89,7 @@ class RobotLink:
             "t": int(time.time() * 1000),
             "estop": False,
             "armed": command is not None,
-            "drive": {"left": 0.0, "right": 0.0},
+            "drive": {"duty": 0.0, "steering_deg": 0.0},
             "winch": [0, 0, 0],
             "goal": None,
         }
@@ -115,6 +122,7 @@ class RobotLink:
                 pass
             finally:
                 self._connected = False
+                self.set_command(None)  # Never resume a command after reconnecting.
             if not self._stop.is_set():
                 await asyncio.sleep(1)
 
@@ -126,7 +134,7 @@ class RobotLink:
                 frame = json.loads(message)
             except json.JSONDecodeError:
                 continue
-            if frame.get("type") == "telemetry":
+            if isinstance(frame, dict) and frame.get("type") == "telemetry":
                 with self._lock:
                     self._telemetry = frame
                     self._telemetry_at = time.monotonic()

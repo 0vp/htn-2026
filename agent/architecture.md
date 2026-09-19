@@ -22,7 +22,7 @@ The same Codex/Astra harness and room tools issue asynchronous, idempotent actio
 Every receipt distinguishes `simulation_success` from `physical_success: false`.
 The server and receipts are ephemeral; restart for a fresh episode.
 
-The current assumed hardware model has one powered front steering wheel, four
+The historical simulation fixture has one powered front steering wheel, four
 passive spherical ball casters, a shoulder/elbow/wrist arm, and two segmented
 curling tentacles with tendon actuators. Base motion comes from wheel contact;
 there are no planar chassis actuators or grasp welds. The free base can slip and
@@ -94,8 +94,8 @@ installed release are deliberately distinguished; cloning is not a source build.
 The adapter lives in `be/src/htn_backend/agent`. It speaks the official app-server
 JSON-lines protocol and registers room-scoped dynamic tools. The reasoning model
 is always `gpt-6-astra`; model rerouting fails instead of silently substituting.
-A finalized speech transcript can be supplied as the command. Audio transcription,
-continuous voice sessions and physical robot drivers are not implemented here.
+A finalized speech transcript can be supplied as the command. Voice integration
+is separate from the supervised local motion adapter described below.
 
 The agent reads scene context, retrieves images, resolves object identities and
 requests bounded skills. The server records idempotent receipts tied to the
@@ -142,21 +142,32 @@ accuracy or physical robot validation.
 
 ## Supervised motion
 
-With `HTN_ROBOT_URL` (e.g. `ws://172.20.10.12:81`) and `HTN_ROBOT_TOKEN` set, the
-launcher also registers `robot_status`, `drive`, `turn`, `set_arm`, `run_winch` and
-`stop` (`be/src/htn_backend/agent/motion`) alongside the nine room tools. They talk to the robot base directly
-from the laptop over its WebSocket, never through the server, and:
+The confirmed chassis has one fixed powered wheel, a separate MG90S-steered
+small wheel, and four swivel casters. See `robot/reference` for photographs and
+unmeasured calibration fields. It cannot execute differential-drive turns in place.
 
-- only move while a human has the badge in AUTO mode and armed; the robot drops
-  the agent within 300 ms of that heartbeat stopping, and any badge button is an
-  E-STOP that only a human can clear (`robot/src/net/authority.cpp`);
-- are bounded to 1 m, 180 degrees, 30% duty and 12 s per call, block until done
-  and report what the robot's telemetry said, including why a move was cut short;
-- estimate distance and angle from time, because the encoders are uncalibrated.
+With `HTN_ROBOT_URL` set, the launcher registers `robot_status`, `drive_base`,
+`set_arm`, `run_winch` and `stop`. `drive_base` commands signed wheel duty and
+steering-servo offset for at most two seconds. The adapter requires fresh
+`single_steer_v1` telemetry and human supervision; incompatible firmware is
+blocked. Arm/winch tools also require explicitly reported hardware capabilities.
+The supplied steering firmware does not enable them.
 
-This covers command expiry, cancellation and feedback from the list above. It
-does not provide calibrated transforms or independent obstacle stopping, so it is
-for short supervised moves only; `navigate` to an object stays blocked.
+`robot/steering` builds the stopped-by-default ESP32-S3 serial controller using the
+confirmed GPIO wiring. A loopback serial/WebSocket bridge connects it to the
+laptop agent. Read `robot/steering/bench.md` before opening the serial port: the
+old one-shot test sketch can move on reset. No physical board was flashed by this
+implementation. Active host commands expire after 250 ms even if the background
+heartbeat remains alive; firmware commands expire after 300 ms. A missing stop
+report cannot produce a completed motion result.
+
+These are supervised actuator commands, not calibrated navigation. Raw encoder
+counts and commanded servo offsets do not establish meters, chassis yaw, contact
+clearance or physical task success. Server `navigate`/`pick`/`place` remain blocked
+for physical execution. The historical simulator's powered steering wheel and
+ball casters differ from the photographed hardware; its delivery scores are not
+validation of this chassis. Updating that model requires measured geometry and
+steering/rolling calibration.
 
 ## Reference architecture
 
