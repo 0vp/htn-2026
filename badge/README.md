@@ -38,10 +38,13 @@ sends back on the socket is merged as telemetry (`packVolts`, `rpm`, `winchPos`,
 Open a serial monitor at 115200 (`pio device monitor`) and type:
 
 ```
-wifi "<ssid>" <password>
-url ws://<robot-ip>:81/
+wifi htn-robot <password>
+url ws://192.168.4.1:81/
 status
 ```
+
+The robot (`robot/`) runs the `htn-robot` access point; its password is in the robot's git-ignored
+`src/secrets.h`. Any other network works too, as long as the badge can reach the robot over IPv4.
 
 Settings live in NVS and survive reflashing. `help` lists the other commands (`buttons` prints
 raw shift-register bytes, `lcd invert 0|1` fixes inverted colours).

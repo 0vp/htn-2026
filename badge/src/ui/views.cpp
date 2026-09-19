@@ -147,8 +147,8 @@ void setupView(LGFX_Sprite &g, const UiModel &m) {
   g.drawString("Plug the badge into USB, open a serial", 14, TOP + 34);
   g.drawString("monitor at 115200 and type:", 14, TOP + 52);
   g.setTextColor(ACCENT);
-  g.drawString("wifi <ssid> <password>", 24, TOP + 78);
-  g.drawString("url ws://<robot-ip>:81/", 24, TOP + 98);
+  g.drawString("wifi htn-robot <password>", 24, TOP + 78);
+  g.drawString("url ws://192.168.4.1:81/", 24, TOP + 98);
   g.setTextColor(MUTED);
   g.drawString(m.linkText, 14, TOP + 124);
 }
