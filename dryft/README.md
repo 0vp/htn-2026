@@ -8,10 +8,12 @@ Preparation workspace for https://htn.dryft.ai/.
 - uv 0.10.0 and Python 3.11.14 are pinned. `uv.lock` pins dependency resolution and artifact hashes.
 - Published participant guide and homepage archived under `docs/upstream/`, with readable text, original HTML, links, timestamps, and SHA-256 hashes.
 - Official starter imported unchanged from revision `c2405f19fae577539969c5face3914b116757ae6`. Engine, helper agent, tests, installers, engine contract, and optimization guide are available locally. Original upstream README, agent instructions, and requirements are preserved in `docs/starter/`.
-- Parent GitHub remote: `https://github.com/0vp/htn-2026` (private). Team and challenge connection setup is pending browser authentication.
+- Parent GitHub remote: `https://github.com/0vp/htn-2026` (private). Team `qasim` is connected with engine folder `dryft/engine` and official auto-run enabled.
 - Official Dryft CLI 0.1.0 installed in ignored `bin/` after verifying the vendor's SHA-256 checksum. Baseline passes `bin/dryft.exe validate engine`; both upstream client tests pass under uv. GPU execution has not been run.
 
 ## Refresh the documentation
+
+For benchmarks, run `.\scripts\bench.ps1` (portable: `uv run --locked scripts/benchmark.py`). See [the benchmark workflow](docs/benchmarking.md) for validation, new engine runs, saved results, and explicit reruns. The team token is stored only in ignored `.env`.
 
 ```powershell
 uv sync --locked
