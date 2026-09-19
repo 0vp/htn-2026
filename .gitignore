@@ -22,3 +22,5 @@ xcuserdata/
 *.sqlite3-shm
 
 /app/Config/Signing.local.xcconfig
+# Dashboard session recordings
+*.htnrec

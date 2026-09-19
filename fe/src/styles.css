@@ -1,6 +1,123 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Geist Pixel";
+  src: url("../node_modules/geist/dist/fonts/geist-pixel/GeistPixel-Square.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --color-blue: #1520b8;
+  --color-blue-deep: #0f188f;
+  --color-blue-soft: #ccdbff;
+  --color-paper: #f4f3ee;
+  --color-paper-2: #fbfaf6;
+  --color-ink: #171818;
+  --color-signal: #eb1700;
+  --color-ok: #1f8a4c;
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-pixel: "Geist Pixel", "Geist Mono", ui-monospace, monospace;
+}
+
 :root {
-  font-family: ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+}
+
+/* Dotted paper, as on the reference site. */
+.paper-dots {
+  background-color: var(--color-paper);
+  background-image: radial-gradient(rgb(23 24 24 / 0.13) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Uppercase, widely tracked mono label. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hairline {
+  border-color: rgb(23 24 24 / 0.16);
+}
+
+.hairline-light {
+  border-color: rgb(255 255 255 / 0.28);
+}
+
+/* Stepped band between a blue block and paper. */
+.bands {
+  display: grid;
+  grid-template-rows: repeat(4, 12px);
+}
+.bands > :nth-child(1) { background: #4a53c9; }
+.bands > :nth-child(2) { background: #7b82d8; }
+.bands > :nth-child(3) { background: #aeb2e6; }
+.bands > :nth-child(4) { background: #d8d9ef; }
+.bands.reverse > :nth-child(1) { background: #d8d9ef; }
+.bands.reverse > :nth-child(2) { background: #aeb2e6; }
+.bands.reverse > :nth-child(3) { background: #7b82d8; }
+.bands.reverse > :nth-child(4) { background: #4a53c9; }
+
+input[type="range"].slider {
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgb(23 24 24 / 0.35);
+}
+input[type="range"].slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--color-blue);
+  border: 0;
+}
+input[type="range"].slider::-moz-range-track {
+  height: 1px;
+  background: rgb(23 24 24 / 0.35);
+}
+input[type="range"].slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-blue);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
 }
