@@ -45,15 +45,21 @@ def select(name: str) -> None:
 
 def wait_run(api, run_id: str) -> dict:
     last = None
+    forbidden_retries = 0
     while True:
         try:
             run = api.run(run_id)
         except (ApiError, URLError, TimeoutError, ConnectionError) as error:
-            if isinstance(error, ApiError) and error.status not in (408, 429, 500, 502, 503, 504):
-                raise
+            if isinstance(error, ApiError):
+                if error.status == 403 and error.code == 'http_error' and forbidden_retries < 2:
+                    # Observed transient proxy response; retry only the same authorized GET.
+                    forbidden_retries += 1
+                elif error.status not in (408, 429, 500, 502, 503, 504):
+                    raise
             print(f'{run_id}: status unavailable; retrying this same run in 20 seconds', flush=True)
             time.sleep(20)
             continue
+        forbidden_retries = 0
         save(ROOT / 'results' / run_id / 'run.json', run)
         if run['state'] != last:
             print(f"{run_id}: {run['state']}", flush=True)

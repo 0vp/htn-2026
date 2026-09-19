@@ -41,3 +41,11 @@ class ExperimentSelectionTests(unittest.TestCase):
         with self.assertRaises(ApiError):
             wait_run(api, 'existing')
         self.assertEqual(api.run.call_count, 1)
+
+    def test_persistent_forbidden_stops_after_bounded_retries(self):
+        api = Mock()
+        api.run.side_effect = ApiError(403, 'http_error', 'Forbidden')
+        with patch('scripts.experiments.time.sleep'), self.assertRaises(ApiError):
+            wait_run(api, 'existing')
+        self.assertEqual(api.run.call_count, 3)
+        api.start_run.assert_not_called()
