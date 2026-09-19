@@ -1,5 +1,7 @@
 # Workspace conventions
 
+- Current performance objective: 10,000 official ranked hidden-workload geometric-mean TPS, superseding the earlier 2,000 target. Continue collaboration with Claude Fable 5.1. Public single-shape throughput does not establish completion; all correctness and resource/latency gates must pass.
+
 - Use uv for all Python installation, dependency management, and execution. Do not use pip, Conda, or bare system Python for this project.
 - Python is pinned in `.python-version` and `pyproject.toml`; uv is pinned by `tool.uv.required-version`. Preserve these pins unless deliberately updating them.
 - Use `uv sync --locked` and `uv run --locked ...`. For Linux x86_64 GPU development, use `uv sync --locked --extra gpu` and `uv run --locked --extra gpu ...`.
