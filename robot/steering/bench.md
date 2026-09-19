@@ -20,8 +20,9 @@ Build without uploading:
 uv tool run --from platformio platformio run -d robot/steering
 ```
 
-No automatic reset/upload or live motor test has been run by the agent. Flash
-this firmware only when ready for the bench test, with the driven wheel lifted
+The firmware was uploaded and its stopped, unsupervised telemetry verified; see
+[calibration/session.json](calibration/session.json). No drive pulse has been sent.
+For future flashing, prepare for a bench test with the driven wheel lifted
 and the steering linkage free through the test range. Use the same external
 regulated servo supply/common ground setup as the verified hardware test.
 

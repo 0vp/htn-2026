@@ -29,4 +29,6 @@ Before measured autonomous movement, record:
 
 The separate `robot/steering` firmware is the interactive bench controller for
 the supplied GPIO wiring. It does not execute the existing automatic startup
-sequence. No board has been flashed or moved by this software work.
+sequence. The stopped-by-default firmware has now been uploaded and telemetry verified.
+No drive pulse has been sent; physical movement calibration is still pending.
+See [session evidence](../steering/calibration/session.json).

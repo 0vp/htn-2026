@@ -1,0 +1,26 @@
+{
+  "recorded_at": "2026-09-19T15:25:33.622974+00:00",
+  "board": "ESP32-S3",
+  "port": "/dev/cu.usbserial-110",
+  "firmware_uploaded": true,
+  "upload_result": "SUCCESS; flash data hash verified",
+  "firmware_sha256": "73ff16f49dcefe82f52f23f16689b168ebc0f5d564d0c2aac57c41ad650d9416",
+  "telemetry_verified": {
+    "drivetrain": "single_steer_v1",
+    "motor_duty": 0,
+    "steering_deg": 0,
+    "supervised": false,
+    "encoder_ticks": 0
+  },
+  "camera": "MacBook Air M3 FaceTime HD Camera via Photo Booth",
+  "preview_observation": "Small steering wheel at screen-left; preview mirroring and movement signs not calibrated",
+  "movement_commands_sent": false,
+  "metric_calibration_complete": false,
+  "blocking_observation": "Thick black cable crosses beneath chassis; USB slack not established",
+  "measurements": {
+    "meters_per_tick": null,
+    "steering_angle_per_servo_degree": null,
+    "forward_command_sign": null,
+    "turn_command_sign": null
+  }
+}
