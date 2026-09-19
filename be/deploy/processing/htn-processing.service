@@ -1,0 +1,28 @@
+[Unit]
+Description=HTN durable room processing
+Requires=htn-hydra.service
+After=htn-hydra.service htn-gpu.service htn-backend.service
+
+[Service]
+User=htn-map
+Group=htn
+SupplementaryGroups=docker
+WorkingDirectory=/opt/htn/backend
+Environment=HTN_DATA_DIR=/var/lib/htn
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=2
+EnvironmentFile=/etc/htn/gpu.env
+ExecStart=/opt/htn/venv/bin/python -m htn_backend.processing.worker
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=60
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/htn
+PrivateTmp=true
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

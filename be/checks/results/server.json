@@ -1,0 +1,32 @@
+{
+  "version": "0.3.0",
+  "unit_and_contract_tests_passed": 41,
+  "lint_passed": true,
+  "live_capture": {
+    "received": 66,
+    "mapped": 66,
+    "pending": 0,
+    "confirmed_object_regions": 6,
+    "mesh_vertices": 75044,
+    "mesh_triangles": 91685,
+    "glb_bytes": 2001540,
+    "independent_glb_reader": "Open3D: referenced coordinates and triangle count match; 192 unreferenced vertices omitted on import",
+    "evidence_crops_inspected": ["chair", "chair", "laptop"]
+  },
+  "public_api_checks": {
+    "health": "passed",
+    "processing_status": "passed",
+    "object_search": "passed",
+    "object_evidence": "passed",
+    "mesh_download": "passed",
+    "cors_preflight": "passed",
+    "live_sse": "passed"
+  },
+  "limitations": [
+    "Controlled two-origin replay uses the same measured captures, not independent simultaneous phones.",
+    "No ground-truth object annotations or external trajectory ground truth for this capture.",
+    "Object dimensions are observed-surface bounds, and box axes do not establish semantic facing direction.",
+    "Small objects visible in the capture are not all represented in the confirmed graph.",
+    "Native room fusion currently has an 1800-frame and 12-meter origin-radius limit. Raw uploads remain durable if mapping reaches a limit."
+  ]
+}

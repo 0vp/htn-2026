@@ -1,0 +1,126 @@
+{
+  "room_id": "30F9A803",
+  "receipts": [
+    {
+      "sequence": 99,
+      "sha256": "cac3161e0d3b7b4636472562ef4d322a69a109423475ad4ee484a4ab1c97ca87",
+      "bytes": 370752,
+      "received_at": 1789800131.7172058,
+      "stored": true,
+      "duplicate": false,
+      "frame_id": 0,
+      "session_id": "recovery",
+      "epoch": 1,
+      "room_id": "30F9A803",
+      "device_id": "replay"
+    },
+    {
+      "sequence": 100,
+      "sha256": "c578278871d09cffc0de32d81e1df0bfbaa312bf1862bb46907fc8edcb4dfc0e",
+      "bytes": 370747,
+      "received_at": 1789800134.4012852,
+      "stored": true,
+      "duplicate": false,
+      "frame_id": 1,
+      "session_id": "recovery",
+      "epoch": 1,
+      "room_id": "30F9A803",
+      "device_id": "replay"
+    },
+    {
+      "sequence": 101,
+      "sha256": "aaf6ff370d87cf511c8213cdd464c209be1f77dd94f15e2e3d6d8ba9304992bb",
+      "bytes": 370749,
+      "received_at": 1789800136.382064,
+      "stored": true,
+      "duplicate": false,
+      "frame_id": 2,
+      "session_id": "recovery",
+      "epoch": 1,
+      "room_id": "30F9A803",
+      "device_id": "replay"
+    }
+  ],
+  "ack_ms": [
+    1112.9085419815965,
+    1339.7521250299178,
+    942.5969999865629
+  ],
+  "during_downtime": {
+    "room_id": "30F9A803",
+    "received": 3,
+    "mapped": 0,
+    "awaiting_alignment": 0,
+    "skipped_tracking": 0,
+    "pending": 3,
+    "worker": {
+      "id": 1,
+      "heartbeat": 1789800128.5316184,
+      "state": "stopped",
+      "detail": "",
+      "healthy": true
+    },
+    "error": null,
+    "map": null,
+    "alignments": {}
+  },
+  "after_restart": {
+    "room_id": "30F9A803",
+    "received": 3,
+    "mapped": 3,
+    "awaiting_alignment": 0,
+    "skipped_tracking": 0,
+    "pending": 0,
+    "worker": {
+      "id": 1,
+      "heartbeat": 1789800245.4206538,
+      "state": "running",
+      "detail": "",
+      "healthy": true
+    },
+    "error": null,
+    "map": {
+      "revision": 1,
+      "updated_at": 1789800202.7139544,
+      "backend": "hydra",
+      "coordinate_system": "right_handed_y_up_meters",
+      "integrated_frames": 3,
+      "through_sequence": 101,
+      "vertices": 8360,
+      "triangles": 9608,
+      "batch_ms": 1590.34158999566,
+      "object_events": [],
+      "loop_constraints": 0,
+      "loop_detection": {
+        "attempts": 0,
+        "proposed": 0
+      },
+      "replaying": false
+    },
+    "alignments": {
+      "[\"replay\",\"recovery\",1]": {
+        "status": "anchor",
+        "room_from_local": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    }
+  },
+  "passed": true,
+  "mesh_bytes": 216408
+}
