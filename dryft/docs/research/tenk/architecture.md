@@ -192,3 +192,10 @@ its own verified prefix. Emission still uses the common prefix. Newer-cache API
 concerns do not apply to pinned Transformers 4.51.3. Model identity is fixed per
 verifier, and rectangular inputs are part of the contract. This is source review,
 not runtime validation; raw response is in `results/claude-fable-verifier-review.json`.
+
+The candidate now reports one bounded `graph_verify_stats` aggregate after
+generation: calls and synchronized host-inclusive verification time for each
+width, proposed/accepted draft counts, and committed steps. It contains no token
+IDs or prompts. Compare committed steps per call against verification cost;
+do not interpret these wall times as GPU-only kernel timings. CPU tests also
+force complete draft rejection and check exact output and logical cache advance.

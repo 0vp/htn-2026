@@ -1,5 +1,8 @@
 """Reusable fixed-width causal verification over a request-local static cache."""
 from dataclasses import dataclass
+import json
+import sys
+from time import perf_counter
 
 import torch
 from transformers import StaticCache
@@ -60,6 +63,8 @@ class GraphVerifier:
         return buffers.predictions.tolist()
 
     def generate(self, ids: list[list[int]], output: int):
+        self.last_stats = {'calls': [0] * 4, 'verify_seconds': [0.0] * 4,
+                           'drafted': 0, 'accepted': 0, 'committed': 0}
         if output <= 0:
             return
         with torch.inference_mode():
@@ -88,10 +93,17 @@ class GraphVerifier:
                 # Four bounded widths support adaptive backoff without padding.
                 draft_width = min(map(len, drafts))
                 drafts = [draft[:draft_width] for draft in drafts]
+                started = perf_counter()
                 predicted = self.evaluate(
                     [[token] + draft for token, draft in zip(current, drafts)], length)
+                stats = self.last_stats
+                stats['calls'][draft_width] += 1
+                stats['verify_seconds'][draft_width] += perf_counter() - started
                 counts = [accepted_prefix(draft, row) for draft, row in zip(drafts, predicted)]
                 accepted = min(counts)
+                stats['drafted'] += draft_width
+                stats['accepted'] += accepted
+                stats['committed'] += accepted + 1
                 for lookup, count in zip(lookups, counts):
                     lookup.feedback(draft_width, count)
                 # Rejected suffix slots remain masked. A following evaluation
@@ -103,3 +115,6 @@ class GraphVerifier:
                         lookup.append([token])
                     emitted += 1
                     yield current
+            # One bounded aggregate after the final yield; no prompt/token data.
+            # Time includes host staging and synchronized readback, not GPU-only time.
+            print('graph_verify_stats ' + json.dumps(self.last_stats), file=sys.stderr)

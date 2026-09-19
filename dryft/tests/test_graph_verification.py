@@ -1,5 +1,6 @@
 """CPU orchestration tests only; CUDA graphs and arithmetic require remote tests."""
 from contextlib import nullcontext
+from io import StringIO
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
@@ -65,11 +66,26 @@ class CoordinatorTests(unittest.TestCase):
         for prompts in ([[0, 1, 2, 3, 4, 5, 6, 0, 1]], [[5, 6], [1, 2]]):
             for count in (0, 1, 2, 11):
                 calls.clear()
-                result = list(verifier.generate(prompts, count))
+                with patch('sys.stderr', new_callable=StringIO):
+                    result = list(verifier.generate(prompts, count))
                 expected = [[(row[-1] + step + 1) % 7 for row in prompts]
                             for step in range(count)]
                 self.assertEqual(result, expected)
                 if calls:
                     self.assertEqual(calls[0][0], len(prompts[0]))
                 self.assertTrue(all(1 <= width <= 4 for _, width in calls))
+                self.assertEqual(verifier.last_stats['committed'], max(0, count - 1))
         self.assertEqual(len(resets), 6)
+
+        class WrongDraft(proposals.SuffixLookup):
+            def propose(self, limit):
+                return [99] * min(3, limit)
+
+        calls.clear()
+        with patch.object(module, 'SuffixLookup', WrongDraft), patch('sys.stderr', new_callable=StringIO):
+            result = list(verifier.generate([[0, 1], [5, 6]], 9))
+        self.assertEqual(result, [[(2 + step) % 7, step % 7] for step in range(9)])
+        self.assertEqual([start for start, _ in calls], list(range(2, 10)))
+        self.assertEqual(verifier.last_stats['accepted'], 0)
+        self.assertEqual(verifier.last_stats['committed'], 8)
+        self.assertGreater(verifier.last_stats['drafted'], 0)
