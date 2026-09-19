@@ -17,20 +17,25 @@ from .processing.state import ProcessingState
 from .robotics.routes import router as robotics_router
 from .storage.database import Store, StoreError
 from .storage.retention import RAW_HISTORY_SECONDS, RAW_TARGET_BYTES
+from .voice.routes import router as voice_router
+from .voice.service import VoiceService
 
 
 def create_app(data_dir: Path | None = None) -> FastAPI:
     store = Store(data_dir or Path(os.environ.get("HTN_DATA_DIR", "data")))
 
     processing = ProcessingState(store)
+    voice = VoiceService(store)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         yield
+        await voice.close()
         store.close()
 
     app = FastAPI(title="HTN API", version="0.4.0", lifespan=lifespan)
     app.state.store = store
+    app.state.voice = voice
 
     @app.exception_handler(StoreError)
     async def store_error(request: Request, error: StoreError) -> JSONResponse:
@@ -69,6 +74,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         allow_headers=["Content-Type", "If-None-Match"],
         expose_headers=["ETag"],
     )
+    app.include_router(voice_router(voice))
     app.include_router(mapping_router(processing))
     app.include_router(robotics_router(processing))
     app.include_router(rooms_router(store))
