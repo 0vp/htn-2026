@@ -45,8 +45,10 @@ class Engine:
         exactly max_new_tokens times. Every sequence has the same length.
         Never stops at end-of-sequence tokens.
         """
-        if self.options.speculative and len(input_ids) == 1 and max_new_tokens > 0:
-            yield from speculative_generate(self.model, input_ids, max_new_tokens)
+        if (self.options.speculative and (len(input_ids) == 1 or self.options.batched_speculation)
+                and max_new_tokens > 0):
+            yield from speculative_generate(self.model, input_ids, max_new_tokens,
+                                            adaptive=self.options.adaptive_speculation)
             return
         if self.options.direct:
             yield from self.execution.generate(input_ids, max_new_tokens)
