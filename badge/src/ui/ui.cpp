@@ -5,129 +5,143 @@
 #include "../link/robot_link.h"
 #include "draw.h"
 
+using namespace theme;
 using namespace ui::draw;
 
 namespace {
 
-void header(LGFX_Sprite &g, const UiModel &m) {
-  g.fillRect(0, 0, 320, 28, PANEL);
-  const Mode active = m.controller->mode();
+void nav(LGFX_Sprite &g, const UiModel &m) {
+  g.fillRect(0, 0, 320, NAV_H, PAPER);
   g.setFont(&fonts::FreeSansBold9pt7b);
-  g.setTextDatum(middle_center);
-  for (uint8_t i = 0; i < static_cast<uint8_t>(Mode::Count); i++) {
-    const int x = 4 + i * 66;
-    const bool on = static_cast<Mode>(i) == active;
-    if (on) g.fillRoundRect(x, 3, 62, 22, 5, ACCENT);
-    g.setTextColor(on ? BG : MUTED);
-    g.drawString(modeName(static_cast<Mode>(i)), x + 31, 15);
-  }
+  g.setTextColor(INK);
+  g.setTextDatum(middle_left);
+  g.drawString("HTN Robot", 10, NAV_H / 2);
 
-  // Link pill on the right.
-  const uint16_t dot = m.linkOpen ? GO : (m.configured ? WARN : STOP);
-  g.setFont(&fonts::Font2);
-  g.setTextDatum(middle_right);
-  g.setTextColor(TEXT);
-  char text[40];
-  if (m.linkOpen && m.wifiRssi) {
-    snprintf(text, sizeof text, "%s %ddB", m.linkText, m.wifiRssi);
-  } else {
-    snprintf(text, sizeof text, "%s", m.linkText);
+  // Mode tabs, right-aligned; the active one is a solid blue block like the dashboard's button.
+  int x = 312;
+  for (int i = static_cast<int>(Mode::Count) - 1; i >= 0; i--) {
+    const char *name = modeName(static_cast<Mode>(i));
+    const int w = labelWidth(name) + 14;
+    x -= w;
+    const bool on = static_cast<Mode>(i) == m.controller->mode();
+    if (on) g.fillRect(x, 5, w, NAV_H - 10, BLUE);
+    label(g, name, x + 7, 10, on ? WHITE : INK_60);
+    x -= 4;
   }
-  g.drawString(text, 314, 15);
-  g.fillCircle(314 - g.textWidth(text) - 9, 14, 5, dot);
+  g.drawFastHLine(0, NAV_H - 1, 320, HAIRLINE);
 }
 
-void banner(LGFX_Sprite &g, const UiModel &m) {
+const char *modeHint(Mode mode) {
+  switch (mode) {
+    case Mode::Drive:
+      return "D-PAD DRIVE  A SPEED";
+    case Mode::Arm:
+      return "L/R JOINT  U/D MOVE";
+    default:
+      return "L/R WINCH  U IN  D OUT";
+  }
+}
+
+void stateBlock(LGFX_Sprite &g, const UiModel &m) {
   const ControlState &s = m.controller->state();
-  const float hold = m.controller->armProgress();
-  uint16_t fill = PANEL;
-  const char *title = "SAFE";
-  const char *detail = m.linkOpen ? "hold START to arm" : "waiting for robot link";
+  Block block = Block::Blue;
+  const char *word = "SAFE";
+  const char *detail = m.linkOpen ? "HOLD START TO ARM" : "WAITING FOR ROBOT";
   if (s.estop) {
-    fill = STOP;
-    title = "E-STOP";
-    detail = m.linkOpen ? "hold START to clear + arm" : "link down";
+    block = Block::Signal;
+    word = "E-STOP";
+    detail = m.linkOpen ? "HOLD START TO CLEAR" : "WAITING FOR ROBOT";
   } else if (s.armed) {
-    fill = GO;
-    title = "ARMED";
-    detail = "B = stop   START = disarm";
+    block = Block::Ok;
+    word = "ARMED";
+    detail = "B STOP  START DISARM";
   }
-  g.fillRoundRect(4, 32, 312, 30, 6, fill);
-  if (hold > 0 && !s.armed) {
-    g.fillRoundRect(4, 32, static_cast<int>(312 * min(hold, 1.0f)), 30, 6, GO);
-  }
-  g.setTextColor(s.estop || s.armed ? BG : TEXT);
-  g.setFont(&fonts::FreeSansBold12pt7b);
-  g.setTextDatum(middle_left);
-  g.drawString(title, 14, 48);
-  g.setFont(&fonts::Font2);
-  g.setTextDatum(middle_right);
-  g.drawString(detail, 308, 48);
+  g.fillRect(0, BLOCK_Y, 320, BLOCK_H, blockColour(block));
+  pixel(g, word, 12, BLOCK_Y + 14, 3, WHITE);
+  label(g, detail, 310, BLOCK_Y + 14, WHITE, Align::Right);
+  label(g, m.configured ? modeHint(m.controller->mode()) : "SET UP OVER USB", 310, BLOCK_Y + 28, band(block, 4),
+        Align::Right);
+
+  // Arming progress runs along the bottom edge of the block while START is held.
+  const float hold = m.controller->armProgress();
+  if (hold > 0 && !s.armed) g.fillRect(0, BLOCK_Y + BLOCK_H - 4, static_cast<int>(320 * min(hold, 1.0f)), 4, WHITE);
+  bands(g, block, BANDS_Y);
 }
 
 void footer(LGFX_Sprite &g, const UiModel &m) {
   const Telemetry &t = robotlink::telemetry();
-  g.drawFastHLine(0, BOTTOM + 2, 320, LINE);
-  g.setFont(&fonts::Font2);
-  g.setTextDatum(middle_left);
-  char text[64];
+  g.fillRect(0, FOOTER_Y, 320, 240 - FOOTER_Y, PAPER);
+  g.drawFastHLine(0, FOOTER_Y, 320, HAIRLINE);
+  const int y = FOOTER_Y + 11;
+  char text[40];
 
-  // Robot battery, if the robot reports it.
-  if (!isnan(t.packVolts)) {
+  // Battery: five square cells, like a meter, then the pack voltage.
+  if (!isnan(t.packVolts) && t.packVolts > 1) {
     const float soc = stateOfCharge(t.packVolts);
-    const uint16_t c = soc < 0.2f ? STOP : (soc < 0.4f ? WARN : GO);
-    g.drawRect(6, 214, 28, 14, MUTED);
-    g.fillRect(34, 218, 2, 6, MUTED);
-    g.fillRect(8, 216, static_cast<int>(24 * soc), 10, c);
-    snprintf(text, sizeof text, "%.1fV %d%%", t.packVolts, static_cast<int>(soc * 100));
-    g.setTextColor(TEXT);
-    g.drawString(text, 40, 221);
+    const uint8_t fill = soc < 0.2f ? SIGNAL : (soc < 0.4f ? WARN : theme::OK);
+    for (int i = 0; i < 5; i++) {
+      const bool lit = soc > i * 0.2f + 0.05f;
+      if (lit) g.fillRect(10 + i * 7, y - 1, 5, 9, fill);
+      else g.drawRect(10 + i * 7, y - 1, 5, 9, HAIRLINE);
+    }
+    snprintf(text, sizeof text, "%.1fV", t.packVolts);
+    label(g, text, 50, y, INK);
   } else {
-    g.setTextColor(MUTED);
-    g.drawString("battery --", 6, 221);
+    label(g, "BATT --", 10, y, INK_35);
   }
 
   if (!isnan(t.rpmLeft) || !isnan(t.rpmRight)) {
-    snprintf(text, sizeof text, "rpm %.0f/%.0f", isnan(t.rpmLeft) ? 0 : t.rpmLeft, isnan(t.rpmRight) ? 0 : t.rpmRight);
-    g.setTextColor(TEXT);
-    g.drawString(text, 122, 221);
+    snprintf(text, sizeof text, "RPM %.0f/%.0f", isnan(t.rpmLeft) ? 0 : t.rpmLeft, isnan(t.rpmRight) ? 0 : t.rpmRight);
+    label(g, text, 104, y, INK_60);
   }
 
-  // How long since the robot last spoke; the robot doesn't have to talk back.
-  g.setTextDatum(middle_right);
-  if (m.linkOpen && m.robotSilenceMs != UINT32_MAX) {
-    const bool stale = m.robotSilenceMs > 1500;
-    snprintf(text, sizeof text, stale ? "rx %lus ago" : "rx live", static_cast<unsigned long>(m.robotSilenceMs / 1000));
-    g.setTextColor(stale ? WARN : GO);
-  } else {
-    snprintf(text, sizeof text, "HOME: mode");
-    g.setTextColor(MUTED);
+  // Link state, right-aligned with a square status light.
+  uint8_t light = INK_35;
+  switch (robotlink::status()) {
+    case robotlink::Status::Open:
+      light = theme::OK;
+      snprintf(text, sizeof text, "ONLINE %d", m.wifiRssi);
+      break;
+    case robotlink::Status::Silent:
+      light = SIGNAL;
+      snprintf(text, sizeof text, "ROBOT SILENT");
+      break;
+    case robotlink::Status::Unconfigured:
+      light = SIGNAL;
+      snprintf(text, sizeof text, "%s", m.linkText);
+      break;
+    default:
+      light = WARN;
+      snprintf(text, sizeof text, "%s", m.linkText);
+      break;
   }
-  g.drawString(text, 314, 221);
+  label(g, text, 310, y, INK, Align::Right);
+  g.fillRect(310 - labelWidth(text) - 12, y, 7, 7, light);
 }
 
 }  // namespace
 
 namespace ui {
 
+void begin() { theme::begin(); }
+
 void splash(const char *message) {
   LGFX_Sprite &g = display::frame();
-  g.fillScreen(BG);
-  g.setTextColor(TEXT);
-  g.setTextDatum(middle_center);
-  g.setFont(&fonts::FreeSansBold12pt7b);
-  g.drawString("ROBOT CONTROLLER", 160, 100);
-  g.setFont(&fonts::Font2);
-  g.setTextColor(MUTED);
-  g.drawString(message, 160, 136);
+  g.fillScreen(PAPER);
+  dots(g, 0, 0, 320, 240);
+  g.fillRect(0, 70, 320, 60, BLUE);
+  pixel(g, "HTN ROBOT", 160, 84, 4, WHITE, Align::Centre);
+  bands(g, Block::Blue, 130);
+  label(g, message, 160, 160, INK_60, Align::Centre);
   display::present();
 }
 
 void render(const UiModel &m) {
   LGFX_Sprite &g = display::frame();
-  g.fillScreen(BG);
-  header(g, m);
-  banner(g, m);
+  g.fillScreen(PAPER);
+  dots(g, 0, TOP - 6, 320, FOOTER_Y - TOP + 6);
+  nav(g, m);
+  stateBlock(g, m);
   if (!m.configured) {
     setupView(g, m);
   } else {

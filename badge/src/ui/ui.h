@@ -15,7 +15,10 @@ struct UiModel {
 
 namespace ui {
 
-/** Draws the boot splash straight to the panel. */
+/** Loads the colour palette. Call once after display::begin(). */
+void begin();
+
+/** Draws the boot splash. */
 void splash(const char *message);
 
 /** Renders a full frame into the sprite and pushes it. */

@@ -3,36 +3,42 @@
 #include "../link/robot_link.h"
 #include "draw.h"
 
+using namespace theme;
+
 namespace ui::draw {
-
-void centredBar(LGFX_Sprite &g, int x, int y, int w, int h, float value, float lo, float hi, uint16_t colour) {
-  g.fillRoundRect(x, y, w, h, 3, PANEL);
-  const int zero = x + static_cast<int>(w * (-lo / (hi - lo)));
-  const int at = x + static_cast<int>(w * ((constrain(value, lo, hi) - lo) / (hi - lo)));
-  g.fillRect(min(zero, at), y, abs(at - zero) + 1, h, colour);
-  g.drawFastVLine(zero, y - 2, h + 4, MUTED);
-}
-
-void signedColumn(LGFX_Sprite &g, int x, int y, int w, int h, float value, uint16_t colour) {
-  g.fillRoundRect(x, y, w, h, 3, PANEL);
-  const int mid = y + h / 2;
-  const int len = static_cast<int>(constrain(value, -1.0f, 1.0f) * (h / 2));
-  if (len > 0) g.fillRect(x, mid - len, w, len, colour);
-  if (len < 0) g.fillRect(x, mid, w, -len, colour);
-  g.drawFastHLine(x - 2, mid, w + 4, MUTED);
-}
 
 namespace {
 
-void hint(LGFX_Sprite &g, const char *text) {
-  g.setFont(&fonts::Font2);
-  g.setTextDatum(bottom_center);
-  g.setTextColor(MUTED);
-  g.drawString(text, 160, BOTTOM);
+constexpr int PANEL_H = BOTTOM - TOP;  // 108
+
+/** Horizontal track for a value in [lo, hi], filled from the zero mark. */
+void track(LGFX_Sprite &g, int x, int y, int w, float value, float lo, float hi, uint8_t fill) {
+  g.drawRect(x, y, w, 8, HAIRLINE);
+  const int zero = x + static_cast<int>(w * (-lo / (hi - lo)));
+  const int at = x + static_cast<int>(w * ((constrain(value, lo, hi) - lo) / (hi - lo)));
+  if (at != zero) g.fillRect(min(zero, at), y + 1, abs(at - zero), 6, fill);
+  g.drawFastVLine(zero, y - 3, 14, INK_60);
 }
 
-void dpadKey(LGFX_Sprite &g, int x, int y, bool held) {
-  g.fillRoundRect(x - 11, y - 11, 22, 22, 4, held ? ACCENT : PANEL);
+/** Vertical track for a signed duty, filled up (forward) or down (reverse) from the middle. */
+void column(LGFX_Sprite &g, int x, int y, int w, int h, float value) {
+  g.drawRect(x, y, w, h, HAIRLINE);
+  const int mid = y + h / 2;
+  const int len = static_cast<int>(constrain(value, -1.0f, 1.0f) * (h / 2 - 1));
+  if (len > 0) g.fillRect(x + 1, mid - len, w - 2, len, BLUE);
+  if (len < 0) g.fillRect(x + 1, mid, w - 2, -len, INK);
+  g.drawFastHLine(x - 3, mid, w + 6, INK_60);
+}
+
+void key(LGFX_Sprite &g, int cx, int cy, bool held) {
+  if (held) g.fillRect(cx - 6, cy - 6, 13, 13, BLUE);
+  else g.drawRect(cx - 6, cy - 6, 13, 13, HAIRLINE);
+}
+
+/** One selectable row: a panel with a blue marker on the left when selected. */
+void row(LGFX_Sprite &g, int y, bool selected) {
+  panel(g, 10, y, 300, 32);
+  if (selected) g.fillRect(10, y, 4, 32, BLUE);
 }
 
 }  // namespace
@@ -40,117 +46,103 @@ void dpadKey(LGFX_Sprite &g, int x, int y, bool held) {
 void driveView(LGFX_Sprite &g, const UiModel &m) {
   const ControlState &s = m.controller->state();
   const ButtonState &in = *m.input;
-
-  // Stick pad: the dot is the ramped command, the keys light while held.
-  const int cx = 70, cy = 132, r = 52;
-  g.drawCircle(cx, cy, r, LINE);
-  dpadKey(g, cx, cy - r, in.isHeld(Button::Up));
-  dpadKey(g, cx, cy + r, in.isHeld(Button::Down));
-  dpadKey(g, cx - r, cy, in.isHeld(Button::Left));
-  dpadKey(g, cx + r, cy, in.isHeld(Button::Right));
-  const int dx = cx + static_cast<int>(s.stickX * (r - 14));
-  const int dy = cy - static_cast<int>(s.stickY * (r - 14));
-  g.drawLine(cx, cy, dx, dy, LINE);
-  g.fillCircle(dx, dy, 9, m.controller->canMove() ? GO : MUTED);
-
-  // Wheel duty columns, exactly what goes in the packet.
-  const WheelDuty duty = m.controller->mix();
-  g.setFont(&fonts::Font2);
-  g.setTextDatum(top_center);
-  g.setTextColor(MUTED);
-  g.drawString("LEFT", 162, TOP + 4);
-  g.drawString("RIGHT", 212, TOP + 4);
-  signedColumn(g, 150, TOP + 22, 24, 90, duty.left, duty.left >= 0 ? GO : WARN);
-  signedColumn(g, 200, TOP + 22, 24, 90, duty.right, duty.right >= 0 ? GO : WARN);
   char text[16];
-  g.setTextColor(TEXT);
-  snprintf(text, sizeof text, "%+.2f", duty.left);
-  g.drawString(text, 162, TOP + 116);
-  snprintf(text, sizeof text, "%+.2f", duty.right);
-  g.drawString(text, 212, TOP + 116);
 
-  // Speed limit.
-  g.setTextDatum(top_center);
-  g.setTextColor(MUTED);
-  g.drawString("SPEED", 280, TOP + 4);
-  g.setFont(&fonts::FreeSansBold18pt7b);
-  g.setTextColor(ACCENT);
+  // D-pad panel: keys light while held; the square is the ramped stick command.
+  panel(g, 10, TOP, 110, PANEL_H);
+  label(g, "STICK", 18, TOP + 8, INK_60);
+  const int cx = 65, cy = TOP + 62, r = 34;
+  g.drawFastHLine(cx - r, cy, 2 * r + 1, HAIRLINE);
+  g.drawFastVLine(cx, cy - r, 2 * r + 1, HAIRLINE);
+  key(g, cx, cy - r, in.isHeld(Button::Up));
+  key(g, cx, cy + r, in.isHeld(Button::Down));
+  key(g, cx - r, cy, in.isHeld(Button::Left));
+  key(g, cx + r, cy, in.isHeld(Button::Right));
+  const int dx = cx + static_cast<int>(s.stickX * (r - 8));
+  const int dy = cy - static_cast<int>(s.stickY * (r - 8));
+  g.fillRect(dx - 5, dy - 5, 11, 11, m.controller->canMove() ? BLUE : INK_35);
+
+  // Wheel duty, exactly what goes in the packet.
+  const WheelDuty duty = m.controller->mix();
+  panel(g, 126, TOP, 96, PANEL_H);
+  label(g, "WHEELS", 134, TOP + 8, INK_60);
+  column(g, 146, TOP + 24, 16, 60, duty.left);
+  column(g, 186, TOP + 24, 16, 60, duty.right);
+  snprintf(text, sizeof text, "%+.1f", duty.left);
+  pixel(g, text, 154, TOP + 92, 1, INK, Align::Centre);
+  snprintf(text, sizeof text, "%+.1f", duty.right);
+  pixel(g, text, 194, TOP + 92, 1, INK, Align::Centre);
+
+  // Speed limit: big pixel number and four step cells.
+  panel(g, 228, TOP, 82, PANEL_H);
+  label(g, "SPEED", 236, TOP + 8, INK_60);
   snprintf(text, sizeof text, "%d", static_cast<int>(s.speedLimit * 100 + 0.5f));
-  g.drawString(text, 280, TOP + 26);
-  g.setFont(&fonts::Font2);
-  g.setTextColor(MUTED);
-  g.drawString("% (A)", 280, TOP + 62);
-  hint(g, "D-pad drive   A speed   B stop");
+  pixel(g, text, 236, TOP + 28, 3, INK);
+  label(g, "%", 238 + pixelWidth(text, 3), TOP + 42, INK_60);
+  for (int i = 0; i < 4; i++) {
+    const bool lit = s.speedLimit >= (i + 1) * 0.25f - 0.01f;
+    if (lit) g.fillRect(236 + i * 17, TOP + 66, 14, 8, BLUE);
+    else g.drawRect(236 + i * 17, TOP + 66, 14, 8, HAIRLINE);
+  }
+  label(g, "A CYCLE", 236, TOP + 88, INK_35);
 }
 
 void armView(LGFX_Sprite &g, const UiModel &m) {
   const ControlState &s = m.controller->state();
   const uint8_t selected = m.controller->selectedJoint();
+  char text[12];
   for (uint8_t i = 0; i < JointCount; i++) {
-    const int y = TOP + 6 + i * 40;
+    const int y = TOP + i * 38;
     const bool on = i == selected;
-    if (on) g.drawRoundRect(4, y - 4, 312, 36, 6, ACCENT);
+    row(g, y, on);
+    label(g, jointName(static_cast<Joint>(i)), 24, y + 13, on ? INK : INK_60);
     int lo, hi;
     jointLimits(static_cast<Joint>(i), lo, hi);
-    g.setFont(&fonts::FreeSansBold9pt7b);
-    g.setTextDatum(middle_left);
-    g.setTextColor(on ? TEXT : MUTED);
-    g.drawString(jointName(static_cast<Joint>(i)), 14, y + 14);
-    centredBar(g, 104, y + 8, 150, 12, s.arm[i], lo, hi, on ? ACCENT : LINE);
-    char text[12];
+    track(g, 110, y + 12, 130, s.arm[i], lo, hi, on ? BLUE : INK_35);
     snprintf(text, sizeof text, "%+d", static_cast<int>(lroundf(s.arm[i])));
-    g.setTextDatum(middle_right);
-    g.drawString(text, 306, y + 14);
+    pixel(g, text, 302, y + 8, 2, on ? INK : INK_60, Align::Right);
   }
-  hint(g, m.controller->canMove() ? "L/R joint   Up/Dn move   A centre" : "arm to move joints");
 }
 
 void winchView(LGFX_Sprite &g, const UiModel &m) {
   const ControlState &s = m.controller->state();
   const Telemetry &t = robotlink::telemetry();
   const uint8_t selected = m.controller->selectedWinch();
+  char text[12];
   for (uint8_t i = 0; i < WINCH_COUNT; i++) {
-    const int y = TOP + 6 + i * 40;
+    const int y = TOP + i * 38;
     const bool on = i == selected;
-    if (on) g.drawRoundRect(4, y - 4, 312, 36, 6, ACCENT);
-    char text[16];
+    row(g, y, on);
     snprintf(text, sizeof text, "WINCH %u", i + 1);
-    g.setFont(&fonts::FreeSansBold9pt7b);
-    g.setTextDatum(middle_left);
-    g.setTextColor(on ? TEXT : MUTED);
-    g.drawString(text, 14, y + 14);
+    label(g, text, 24, y + 13, on ? INK : INK_60);
 
+    // Command chip: solid blue while running.
     const int8_t cmd = s.winch[i];
-    const char *label = cmd < 0 ? "IN" : (cmd > 0 ? "OUT" : "HOLD");
-    g.fillRoundRect(104, y + 3, 50, 22, 4, cmd ? GO : PANEL);
-    g.setFont(&fonts::Font2);
-    g.setTextDatum(middle_center);
-    g.setTextColor(cmd ? BG : MUTED);
-    g.drawString(label, 129, y + 14);
+    const char *state = cmd < 0 ? "IN" : (cmd > 0 ? "OUT" : "HOLD");
+    if (cmd) g.fillRect(96, y + 8, 40, 16, BLUE);
+    else g.drawRect(96, y + 8, 40, 16, HAIRLINE);
+    label(g, state, 116, y + 13, cmd ? WHITE : INK_60, Align::Centre);
 
-    // Spool position (0 in .. 1 out) and end stops, from telemetry when the robot sends it.
-    g.fillRoundRect(164, y + 8, 100, 12, 3, PANEL);
-    if (!isnan(t.winchPos[i])) g.fillRect(164, y + 8, static_cast<int>(100 * constrain(t.winchPos[i], 0.0f, 1.0f)), 12, LINE);
-    g.fillCircle(280, y + 14, 6, t.limits[i][0] ? WARN : PANEL);
-    g.fillCircle(300, y + 14, 6, t.limits[i][1] ? WARN : PANEL);
+    // Spool position (0 in .. 1 out) and the two end stops, from telemetry.
+    g.drawRect(146, y + 12, 110, 8, HAIRLINE);
+    if (!isnan(t.winchPos[i])) {
+      g.fillRect(147, y + 13, static_cast<int>(108 * constrain(t.winchPos[i], 0.0f, 1.0f)), 6, on ? BLUE : INK_35);
+    }
+    for (int end = 0; end < 2; end++) {
+      const int x = 270 + end * 16;
+      if (t.limits[i][end]) g.fillRect(x, y + 11, 10, 10, SIGNAL);
+      else g.drawRect(x, y + 11, 10, 10, HAIRLINE);
+    }
   }
-  hint(g, m.controller->canMove() ? "L/R winch   Up reel in   Dn pay out" : "arm to run winches");
 }
 
 void setupView(LGFX_Sprite &g, const UiModel &m) {
-  g.setFont(&fonts::FreeSansBold9pt7b);
-  g.setTextDatum(top_left);
-  g.setTextColor(TEXT);
-  g.drawString("Connect the robot", 14, TOP + 6);
-  g.setFont(&fonts::Font2);
-  g.setTextColor(MUTED);
-  g.drawString("Plug the badge into USB, open a serial", 14, TOP + 34);
-  g.drawString("monitor at 115200 and type:", 14, TOP + 52);
-  g.setTextColor(ACCENT);
-  g.drawString("wifi htn-robot <password>", 24, TOP + 78);
-  g.drawString("url ws://192.168.4.1:81/", 24, TOP + 98);
-  g.setTextColor(MUTED);
-  g.drawString(m.linkText, 14, TOP + 124);
+  panel(g, 10, TOP, 300, PANEL_H);
+  label(g, "CONNECT THE ROBOT", 22, TOP + 12, INK);
+  label(g, "USB SERIAL 115200, THEN TYPE", 22, TOP + 30, INK_60);
+  label(g, "WIFI HTN-ROBOT <PASSWORD>", 22, TOP + 50, BLUE);
+  label(g, "URL WS://192.168.4.1:81/", 22, TOP + 66, BLUE);
+  label(g, m.linkText, 22, TOP + 88, INK_35);
 }
 
 }  // namespace ui::draw

@@ -68,6 +68,7 @@ void setup() {
   Settings &cfg = settings::get();
 
   if (!display::begin(cfg.invertLcd, cfg.flipLcd)) Serial.println("frame buffer allocation failed");
+  ui::begin();
   ui::splash("starting...");
   leds::begin();
   buttons::begin(cfg.buttons);
