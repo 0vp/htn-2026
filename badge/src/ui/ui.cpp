@@ -125,6 +125,20 @@ namespace ui {
 
 void begin() { theme::begin(); }
 
+void dumpFrame() {
+  LGFX_Sprite &g = display::frame();
+  const uint8_t *pixels = static_cast<const uint8_t *>(g.getBuffer());
+  Serial.printf("SHOT %d %d %d\n", g.width(), g.height(), theme::COUNT);
+  for (int i = 0; i < theme::COUNT; i++) Serial.printf("%06lX", static_cast<unsigned long>(theme::rgb(i)));
+  Serial.println();
+  char line[2 * 320 + 1];
+  for (int y = 0; y < g.height(); y++) {
+    for (int x = 0; x < g.width(); x++) sprintf(line + 2 * x, "%02X", pixels[y * g.width() + x]);
+    Serial.println(line);
+  }
+  Serial.println("END");
+}
+
 void splash(const char *message) {
   LGFX_Sprite &g = display::frame();
   g.fillScreen(PAPER);

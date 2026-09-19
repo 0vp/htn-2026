@@ -24,4 +24,7 @@ void splash(const char *message);
 /** Renders a full frame into the sprite and pushes it. */
 void render(const UiModel &model);
 
+/** Streams the last frame over serial as hex (palette, then rows) for `shot`. */
+void dumpFrame();
+
 }  // namespace ui

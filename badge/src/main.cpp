@@ -88,6 +88,8 @@ void loop() {
   const ButtonState &input = buttons::poll();
   controller.update(input, dt, robotlink::isOpen());
   if (settings::monitoringButtons()) probeButtons(input);
+  const int mode = settings::takeModeRequest();
+  if (mode >= 0) controller.setMode(static_cast<Mode>(mode));
 
   if (now - lastPacket >= PACKET_MS) {
     lastPacket = now;
@@ -105,6 +107,7 @@ void loop() {
                         robotlink::wifiRssi(),
                         robotlink::silenceMs()};
     ui::render(model);
+    if (settings::takeShotRequest()) ui::dumpFrame();
   }
 
   updateLeds();

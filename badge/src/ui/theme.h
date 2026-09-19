@@ -39,6 +39,9 @@ enum class Block : uint8_t { Blue, Ok, Signal };
 /** Loads the palette into the frame sprite. Call once after display::begin(). */
 void begin();
 
+/** RGB888 of a palette entry, for screenshots. */
+uint32_t rgb(uint8_t index);
+
 uint8_t blockColour(Block b);
 /** Step 0..3 of the band under a block (dark to light); step 4 is muted text on the block. */
 uint8_t band(Block b, int step);

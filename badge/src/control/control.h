@@ -60,6 +60,9 @@ class Controller {
   /** Writes the JSON command packet; returns its length (0 if `size` was too small). */
   size_t packet(char *out, size_t size, uint32_t seq, uint64_t timeMs) const;
 
+  /** Switches the screen's mode (console `mode`); motion commands in the old mode are released. */
+  void setMode(Mode mode) { mode_ = mode; }
+
   const ControlState &state() const { return state_; }
   Mode mode() const { return mode_; }
   uint8_t selectedJoint() const { return joint_; }

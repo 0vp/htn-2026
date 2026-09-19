@@ -37,6 +37,8 @@ uint32_t mix(uint32_t a, uint32_t b, float t) {
   return ch(16) | ch(8) | ch(0);
 }
 
+uint32_t loaded[COUNT];
+
 uint8_t firstBand(Block b) {
   return b == Block::Ok ? OK_BAND : (b == Block::Signal ? SIGNAL_BAND : BLUE_BAND);
 }
@@ -54,8 +56,11 @@ void begin() {
     for (int i = 0; i < 4; i++) palette[starts[b] + i] = mix(blocks[b], PAPER_RGB, steps[i]);
     palette[starts[b] + 4] = mix(blocks[b], 0xffffff, 0.62f);
   }
+  memcpy(loaded, palette, sizeof palette);
   display::frame().createPalette(palette, COUNT);
 }
+
+uint32_t rgb(uint8_t index) { return index < COUNT ? loaded[index] : 0; }
 
 uint8_t blockColour(Block b) { return b == Block::Ok ? OK : (b == Block::Signal ? SIGNAL : BLUE); }
 uint8_t band(Block b, int step) { return firstBand(b) + step; }
