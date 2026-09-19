@@ -11,14 +11,14 @@ class Empty(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
-class Drive(Empty):
-    distance_m: float = Field(ge=-1.0, le=1.0, description="Forward positive, reverse negative")
-    speed: float = Field(default=0.2, ge=0.05, le=0.3, description="Fraction of full motor duty")
-
-
-class Turn(Empty):
-    degrees: float = Field(ge=-180, le=180, description="Left (counter-clockwise) positive")
-    speed: float = Field(default=0.2, ge=0.05, le=0.3)
+class DriveBase(Empty):
+    duty: float = Field(ge=-0.3, le=0.3, description="Signed wheel duty; forward positive")
+    steering_deg: float = Field(
+        ge=-20,
+        le=20,
+        description="Servo offset: positive lowers the 90-degree center pulse angle; not measured yaw",
+    )
+    seconds: float = Field(gt=0, le=2)
 
 
 class SetArm(Empty):
@@ -41,14 +41,16 @@ class RunWinch(Empty):
 
 INSTRUCTIONS = """
 
-Motion tools (drive, turn, set_arm, run_winch, stop) move the real robot base, arm and winches.
-They only work while a human supervises with the badge in AUTO mode and armed.
+Motion tools (drive_base, set_arm, run_winch, stop) move the real robot base, arm and winches.
+They only work while a human explicitly supervises the connected controller.
+The large drive wheel stays fixed and the separate small wheel steers. Never request
+differential-wheel motion or a turn in place. Check reported hardware capabilities.
 Call robot_status first; if can_move is false, explain the blockers and ask the user.
 Move in short steps, then observe or read robot_status before the next step.
 The robot has no obstacle sensing: if you are unsure what is in front of it, do not drive.
-Distances and angles are estimated from time, not measured. Say so when you report them.
+Drive duty and steering servo offsets are commanded, not measured distance or yaw.
 A completed result means the command ran for its duration, not that a place was reached.
-Any badge button stops you and only a human can clear it. Never retry around a stop.
+An emergency stop stays latched until a human resets the controller. Never retry around a stop.
 Call stop whenever something looks wrong.
 """
 
@@ -58,15 +60,11 @@ MOTION_TOOLS = {
         "Read the robot's live link, supervision, E-STOP, wheel duty, arm and winch state. "
         "Check can_move and blockers before moving.",
     ),
-    "drive": (
-        Drive,
-        "Drive straight up to 1 m at up to 30% speed, then stop. Only works while a human "
-        "supervises in badge AUTO mode. Distance is estimated from time, not measured.",
-    ),
-    "turn": (
-        Turn,
-        "Turn in place up to 180 degrees (left positive), then stop. Supervised only; the "
-        "angle is estimated from time, not measured.",
+    "drive_base": (
+        DriveBase,
+        "Command the single fixed drive wheel and steering servo for at most 2 seconds, "
+        "then stop. Steering is NOT a chassis rotation angle; no turn-in-place skill exists. "
+        "Requires supervised single_steer_v1 firmware. No calibrated distance is promised.",
     ),
     "set_arm": (
         SetArm,
@@ -89,10 +87,8 @@ def call(motion: Motion, name: str, arguments: dict) -> dict:
     args = MOTION_TOOLS[name][0].model_validate(arguments)
     if name == "robot_status":
         return motion.status()
-    if name == "drive":
-        return motion.drive(args.distance_m, args.speed)
-    if name == "turn":
-        return motion.turn(args.degrees, args.speed)
+    if name == "drive_base":
+        return motion.drive_base(args.duty, args.steering_deg, args.seconds)
     if name == "set_arm":
         return motion.set_arm(args.model_dump(exclude_none=True))
     if name == "run_winch":

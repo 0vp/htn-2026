@@ -1,5 +1,9 @@
 # robot — base controller firmware
 
+For the confirmed fixed powered wheel + separate MG90S steering wheel on the
+ESP32-S3, use [steering/bench.md](steering/bench.md). The root firmware below is
+the earlier two-motor design and is not compatible with that chassis.
+
 Runs on an **ELEGOO ESP32 (ESP-WROOM-32 DevKit)** and drives everything on the robot except
 the camera. The **GOOUUU ESP32-S3-CAM** is a separate board that only streams video: its camera
 uses 14 GPIOs, which left too few pins for the motors, encoders, servos, winches and end stops.

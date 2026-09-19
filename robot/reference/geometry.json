@@ -1,14 +1,21 @@
 {
   "status": "photo_reference_only_not_calibrated",
-  "photos": ["photos/IMG_4449.jpg", "photos/IMG_4450.jpg", "photos/IMG_4451.jpg", "photos/IMG_4452.jpg", "photos/IMG_4453.jpg"],
+  "photos": [
+    "photos/IMG_4449.jpg",
+    "photos/IMG_4450.jpg",
+    "photos/IMG_4451.jpg",
+    "photos/IMG_4452.jpg",
+    "photos/IMG_4453.jpg"
+  ],
   "observed": {
     "frame": "rectangular extrusion chassis with central rail",
     "powered_wheels": 1,
     "powered_wheel_location": "near chassis interior; not the forward overhang assumed by simulation",
     "corner_supports": "four passive swivel wheel casters visible; not spherical ball casters",
-    "steering": "small wheel and servo appear at rail end; mechanical linkage awaiting confirmation",
+    "steering": "User confirmed: MG90S steers a separate small wheel at rail end; large powered wheel is fixed",
     "camera_mount": "not visible",
-    "arm_mount": "not visible"
+    "arm_mount": "not visible",
+    "drivetrain": "fixed powered wheel plus separate front steering wheel"
   },
   "measured": {
     "frame_length_m": null,

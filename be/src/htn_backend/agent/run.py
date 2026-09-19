@@ -114,8 +114,8 @@ def main():
     # Motion tools are only offered when the laptop can reach the robot base directly.
     link = None
     robot_url, robot_token = os.environ.get("HTN_ROBOT_URL"), os.environ.get("HTN_ROBOT_TOKEN")
-    if robot_url and robot_token:
-        link = RobotLink(robot_url, robot_token)
+    if robot_url:
+        link = RobotLink(robot_url, robot_token or "")
         link.start()
     try:
         motion = Motion(link) if link else None
