@@ -57,10 +57,11 @@ void controlTask(void *) {
 void log() {
   const drive::Odometry &odo = drive::odometry();
   const authority::Status control = authority::status();
-  Serial.printf("clients %u  %s  owner %s%s  duty L %+.2f R %+.2f  pack %.2fV  enc L %lld R %lld  loop %.0f Hz\n",
+  Serial.printf("clients %u  %s  owner %s%s  duty L %+.2f R %+.2f  pack %.2fV  enc L %lld R %lld  sta %s  loop %.0f Hz\n",
                 server::clientCount(), isLive ? "LIVE" : (control.latched ? "E-STOP" : "idle"),
                 authority::roleName(control.owner), control.supervised ? " (auto)" : "", drive::appliedLeft(),
-                drive::appliedRight(), telemetry::packVolts(), odo.countLeft, odo.countRight, loopHz);
+                drive::appliedRight(), telemetry::packVolts(), odo.countLeft, odo.countRight, server::stationIp().c_str(),
+                loopHz);
 }
 
 }  // namespace

@@ -5,7 +5,8 @@
 #include "command.h"
 
 /**
- * Access point and the WebSocket control server. Who may drive is decided in authority.h.
+ * Access point (plus an optional venue-network station) and the WebSocket control server.
+ * Who may drive is decided in authority.h. Clients on the venue network need the agent token.
  * Telemetry is broadcast to every accepted client.
  *
  * `loop()` runs on the Arduino loop task and can block for seconds on a dead client's TCP
@@ -25,6 +26,9 @@ bool snapshot(Command &out);
 
 bool estopLatched();
 uint8_t clientCount();
+
+/** The robot's address on the venue network, or "-" when not joined. */
+String stationIp();
 
 void broadcast(const char *json, size_t length);
 
