@@ -17,7 +17,7 @@ def router(store: Store) -> APIRouter:
 
     @routes.post("", status_code=201)
     def create_room(data: CreateRoom) -> dict:
-        return store.create(data.name)
+        return store.create(data.name, data.device_id)
 
     @routes.get("/{room_id}")
     def get_room(room_id: RoomID) -> dict:
