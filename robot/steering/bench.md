@@ -1,5 +1,8 @@
 # Fixed drive wheel and separate steering wheel
 
+Wi-Fi control is available in this firmware; see [wifi.md](wifi.md) for pairing,
+network setup and supervision. The serial instructions below remain a bench fallback.
+
 This controller uses the confirmed GOOUUU ESP32-S3-CAM wiring: GPIO14 RPWM,
 GPIO47 LPWM, GPIO13 MG90S steering, GPIO41/42 encoder inputs. It leaves the
 existing one-shot combined test untouched. GPIO14/47 are never driven together.

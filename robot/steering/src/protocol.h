@@ -3,12 +3,13 @@
 #include <cstring>
 #include "control.h"
 
-inline void handlePacket(const char* data, size_t size, SteeringControl& control, uint32_t now) {
+inline void handlePacket(const char* data, size_t size, SteeringControl& control, uint32_t now, bool allowSupervision = true) {
   JsonDocument doc;
   if (size > 512 || deserializeJson(doc, data, size)) { control.stop(); return; }
   const char* type = doc["type"] | "";
   if (strcmp(type, "supervise") == 0) {
-    control.supervise(doc["enabled"] == true);
+    if (allowSupervision) control.supervise(doc["enabled"] == true);
+    else control.stop();
     return;
   }
   if (strcmp(type, "command") != 0) { control.stop(); return; }
