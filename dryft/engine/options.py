@@ -66,4 +66,4 @@ VARIANTS = {
                         graph=True, swiglu=True, packed=True),
 }
 VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
-ACTIVE = 'graph_folded'
+ACTIVE = 'graph_residual'
