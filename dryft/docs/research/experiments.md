@@ -119,3 +119,10 @@ Public B1/B4/B16 TPOT: 6.516 / 9.369 / 7.245 ms; paired native ratios
 0.264 / 0.357 / 0.289. Raw score is 1.78% below graph_fused; paired reference
 timings differ, so this is not proof of a stable regression or improvement.
 Keep graph_fused as the measured best. Next: norm launch tuning and graph_verify.
+
+Prepared `graph_rope`, a separate candidate based on graph_fused: combine each
+Q/K head RMSNorm with RoPE during one-token decode, preserving intermediate
+BF16 casts and the two rounded RoPE products. Read packed projection strides
+directly and write contiguous attention layout. Native prefill is unchanged.
+Local packaging/tooling checks pass; GPU correctness and speed are unverified.
+This candidate is not yet in the running sweep order; review it before scheduling.

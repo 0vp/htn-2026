@@ -21,6 +21,7 @@ class Options:
     head_gemv: bool = False
     residual_norm: bool = False
     graph_verification: bool = False
+    norm_rope: bool = False
 
     def __post_init__(self):
         if self.norm_warps not in (0, 4, 8, 16):
@@ -70,4 +71,5 @@ VARIANTS = {
 }
 VARIANTS['graph_tuned'] = replace(VARIANTS['graph_fused'], norm_warps=4)
 VARIANTS['graph_verify'] = replace(VARIANTS['graph_fused'], graph_verification=True)
+VARIANTS['graph_rope'] = replace(VARIANTS['graph_fused'], norm_rope=True)
 ACTIVE = 'graph_tuned'

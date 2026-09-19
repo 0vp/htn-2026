@@ -4,6 +4,7 @@ from kernels.rmsnorm import rms_norm
 from kernels.swiglu import swiglu
 from kernels.decode_attention import decode_attention
 from kernels.gemv import SmallBatchLinear
+from kernels.norm_rope import norm_rope
 from components.blocks import residual_block
 from transformers.models.qwen3.modeling_qwen3 import apply_rotary_pos_emb
 
@@ -28,11 +29,17 @@ def attention(self, hidden_states, position_embeddings, attention_mask, past_key
         q, k, v = self.packed_qkv(x).split(self.qkv_sizes, dim=-1)
     else:
         q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
-    q = self.q_norm(q.view(head_shape)).transpose(1, 2)
-    k = self.k_norm(k.view(head_shape)).transpose(1, 2)
     v = v.view(head_shape).transpose(1, 2)
     cos, sin = position_embeddings
-    q, k = apply_rotary_pos_emb(q, k, cos, sin)
+    if self.fused_norm_rope and x.shape[1] == 1:
+        q = norm_rope(q.view(head_shape), self.q_norm.weight,
+                      self.q_norm.variance_epsilon, cos, sin)
+        k = norm_rope(k.view(head_shape), self.k_norm.weight,
+                      self.k_norm.variance_epsilon, cos, sin)
+    else:
+        q = self.q_norm(q.view(head_shape)).transpose(1, 2)
+        k = self.k_norm(k.view(head_shape)).transpose(1, 2)
+        q, k = apply_rotary_pos_emb(q, k, cos, sin)
     if past_key_value is not None:
         k, v = past_key_value.update(k, v, self.layer_idx,
                                     {'sin': sin, 'cos': cos, 'cache_position': cache_position})
@@ -98,7 +105,8 @@ def install(model, options):
             del attn.q_proj, attn.k_proj, attn.v_proj
             layer.mlp.packed_gate_up = packed_linear((layer.mlp.gate_proj, layer.mlp.up_proj))
             del layer.mlp.gate_proj, layer.mlp.up_proj
-        if options.gqa or options.packed or options.folded_gqa or options.custom_attention:
+        if options.gqa or options.packed or options.folded_gqa or options.custom_attention or options.norm_rope:
+            attn.fused_norm_rope = options.norm_rope
             attn.native_gqa = options.gqa
             attn.folded_gqa = options.folded_gqa
             attn.custom_attention = options.custom_attention
