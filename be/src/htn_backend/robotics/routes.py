@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, Request, Response
 from ..api.models import DeviceID, RoomID
 from ..retrieval.client import search as retrieve
 from .actions import Actions, SkillRequest
+from .grounding import RegionRequest, ground
 from .scene import Scene
 from .telemetry import Report
 
@@ -13,6 +14,10 @@ def router(state):
     routes = APIRouter(prefix="/v1/rooms", tags=["robotics"])
     scene = Scene(state)
     actions = Actions(scene)
+
+    @routes.post("/{room_id}/observations/ground")
+    def ground_region(room_id: RoomID, body: RegionRequest):
+        return ground(state, room_id, body)
 
     @routes.post("/{room_id}/robot/telemetry")
     def telemetry(room_id: RoomID, body: Report):

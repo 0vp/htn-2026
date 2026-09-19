@@ -79,3 +79,14 @@ revision, encoded in batches of eight, and pruned when evidence disappears.
 Search returns its retrieval mode explicitly if the visual service is unavailable.
 The L4 six-crop check is recorded in `be/benchmarks/retrieval/l4-evidence.json`.
 Detector labels are not ground truth; these timings are not an accuracy benchmark.
+
+## Image-region grounding
+
+`ground_region` accepts an observation sequence and a normalized bounding box
+in the upright image returned by `observe`. Projection uses native depth-grid
+intrinsics, gravity-derived image rotation, depth confidence, and the registered
+capture pose. Sparse or ambiguous depth fails explicitly. The output is a
+measured surface estimate with depth spread and coverage, not a confirmed object
+identity, completed shape, robot-relative pose, or executable grasp. This lets
+Astra investigate smaller objects inside a table crop without substituting the
+table's mapped center. It does not repair the room's instance segmentation.

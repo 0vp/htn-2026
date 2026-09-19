@@ -9,6 +9,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..robotics.actions import SkillRequest
+from ..robotics.grounding import RegionRequest
 
 
 class Empty(BaseModel):
@@ -28,6 +29,12 @@ class Receipt(Empty):
 
 
 TOOLS = {
+    "ground_region": (
+        RegionRequest,
+        "Project a tight normalized bounding box from an observed "
+        "upright image into measured depth. Supply that image sequence. Returns surface support "
+        "and uncertainty, NOT a verified object identity, full pose or grasp.",
+    ),
     "read_scene": (
         Empty,
         "Read room objects, processing state, uncertainty and robot capabilities.",
@@ -122,6 +129,12 @@ class RobotTools:
                     content.append(
                         self.image(f"/objects/{quote(args.object_id, safe='')}/evidence.jpg")
                     )
+            elif name == "ground_region":
+                response = self.client.post(
+                    self.prefix + "/observations/ground", json=args.model_dump()
+                )
+                response.raise_for_status()
+                content = [self.text(response.json())]
             elif name == "action_status":
                 content = [self.text(self.get(f"/actions/{args.action_id}"))]
             else:
