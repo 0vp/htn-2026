@@ -44,6 +44,11 @@ url ws://192.168.4.1:81/
 status
 ```
 
+To supervise the agent on the USB steering robot (`robot/steering`), point the badge at the
+laptop's serial bridge instead: `url ws://<laptop-ip>:8794/?token=<HTN_BADGE_TOKEN>`, then
+hold START in AUTO. See `robot/steering/bench.md` → Badge supervision. There the badge only
+supervises and E-STOPs; a steering-firmware E-STOP latches until the board is reset.
+
 The robot (`robot/`) runs the `htn-robot` access point; its password is in the robot's git-ignored
 `src/secrets.h`. Any other network works too, as long as the badge can reach the robot over IPv4.
 

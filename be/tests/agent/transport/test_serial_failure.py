@@ -58,15 +58,17 @@ def test_partial_serial_lines_reassemble():
             self.parts = iter([packet[:18], b"", packet[18:]])
 
         def read_until(self, delimiter, maximum):
-            return next(self.parts)
-
-    class Socket:
-        async def send(self, message):
-            assert json.loads(message) == STATE
-            raise asyncio.CancelledError()
+            try:
+                return next(self.parts)
+            except StopIteration:
+                raise serial.SerialException("Device disconnected") from None
 
     async def exercise():
-        with pytest.raises(asyncio.CancelledError):
-            await Bridge(Device()).telemetry(Socket())
+        bridge = Bridge(Device())
+        queue = asyncio.Queue(8)
+        bridge.listeners.add(queue)
+        await bridge.pump()
+        assert json.loads(queue.get_nowait()) == STATE
+        assert isinstance(bridge.failure, serial.SerialException)
 
     asyncio.run(exercise())

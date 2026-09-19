@@ -52,6 +52,29 @@ and allows one controller. Without `--supervise`, commands remain disarmed. The
 flag is a human supervision grant, not a model/controller performance setting.
 Ctrl-C closes the bridge; firmware command expiry independently stops the motor.
 
+### Badge supervision
+
+Instead of `--supervise`, the hacker badge can hold the supervision grant. Its AUTO mode
+(`badge/README.md`) streams armed packets at 20 Hz; the bridge tells the firmware it is
+supervised only while those packets are fresh (300 ms) and an agent controller is connected:
+
+```sh
+export HTN_BADGE_TOKEN=$(openssl rand -hex 12)
+uv run --project be python -m htn_backend.agent.motion.transport.serial_bridge \
+  /dev/cu.usbmodem101 --badge-port 8794
+```
+
+Point the badge at the laptop (serial console): `url ws://<laptop-ip>:8794/?token=<token>`.
+The badge endpoint only grants or withdraws supervision and forwards E-STOP; its drive,
+arm and winch fields are ignored, so it cannot move the robot through the bridge. Badge
+silence, a disconnect, leaving AUTO or disarming withdraws supervision, which stops the
+motor and interrupts an agent move within about 300 ms. A badge E-STOP (B, or any button
+while the agent drives) latches in firmware; re-arming the badge does not clear it. Reset
+the board, keeping in mind that opening serial can also reset it. `--supervise` and
+`--badge-port` are mutually exclusive. The controller endpoint remains loopback-only.
+Checked with the host-compiled firmware protocol fixture
+(`be/tests/agent/transport/test_badge_supervision.py`), not yet on the physical badge and robot.
+
 Use `HTN_ROBOT_URL=ws://127.0.0.1:8793` for the laptop agent. Its room still uses
 `HTN_SERVER_URL`. `robot_status` must report the expected drivetrain and fresh
 supervision before `drive_base` can send a bounded command. A call provides

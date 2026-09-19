@@ -161,6 +161,10 @@ implementation. Active host commands expire after 250 ms even if the background
 heartbeat remains alive; firmware commands expire after 300 ms. A missing stop
 report cannot produce a completed motion result.
 
+The badge can hold that supervision instead of the `--supervise` flag: the bridge's
+token-guarded badge endpoint turns the badge's AUTO heartbeat into firmware supervision
+and forwards its E-STOP, and never forwards badge motion (see `robot/steering/bench.md`).
+
 These are supervised actuator commands, not calibrated navigation. Raw encoder
 counts and commanded servo offsets do not establish meters, chassis yaw, contact
 clearance or physical task success. Server `navigate`/`pick`/`place` remain blocked
