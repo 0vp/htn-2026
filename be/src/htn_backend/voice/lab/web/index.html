@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Robot voice lab</title>
+<style>
+:root{color-scheme:dark;font-family:'SFMono-Regular',Consolas,monospace;color:#ebece4;background:#151916}
+*{box-sizing:border-box}body{margin:0;padding:40px;max-width:1500px;margin-inline:auto}
+header{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #566052;padding-bottom:24px}
+h1{font-family:Georgia,serif;font-size:42px;font-weight:400;margin:8px 0}p{line-height:1.7;color:#bfc8bc}
+small{letter-spacing:.13em;color:#bed89c}main{display:grid;grid-template-columns:1.4fr 1fr;gap:32px;margin-top:32px}
+img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#0e120f;border:1px solid #566052}
+button{font:inherit;border:1px solid #9cb58b;padding:14px 18px;background:#c2dfa8;color:#15220e;cursor:pointer}
+button:disabled{opacity:.4;cursor:default}button:focus-visible{outline:3px solid white;outline-offset:4px}
+#stop{background:#eabe9d}#end{background:transparent;color:#eceee5}.controls{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
+#status{color:#c2dfa8;min-height:30px}#log{height:420px;overflow:auto;border-top:1px solid #566052;padding-top:10px}
+.entry{white-space:pre-wrap;font-size:14px;line-height:1.7;margin:16px 0}.label{color:#c2dfa8;font-size:11px;letter-spacing:.1em;display:block}
+@media(max-width:800px){body{padding:20px}main{grid-template-columns:1fr}h1{font-size:32px}header{display:block}}
+</style>
+<header><div><small>LOCAL TEST / SIMULATION ONLY</small><h1>Talk to the robot.</h1></div><p>GPT-Live 1 → Codex Astra → MuJoCo<br>No iPhone or physical robot connection.</p></header>
+<main><section><img id="camera" src="/camera.jpg" alt="Live camera view from the simulated robot">
+<p>Body-mounted camera · Ideal simulated depth and object labels.<br>Earlier 3-joint arm / curling gripper fixture; not a calibrated physical robot.</p></section>
+<section><small>VOICE CONTROL</small><div class="controls"><button id="start">Start microphone</button><button id="stop" disabled>Stop robot</button><button id="end" disabled>End session</button></div>
+<div id="status" role="status">Ready. Use headphones to avoid audio feedback.</div>
+<p>Try “What can you see?” or “Find the blue block and put it on the delivery table.” Ask it to remember a preferred drop-off.</p>
+<div id="log" role="log" aria-label="Conversation and confirmed task results"></div></section></main>
+<script type="module" src="/client.js"></script></html>
