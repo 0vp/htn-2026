@@ -10,7 +10,7 @@ what is built in this repository; the last section says how far each part has be
 | Layer | Runs on | Responsibility |
 |---|---|---|
 | World and tools | Cloud VM | Phone streams, fused LiDAR map, scene objects, tool APIs, job queue |
-| Agent | Laptop on the robot | A persistent Codex session (GPT-6 Astra, medium effort) |
+| Agent | Laptop on the robot | A persistent Codex session (GPT-6 Astra, low effort for speed) |
 | Skills | Laptop (`robot/scripts/drive.py`) | Calibrated wheel commands, keyboard override, command lease |
 | Reflexes | ESP32 firmware | 300 ms watchdog, duty ramp, reversal pause, latched E-STOP |
 
@@ -112,6 +112,13 @@ Proven on the floor with the real robot:
 - "Come back" to where it started, using memory of the same session.
 - A twirl and a dance.
 - Self-calibrating turn and drive rates.
+- Agent-driven doorway trips with `turn`, `forward` and chained `path`: legs landed within 5 cm
+  (1.98 of 2.0 m, 2.99 of 3.0 m), turns within a few degrees, nothing touched; a return trip
+  took 45 s.
+- Lane keeping on straight legs: heading held within about 4 degrees, steering visible in the
+  motor duties.
+- Speech triage on phrases from a real session: cheering classed as chatter, redirections as
+  instructions, "stop stop stop" as stop.
 
 Verified live without the robot moving:
 
@@ -122,7 +129,6 @@ Verified live without the robot moving:
 Not yet exercised on the real robot:
 
 - The direct phone-to-OpenAI voice path (WebRTC cannot be simulated from the laptop).
-- `path` chaining, which has only run in a scripted world.
 - Interruption of a running task by a new request.
 - `watch_for` early stop: unit-tested with a fake eye; the live endpoint answers on real frames,
   but no real search has been cut short by it yet.
