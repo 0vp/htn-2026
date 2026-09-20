@@ -3,15 +3,17 @@
 import asyncio
 import base64
 import json
-import os
 import time
 
 from websockets.asyncio.client import connect
 
-from ...agent.motion.shared import server_motion
-from ...agent.run import run
-from ..bridge import codex_binary
+from ...agent import remote
 from .transcribe import Utterance, transcribe
+
+
+async def run(room_id, prompt, backend=None, binary=None, motion=None):
+    """Laptop worker when one is polling, else the server's own Codex (see agent/remote.py)."""
+    return await remote.execute(room_id, prompt)
 
 
 class Runtime:
@@ -238,13 +240,7 @@ class Runtime:
                 if not await asyncio.to_thread(self.journal.claim, self.ident, first):
                     continue
                 try:
-                    result = await run(
-                        self.room,
-                        "Finalized user speech:\n" + command,
-                        os.environ.get("HTN_SERVER_URL", "http://127.0.0.1:8790"),
-                        codex_binary(),
-                        server_motion(),
-                    )
+                    result = await run(self.room, "Finalized user speech:\n" + command)
                     await asyncio.to_thread(self.journal.result, self.ident, first, result)
                     if self.upstream:
                         try:

@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .agent.remote import router as agent_router
 from .api.mapping import router as mapping_router
 from .api.rooms import router as rooms_router
 from .api.uploads import router as uploads_router
@@ -87,6 +88,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     app.include_router(mapping_router(processing))
     app.include_router(robotics_router(processing))
     app.include_router(relay_router())
+    app.include_router(agent_router())
     app.include_router(rooms_router(store))
     app.include_router(uploads_router(store))
     return app

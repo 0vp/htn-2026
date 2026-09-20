@@ -9,7 +9,13 @@ from urllib.parse import quote
 import httpx
 from fastapi import HTTPException
 
+from ..agent.remote import hub
 from .bridge import bridge, codex_binary
+
+
+def codex_ready() -> bool:
+    """A laptop worker is polling, or the server has its own Codex."""
+    return hub.present() or bool(codex_binary())
 
 
 @dataclass
@@ -42,11 +48,11 @@ class VoiceService:
 
     def capabilities(self, room, device):
         self.authorize(room, device)
-        return {"available": bool(self.key()), "codex_available": bool(codex_binary())}
+        return {"available": bool(self.key()), "codex_available": codex_ready()}
 
     async def create(self, room, data):
         self.authorize(room, data.device_id)
-        if not self.key() or (data.codex_enabled and not codex_binary()):
+        if not self.key() or (data.codex_enabled and not codex_ready()):
             raise HTTPException(503, "Voice or Codex is not configured")
         async with self.lock:
             for call in self.calls.values():

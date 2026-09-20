@@ -2,14 +2,17 @@
 
 import asyncio
 import json
-import os
 import shutil
 from urllib.parse import quote
 
 from websockets.asyncio.client import connect
 
-from ..agent.motion.shared import server_motion
-from ..agent.run import run
+from ..agent import remote
+
+
+async def run(room_id, prompt, backend=None, binary=None, motion=None):
+    """Laptop worker when one is polling, else the server's own Codex (see agent/remote.py)."""
+    return await remote.execute(room_id, prompt)
 
 
 def codex_binary():
@@ -49,9 +52,6 @@ async def bridge(session_id, key, room_id, enabled, ready):
                         "Voice conversation context (transcripts may be incomplete). "
                         "Answer the latest request using room evidence; ask if unclear.\n"
                         + context,
-                        os.environ.get("HTN_SERVER_URL", "http://127.0.0.1:8790"),
-                        codex_binary(),
-                        server_motion(),
                     )
                     await say(ident, result or "The task finished without a confirmed result.")
                 except asyncio.CancelledError:
