@@ -1,0 +1,311 @@
+{
+  "voice_model": "gpt-live-1",
+  "backend_model": "gpt-6-astra",
+  "input": "Synthetic spoken English, Samantha voice, mono PCM16 24kHz",
+  "execution_domain": "simulation",
+  "cases": [
+    {
+      "name": "camera_observation",
+      "seed": 0,
+      "transport_outcome": "closed",
+      "raw_evidence_sha256": "ea949830c4765e0486d9127047cd7a91c19d284a748825583e2d23281eb9fc97",
+      "results": [
+        {
+          "elapsed_s": 20.77,
+          "text": "In the simulation camera view, I can see a large gray rectangular block on the left, the floor, and two walls. No smaller objects are clearly visible from this angle."
+        }
+      ],
+      "terminal_actions": []
+    },
+    {
+      "name": "delivery_initial",
+      "seed": 0,
+      "transport_outcome": "closed",
+      "raw_evidence_sha256": "449da4e9aba38653fcc03159dddefffc3134ba8ae4d58909dfd35dc71474e5fb",
+      "results": [
+        {
+          "elapsed_s": 67.799,
+          "text": "I found the blue block on the source table in the simulation. Pickup was blocked because it\u2019s outside the arm\u2019s local approach range; it needs a closer navigation approach first. The block was not picked up or delivered."
+        }
+      ],
+      "terminal_actions": [
+        {
+          "skill": "stop",
+          "object_id": null,
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "base_velocity_checked",
+            "held_object": null,
+            "wall_time_s": 0.010793207969982177,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "viewpoint_1",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 2.4797849169699475,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "source_table",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 4.272237500001211,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "pick",
+          "object_id": "blue_block",
+          "state": "failed",
+          "simulation_success": false,
+          "physical_success": false,
+          "reasons": [
+            "target_outside_local_approach: navigate to object first"
+          ],
+          "result": {
+            "feedback": "target_outside_local_approach: navigate to object first",
+            "held_object": null,
+            "wall_time_s": 0.012006333039607853,
+            "collision_steps": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "delivery_approach_retry",
+      "seed": 0,
+      "transport_outcome": "closed",
+      "raw_evidence_sha256": "409269660e55a60880949e49b1088ae4a21212d1ae8245f7cbb2407b7957c876",
+      "results": [
+        {
+          "elapsed_s": 90.966,
+          "text": "I found the blue block on camera, but the simulated pickup stopped because the approach risked a collision. The block wasn\u2019t picked up or delivered, so release on the delivery table could not be verified."
+        }
+      ],
+      "terminal_actions": [
+        {
+          "skill": "stop",
+          "object_id": null,
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "base_velocity_checked",
+            "held_object": null,
+            "wall_time_s": 0.017247417010366917,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "pick",
+          "object_id": "blue_block",
+          "state": "failed",
+          "simulation_success": false,
+          "physical_success": false,
+          "reasons": [
+            "target_outside_local_approach: navigate to object first"
+          ],
+          "result": {
+            "feedback": "target_outside_local_approach: navigate to object first",
+            "held_object": null,
+            "wall_time_s": 0.014536125003360212,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "blue_block",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 18.119000041973777,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "pick",
+          "object_id": "blue_block",
+          "state": "failed",
+          "simulation_success": false,
+          "physical_success": false,
+          "reasons": [
+            "predicted_footprint_collision"
+          ],
+          "result": {
+            "feedback": "predicted_footprint_collision",
+            "held_object": null,
+            "wall_time_s": 13.92778124997858,
+            "collision_steps": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "delivery_seed21",
+      "seed": 21,
+      "transport_outcome": "failed",
+      "raw_evidence_sha256": "122445bddbf8c8c76f3463bf1ddc4a360793f64f94a896631477ffd2933c7101",
+      "results": [
+        {
+          "elapsed_s": 131.714,
+          "text": "In the simulation, I picked up the blue block and placed it on the delivery table. Feedback verified it was released and resting on the table, with the gripper empty."
+        }
+      ],
+      "terminal_actions": [
+        {
+          "skill": "navigate",
+          "object_id": "viewpoint_1",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 2.4083841249812394,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "viewpoint_8",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 17.90535929100588,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "blue_block",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": null,
+            "wall_time_s": 5.795009375025984,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "pick",
+          "object_id": "blue_block",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "lift_and_retained_contact_verified",
+            "held_object": "blue_block",
+            "wall_time_s": 19.734365209005773,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "place",
+          "object_id": "delivery_table",
+          "state": "failed",
+          "simulation_success": false,
+          "physical_success": false,
+          "reasons": [
+            "support_approach_unreachable"
+          ],
+          "result": {
+            "feedback": "support_approach_unreachable",
+            "held_object": "blue_block",
+            "wall_time_s": 0.6021359579754062,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "navigate",
+          "object_id": "delivery_table",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "navigation_feedback_checked",
+            "held_object": "blue_block",
+            "wall_time_s": 7.9167873749975115,
+            "collision_steps": 0
+          }
+        },
+        {
+          "skill": "place",
+          "object_id": "delivery_table",
+          "state": "completed",
+          "simulation_success": true,
+          "physical_success": false,
+          "reasons": [],
+          "result": {
+            "feedback": "released_object_support_and_rest_verified",
+            "held_object": null,
+            "wall_time_s": 5.061555832973681,
+            "collision_steps": 0
+          }
+        }
+      ]
+    }
+  ],
+  "final_reruns": [
+    {
+      "case": "persistent_memory_recall",
+      "raw_evidence_sha256": "5901890aa36e35ea4e029b7b3fdb9a3dbffa75d5da3f480473b8ea6ed5c32727",
+      "outcome": "relay_closed",
+      "results": [
+        {
+          "elapsed_s": 9.18,
+          "kind": "delegation_result",
+          "id": "item_EQ0PDLBZgKC8j51eCMcEi",
+          "result": "You asked me to remember the delivery table as your preferred drop-off."
+        }
+      ],
+      "errors": []
+    },
+    {
+      "case": "camera_clean_close",
+      "raw_evidence_sha256": "63f64e417a994668d8a87bb26a29f71479546e9d2015a3dc6e272a75a2697303",
+      "outcome": "closed",
+      "results": [
+        {
+          "elapsed_s": 22.957,
+          "kind": "delegation_result",
+          "id": "item_EQ0PaW4rhPnH7dt0ZNnd7",
+          "result": "In the latest simulated camera view, I can see a brown delivery table directly ahead, with gray walls and floor around it. The blue block and the other table aren\u2019t visible in this view."
+        }
+      ],
+      "errors": []
+    }
+  ]
+}
