@@ -110,8 +110,15 @@ Real GPS, magnetic interference and physical heading axes require an iPhone test
 simulator tests do not establish geographic accuracy.
 
 Deploy the backend first, then rebuild the phone app. Rejoin/reopen a room after
-upgrading the backend so its capability marker is refreshed. GCP authentication
-required re-login during this change; do not assume deployment from a git push.
+upgrading the backend so its capability marker is refreshed. Do not assume deployment from a git push.
+
+Geographic-anchor support was deployed to `qasim-test` in `us-central1-c` and
+verified through public HTTPS/WebSocket endpoints. A synthetic room accepted three
+frames and a duplicate retry; an improved anchor replaced the initial one, an
+older delayed fix did not, processing status exposed the anchor, and frame bytes
+and local transforms remained unchanged. The synthetic room was then closed.
+Both backend and mapping services were healthy after restart. Real iPhone GPS
+and heading calibration remain unverified.
 
 Primary references:
 - [Apple heading orientation](https://developer.apple.com/documentation/corelocation/cllocationmanager/headingorientation)
