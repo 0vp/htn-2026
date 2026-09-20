@@ -15,7 +15,6 @@ from pathlib import Path
 
 from ..motion.link import RobotLink
 from ..motion.skills import Motion
-from . import planner
 from .senses.perception import Sense, Senses, wait_fresh
 
 TURN_LEVEL, DRIVE_LEVEL = 0.3, 0.3
@@ -25,10 +24,11 @@ RATE_LIMITS = {"turn": (32.0, 75.0), "forward": (0.22, 0.55)}  # Around the floo
 LEARN_FROM = {"turn": 30.0, "forward": 0.5}  # Short moves are mostly ramp: do not learn from them.
 RATES_FILE = Path(__file__).resolve().parents[5] / "robot/scripts/rates.json"
 DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
+# Measured on the floor: after the wheels are released the base still coasts this much, whatever
+# the size of the move (a 45 degree turn became 56, a 90 became 100).
+COAST = {"turn": 11.0, "forward": 0.05}
 STOP_MARGIN_M = 0.65  # From the phone at the centre: leaves ~0.25 m between hull and obstacle.
-LEG_M = 2.0  # Re-sense and re-plan at least this often while following a route.
-ARRIVE_M = 0.35
-MAX_TURN_DEG, MAX_FORWARD_M = 180.0, 3.0
+MAX_TURN_DEG, MAX_FORWARD_M, MAX_REVERSE_M = 180.0, 3.0, 0.4
 
 
 def wrap(degrees: float) -> float:
@@ -38,8 +38,10 @@ def wrap(degrees: float) -> float:
 class Navigator:
     def __init__(self, link: RobotLink, senses: Senses):
         self.link, self.senses, self.motion = link, senses, Motion(link)
-        self.grid: planner.Grid | None = None
-        self.last_position = None
+        # Rear IR obstacle sensors (robot/README.md): output goes LOW when something is within a
+        # few tens of cm. One reads LOW permanently, so a sensor only counts once it has been
+        # seen HIGH this session, which proves it is wired and can tell the difference.
+        self.ir_proven = [False] * 4
         self.rates = dict(DEFAULT_RATES)
         if RATES_FILE.exists():
             saved = json.loads(RATES_FILE.read_text())
@@ -49,6 +51,20 @@ class Navigator:
 
     def blockers(self) -> list[str]:
         return self.motion.blockers()
+
+    def rear_blocked(self, telemetry=None) -> bool | None:
+        """True if a proven rear IR sensor sees something, None if no sensor is proven yet."""
+        if telemetry is None:
+            telemetry, _ = self.link.telemetry()
+        raw = telemetry.get("ir_raw") or []
+        for index, value in enumerate(raw[:4]):
+            if value == 1:
+                self.ir_proven[index] = True
+        if not any(self.ir_proven):
+            return None
+        return any(
+            proven and value == 0 for proven, value in zip(self.ir_proven, raw, strict=False)
+        )
 
     def stop(self) -> None:
         self.link.release()
@@ -76,22 +92,26 @@ class Navigator:
                 result["corrected"] = True
         return result
 
-    def _turn_once(self, degrees: float, corrected=False) -> dict:
+    def _turn_once(self, degrees: float, corrected=False, quick=False) -> dict:
         sign = 1.0 if degrees > 0 else -1.0
         command = {"drive": {"linear": 0.0, "angular": sign * TURN_LEVEL}}
 
         def turned(a, b):
             return sign * wrap(b[0] - a[0])
 
-        return self._run(command, abs(degrees), "turn", turned, guard=False, corrected=corrected)
+        return self._run(
+            command, abs(degrees), "turn", turned, guard=False, corrected=corrected, quick=quick
+        )
 
-    def forward(self, metres: float, start: Sense | None) -> dict:
-        metres = max(-MAX_FORWARD_M, min(MAX_FORWARD_M, metres))
+    def forward(self, metres: float, start: Sense | None, quick=False) -> dict:
+        metres = max(-MAX_REVERSE_M, min(MAX_FORWARD_M, metres))
         limited = None
         if metres > 0 and start and start.fresh and start.clear_ahead_m is not None:
             room = max(0.0, start.clear_ahead_m - STOP_MARGIN_M)
             if room < metres:
                 metres, limited = room, f"LiDAR shows an obstacle {start.clear_ahead_m:.2f} m ahead"
+        if metres < 0 and self.rear_blocked() is not False:
+            metres, limited = 0.0, "cannot reverse: the rear IR sensors are not reporting clear"
         if abs(metres) < 0.08:
             return dict(moved=False, measured=0.0, stopped_by=limited or "distance too small")
         sign = 1.0 if metres > 0 else -1.0
@@ -102,21 +122,25 @@ class Navigator:
             heading = math.radians(a[0])  # Project onto the starting forward direction.
             return sign * (dx * -math.sin(heading) + dz * -math.cos(heading))
 
-        result = self._run(command, abs(metres), "forward", travelled, guard=metres > 0)
+        result = self._run(
+            command, abs(metres), "forward", travelled, guard=metres > 0, quick=quick
+        )
         result.pop("needs", None)
         if limited:
             result["shortened_because"] = limited
         return result
 
-    def _run(self, command, target, kind, measure, guard, corrected=False) -> dict:
+    def _run(self, command, target, kind, measure, guard, corrected=False, quick=False) -> dict:
         """One smooth timed move from the learned rate, then measured by the phone's pose."""
         reasons = self.blockers()
         if reasons:
             return dict(moved=False, measured=0.0, stopped_by="; ".join(reasons))
         origin = self.senses.pose_only()
         tracked = bool(origin and origin[2] < 2.5 and origin[3] != "unavailable")
-        duration = DEAD_TIME_S + target / self.rates[kind]
+        duration = DEAD_TIME_S + max(target - COAST[kind], 0.0) / self.rates[kind]
+        duration = max(duration, 0.3)
         started, stopped_by = time.monotonic(), None
+        reversing = command["drive"]["linear"] < 0
         # LiDAR is watched from a second thread: a frame download takes ~0.5 s, and doing it in
         # the command loop let the 0.25 s command lease lapse, so moves stuttered and measured
         # short, which then taught the rate model that the robot was slow.
@@ -139,17 +163,20 @@ class Navigator:
                 if blocked:
                     stopped_by = blocked[0]
                     break
+                if reversing and self.rear_blocked(telemetry):
+                    stopped_by = "rear IR sensor sees something behind"
+                    break
         finally:
             moving.clear()
             self.link.release()
         ran = time.monotonic() - started
-        final = self._settled_pose() if tracked else None
+        final = None if quick else (self._settled_pose() if tracked else None)
         measured = measure(origin, final[:2]) if final else None
         if measured is not None and kind == "turn" and measured < -20:
             measured += 360.0  # Overshot past half a circle: the angle wrapped around.
         clean = measured is not None and not stopped_by and target >= LEARN_FROM[kind]
         if clean and 0.4 <= measured / target <= 2.5 and ran > DEAD_TIME_S + 0.3:
-            self._learn(kind, measured / (ran - DEAD_TIME_S))
+            self._learn(kind, (measured - COAST[kind]) / (ran - DEAD_TIME_S))
         result = dict(
             moved=True,
             requested=round(target, 2),
@@ -198,84 +225,6 @@ class Navigator:
         rate = max(low, min(high, rate))
         self.rates[kind] = round(0.7 * self.rates[kind] + 0.3 * rate, 3)
         RATES_FILE.write_text(json.dumps(self.rates, indent=2) + "\n")
-
-    def remember(self, sense: Sense | None) -> None:
-        """Fold a LiDAR frame into the world grid; restart it if tracking jumped."""
-        if sense is None or not sense.fresh or sense.obstacles_world is None:
-            return
-        jumped = self.last_position and math.dist(self.last_position, sense.position) > 4.0
-        if self.grid is None or jumped or not self.grid.inside(*self.grid.index(*sense.position)):
-            self.grid = planner.Grid(sense.position)
-        self.last_position = sense.position
-        self.grid.integrate(sense.floor_world, sense.obstacles_world)
-
-    def go_to(self, target: tuple[float, float], spotted=None) -> dict:
-        """Drive to a world point around obstacles: plan, drive one leg, look, re-plan."""
-        legs, travelled, reason, waypoints, spins = [], 0.0, None, [], 0
-        sense = self.senses.read(render=False)
-        for _ in range(40):
-            if sense is None or not sense.fresh:
-                reason = "the phone's view is not live, so the route cannot be followed safely"
-                break
-            self.remember(sense)
-            if spotted and spotted(sense):  # The fast eye saw the target: stop travelling.
-                reason = "target spotted on the way"
-                break
-            remaining = math.dist(sense.position, target)
-            if remaining <= ARRIVE_M:
-                break
-            waypoints, reason = planner.plan(self.grid, sense.position, target)
-            if waypoints is None or len(waypoints) < 2:
-                break
-            if math.dist(waypoints[-1], sense.position) <= ARRIVE_M:
-                reason = None  # As close as the obstacle around the goal allows.
-                break
-            nxt = waypoints[1]
-            dx, dz = nxt[0] - sense.position[0], nxt[1] - sense.position[1]
-            bearing = math.degrees(math.atan2(-dx, -dz))
-            swing = wrap(bearing - sense.heading_deg)
-            if abs(swing) > 12:
-                turned = self.turn(swing)
-                if not turned.get("moved"):
-                    reason = turned.get("stopped_by")
-                    break
-                sense = self.senses.read(render=False)  # LiDAR now faces the leg: check it.
-                if sense is None or not sense.fresh:
-                    continue
-                self.remember(sense)
-                lane = sense.clear_ahead_m if sense.clear_ahead_m is not None else 4.0
-                if lane < STOP_MARGIN_M + 0.3:
-                    # Facing something solid: re-plan, but never spin on the spot for long.
-                    spins += 1
-                    if spins >= 3:
-                        reason = "kept facing obstacles here; no clear lane toward the goal"
-                        break
-                    continue
-            spins = 0
-            leg = min(math.hypot(dx, dz), LEG_M)
-            moved = self.forward(leg, sense)
-            legs.append(dict(turn=round(swing), forward=moved.get("measured") or round(leg, 2)))
-            travelled += moved.get("measured") or 0.0
-            if not moved.get("moved") and not moved.get("stopped_by"):
-                reason = "could not move"
-                break
-            if moved.get("stopped_by") and "obstacle" not in str(moved["stopped_by"]):
-                reason = moved["stopped_by"]  # Human took over, E-STOP, link lost.
-                break
-            time.sleep(0.5)
-            sense = self.senses.read(render=False)
-        else:
-            reason = "still not there after 40 legs"
-        final = self.senses.read(render=False)
-        left = math.dist(final.position, target) if final else None
-        return dict(
-            arrived=reason is None and left is not None and left <= 1.2,
-            distance_left_m=None if left is None else round(left, 2),
-            travelled_m=round(travelled, 2),
-            legs=legs[-8:],
-            stopped_by=reason,
-            route=waypoints or [],
-        )
 
     def face(self, heading_deg: float) -> None:
         """Turn back to a heading seen earlier (e.g. where the fast eye spotted the target)."""

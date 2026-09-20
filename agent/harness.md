@@ -19,8 +19,8 @@ cannot stutter or strand a move.
 
 ### 2. Every action returns a fresh observation
 
-The act-observe loop is taken from coding agents. All moving and sensing tools (`look`, `scan`,
-`go_to`, `approach`, `path`, `stop`) return a fresh camera frame, a robot-centred LiDAR floor map
+The act-observe loop is taken from coding agents. All moving and sensing tools (`look`, `turn`,
+`forward`, `path`, `scan`, `stop`) return a fresh camera frame, a robot-centred LiDAR floor map
 and the clear distance ahead, left and right. Results report what was measured and why a move
 stopped. When a tool fails, the error tells the model what to do next instead of ending the turn.
 
@@ -48,23 +48,24 @@ Every straight leg shortens itself before anything LiDAR sees and stops if the l
 can tell the model to plan boldly. LiDAR does not reliably see glass or drop-offs, and the
 prompt says so. A human at the laptop can always override with the keyboard.
 
-### 5b. Route finding around obstacles (Nav2-style, in 185 lines)
+### 5b. The model is the route planner (we tried A* and went back)
 
-`go_to` and `approach` replace blind straight legs. LiDAR hits accumulate in a world-frame
-occupancy grid, so obstacles stay known after they leave the camera's narrow view. Obstacles are
-inflated by the robot's 40 cm radius plus a margin, A* plans through the middle of free space
-(unseen floor is allowed but costs more), the path is shortened to straight legs, and the route
-is re-planned from fresh LiDAR after every leg. `approach(x, y)` is point-and-go: the agent
-names a pixel in the picture and LiDAR depth turns it into a world goal. There is no distance
-cap; a 25 m goal is just more legs.
+We built a Nav2-style planner (remembered occupancy grid, inflation, A*, re-planning every
+leg). It passed simulation, but on the real floor the grid filled with phantom obstacles from
+people walking by and tracking jitter, and the robot hunted back and forth: 134 s for a 2.4 m
+goal. We removed it. The agent now steers itself with `turn`, `forward` and chained `path`
+moves, reading the LiDAR map returned by every move. What stayed from that work: the floor-
+measured coast term in the motion model (turns overshot by a constant ~11 degrees), a LiDAR
+watcher thread so the wheel command never lapses, bounded self-calibration, the rear IR sensors
+as the reverse guard, and tilting the phone down so the floor is seen from 0.9 m, not 1.7 m.
 
 ### 5c. A fast eye in the loop (dual-process, like Helix / GR00T N1 / Gemini Robotics)
 
-The slow planner (Codex, seconds per decision) sets a `watch_for` target on `scan` or `go_to`.
+The slow planner (Codex, seconds per decision) sets a `watch_for` target on `scan` or `path`.
 While the robot moves, a small vision model (`gpt-5.4-mini`, about 1 s, run on the server where
 the frames already are) checks every new frame in a background thread. The first confident
 sighting ends the move early, turns the robot back to face it and returns its position in the
-picture, so the planner can confirm and `approach(x, y)`. The eye only proposes; the planner
+picture, so the planner can confirm and drive up to it. The eye only proposes; the planner
 confirms up close. On a real frame it found the target and did not hallucinate a fire
 extinguisher that `gpt-4.1-mini` did.
 
@@ -122,8 +123,6 @@ Not yet exercised on the real robot:
 
 - The direct phone-to-OpenAI voice path (WebRTC cannot be simulated from the laptop).
 - `path` chaining, which has only run in a scripted world.
-- `go_to` / `approach` route finding: passes a simulated room with a doorway detour and a sealed
-  room (hull never touches a wall), but has not driven the real robot yet.
 - Interruption of a running task by a new request.
 - `watch_for` early stop: unit-tested with a fake eye; the live endpoint answers on real frames,
   but no real search has been cut short by it yet.

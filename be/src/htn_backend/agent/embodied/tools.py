@@ -7,7 +7,6 @@ why it stopped) so the next step can adapt; errors are instructions, not dead en
 
 import io
 import json
-import math
 from concurrent.futures import wait
 
 import httpx
@@ -16,7 +15,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..motion.link import RobotLink
 from .navigator import Navigator
-from .planner import draw as draw_route
 from .senses.perception import Sense, Senses, data_url
 from .senses.places import survey
 from .senses.watcher import Watcher, first_sighting
@@ -41,26 +39,31 @@ class Scan(Empty):
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
-class GoTo(Empty):
-    bearing_deg: float = Field(ge=-180, le=180, description="Direction of the goal, + left")
-    distance_m: float = Field(gt=0.3, le=25, description="How far away the goal is")
-    watch_for: str | None = Field(default=None, max_length=200, description=WATCH)
+class Turn(Empty):
+    degrees: float = Field(ge=-180, le=180, description="+ left (counter-clockwise), - right")
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
-class Approach(Empty):
-    x: float = Field(ge=0, le=1, description="Horizontal position in the last picture, 0 = left")
-    y: float = Field(ge=0, le=1, description="Vertical position in the last picture, 0 = top")
+class Forward(Empty):
+    meters: float = Field(
+        ge=-0.4, le=3.0, description="+ ahead up to 3 m; reverse max 0.4 m, rear IR guarded"
+    )
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
 class Step(Empty):
     turn: float | None = Field(default=None, ge=-180, le=180, description="Degrees, + left")
-    forward: float | None = Field(default=None, ge=-1.0, le=3.0, description="Metres, + ahead")
+    forward: float | None = Field(
+        default=None,
+        ge=-0.4,
+        le=3.0,
+        description="Metres, + ahead; reverse max 0.4 over seen floor",
+    )
 
 
 class Path(Empty):
     steps: list[Step] = Field(min_length=1, max_length=8)
+    watch_for: str | None = Field(default=None, max_length=200, description=WATCH)
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
@@ -79,26 +82,18 @@ TOOLS = {
         Empty,
         "See now: camera picture, LiDAR floor map and clear distances. Free; no motion.",
     ),
-    "go_to": (
-        GoTo,
-        "Travel to a spot given as direction and distance from where you stand, finding a route "
-        "AROUND obstacles: LiDAR hits are remembered in a map, inflated by your 80 cm body, a "
-        "route is planned (A*), and it is re-planned from fresh LiDAR after every leg. Any "
-        "distance up to 25 m; it will wind through furniture by itself. Your main way to travel. "
-        "Returns the final view, the route map, and whether you arrived or what stopped you.",
-    ),
-    "approach": (
-        Approach,
-        "Go to something you can see: give its position in the latest picture and the robot "
-        "drives an obstacle-avoiding route to stand in front of it (LiDAR gives its real "
-        "position). Fails on glass or things beyond ~5 m: use go_to to get closer first.",
+    "turn": (Turn, "Rotate in place by an angle, measured by the phone. Returns the new view."),
+    "forward": (
+        Forward,
+        "Drive straight by a distance, measured by the phone. It shortens itself before anything "
+        "LiDAR sees in your lane and stops if the lane closes. Returns the new view.",
     ),
     "path": (
         Path,
-        "Raw moves with no route planning: one or more turns and straight legs run back to back, "
-        "e.g. [{turn: 90}] to face something, [{turn: 30}, {turn: -60}, {turn: 30}] to wiggle, "
-        "[{forward: -0.6}] to back out. Straight legs only check the lane directly ahead and "
-        "stop at the first obstacle. For getting somewhere use go_to or approach instead.",
+        "Chain several turns and straight legs into one fluid move with no pauses to think, e.g. "
+        "[{turn: 40}, {forward: 2}, {turn: -90}, {forward: 1.5}]. Use it whenever the way is clear "
+        "from the last picture and map: it is several times faster than separate calls. Stops at "
+        "the first leg LiDAR shortens or blocks and says which; returns the final view.",
     ),
     "scan": (
         Scan,
@@ -165,7 +160,6 @@ class EmbodiedTools:
                 "work, timed and blind; keep them short."
             )
             return [self.text(dict(extra or {}, senses=note))]
-        self.navigator.remember(sense)  # Every look feeds the obstacle memory used by go_to.
         state = dict(extra or {}, **sense.summary(), moves_so_far=self.moves)
         if not sense.fresh:
             state["warning"] = "View is stale; the phone may have paused streaming."
@@ -221,52 +215,34 @@ class EmbodiedTools:
         """Face where the target was seen and describe it for the planner."""
         self.navigator.face(found["heading_deg"])
         keys = ("x", "y", "confidence", "note")
-        hint = "Seen by the fast eye; confirm in the picture, then approach(x, y)."
+        hint = "Seen by the fast eye and now faced. Confirm in the picture, then drive up to it."
         return dict(spotted={k: found.get(k) for k in keys}, next=hint)
 
-    def _travel(self, target, note, watch_for=None):
+    def _turn(self, args):
         before = self.senses.read(render=False)
-        spotted, found, settle = self._spotter(watch_for)
-        result = self.navigator.go_to(target, spotted)
-        settle()
-        if found:
-            note = dict(note, **self._sighting(found))
-        self.moves += max(1, len(result["legs"]))
-        route = result.pop("route")
-        sense = self.navigator.settle_and_sense(before)
-        items = self.observation(sense, dict(go_to=result, **note))
-        if sense and self.navigator.grid is not None:
-            picture = draw_route(self.navigator.grid, sense.position, sense.heading_deg, route)
-            items.append(data_url(picture, "png"))  # Remembered obstacles and the route taken.
-        return items
+        result = self.navigator.turn(args.degrees)
+        self.moves += 1
+        return self.observation(self.navigator.settle_and_sense(before), dict(turn=result))
 
-    def _go_to(self, args):
-        sense = self.senses.read(render=False)
-        if sense is None or not sense.fresh:
-            return self.observation(sense, dict(go_to="needs a live phone view; use path instead"))
-        heading = math.radians(sense.heading_deg + args.bearing_deg)
-        target = (
-            sense.position[0] - math.sin(heading) * args.distance_m,
-            sense.position[1] - math.cos(heading) * args.distance_m,
-        )
-        return self._travel(target, {}, args.watch_for)
-
-    def _approach(self, args):
-        sense = self.senses.read(render=False)
-        found = sense.world_point(args.x, args.y) if sense and sense.fresh else None
-        if found is None:
-            hint = "No LiDAR depth at that spot (glass, too far, or no live view). Use go_to."
-            return self.observation(sense, dict(approach=hint))
-        return self._travel(found[:2], dict(target_range_m=round(found[2], 2)))
+    def _forward(self, args):
+        before = self.senses.read(render=False)
+        result = self.navigator.forward(args.meters, before)
+        self.moves += 1
+        return self.observation(self.navigator.settle_and_sense(before), dict(forward=result))
 
     def _path(self, args):
         before = self.senses.read(render=False)
+        spotted, found, settle = self._spotter(args.watch_for)
         done, halted = [], None
         for index, step in enumerate(args.steps):
+            sense = self.senses.read(render=False)
+            if sense and spotted(sense):  # The fast eye saw the target: cut the route short.
+                halted = f"target spotted before step {index}"
+                break
             if step.turn:
                 result = self.navigator.turn(step.turn)
             elif step.forward:
-                result = self.navigator.forward(step.forward, self.senses.read(render=False))
+                result = self.navigator.forward(step.forward, sense)
             else:
                 continue
             self.moves += 1
@@ -278,16 +254,17 @@ class EmbodiedTools:
             ):
                 halted = f"stopped at step {index}; remaining steps were not run. Look and re-plan."
                 break
-        return self.observation(
-            self.navigator.settle_and_sense(before), dict(path=done, halted=halted)
-        )
+        settle()
+        extra = dict(path=done, halted=halted)
+        if found:
+            extra.update(self._sighting(found))
+        return self.observation(self.navigator.settle_and_sense(before), extra)
 
     def _scan(self, args):
         step, items, views = 360.0 / args.views, [], []
         spotted, found, settle = self._spotter(args.watch_for)
         for index in range(args.views):
             sense = self.senses.read(render=False)
-            self.navigator.remember(sense)
             if sense:
                 views.append(
                     dict(

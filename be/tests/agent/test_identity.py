@@ -16,8 +16,8 @@ def test_both_prompts_share_name_character_and_language():
 def test_agent_prompt_only_names_tools_that_exist():
     assert set(TOOLS) == {
         "look",
-        "go_to",
-        "approach",
+        "turn",
+        "forward",
         "path",
         "scan",
         "room_map",

@@ -148,8 +148,8 @@ tools were removed. How the agent drives it is described in `agent/harness.md`:
 
 - `sh drive.sh` runs `robot/scripts/drive.py` (keyboard, calibration, local and cloud motion
   links) and the laptop Codex worker (`be/src/htn_backend/agent/worker.py`).
-- With a motion link the agent gets the embodied tool set (`look`, `scan`, `go_to`, `approach`,
-  `path`, `room_map`, `recall`, `stop`); without one it gets the read-only room tools only.
+- With a motion link the agent gets the embodied tool set (`look`, `turn`, `forward`, `path`,
+  `scan`, `room_map`, `surroundings`, `recall`, `stop`); without one it gets the read-only room tools only.
 - Every move checks one gate (`agent/motion/skills.py`): link up, telemetry fresh, firmware
   `bts7960_diff_v2`, no E-STOP, supervised, and no human at the keys. Host commands expire
   after 250 ms and firmware commands after 300 ms.
