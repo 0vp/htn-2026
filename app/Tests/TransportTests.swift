@@ -76,3 +76,38 @@ final class TransportTests: XCTestCase {
         XCTAssertFalse(RoomAPI.validCode("../rooms"))
     }
 }
+
+extension TransportTests {
+    func testGeographicAnchorRoundTripAndImprovement() throws {
+        var value = header()
+        let first = GeographicAnchor(latitude: 43.5, longitude: -79.5,
+            horizontal_accuracy_m: 20, timestamp_unix_s: 100,
+            pose_timestamp_s: 3, pose_time_offset_s: 0.1,
+            camera_to_world: value.camera_to_world, heading: nil)
+        value.geographic_anchor = first
+        let encoded = try FramePacket(header: value, depth: [1], confidence: Data([2]), jpeg: Data()).encoded()
+        let size = encoded[4..<8].enumerated().reduce(0) { $0 | Int($1.element) << ($1.offset * 8) }
+        let restored = try JSONDecoder().decode(FrameHeader.self, from: encoded[8..<(8 + size)])
+        XCTAssertEqual(restored.geographic_anchor?.longitude, -79.5)
+        XCTAssertEqual(restored.camera_to_world, value.camera_to_world)
+        var next = first
+        next.timestamp_unix_s = 110
+        XCTAssertFalse(next.improves(first))
+        next.horizontal_accuracy_m = 10
+        XCTAssertTrue(next.improves(first))
+        next.timestamp_unix_s = 90
+        XCTAssertFalse(next.improves(first))
+        next.timestamp_unix_s = 110
+        next.horizontal_accuracy_m = 30
+        XCTAssertFalse(next.improves(first))
+    }
+}
+
+extension TransportTests {
+    func testGeographicCapabilityIsOptionalForOlderServers() throws {
+        let old = Data(#"{"room_id":"ABCDEF12","name":"Room","closed":false,"frames_stored":0}"#.utf8)
+        XCTAssertNil(try JSONDecoder().decode(Room.self, from: old).geography)
+        let updated = Data(#"{"room_id":"ABCDEF12","name":"Room","closed":false,"frames_stored":0,"geography":{"schema_version":1,"anchors":[]}}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(Room.self, from: updated).geography?.schema_version, 1)
+    }
+}

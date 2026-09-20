@@ -11,6 +11,7 @@ from pathlib import Path
 
 from ..capture.codec import encode
 from ..capture.frame import Frame
+from . import geography
 from .counters import initialize
 
 MAX_ROOMS = 128
@@ -74,6 +75,7 @@ class Store:
             )
 
             initialize(self.db)
+            geography.initialize(self.db)
             self.db.execute(
                 "CREATE INDEX IF NOT EXISTS retention_candidates "
                 "ON frames(received_at,sequence) WHERE archived=1 AND length(payload)>0"
@@ -107,6 +109,7 @@ class Store:
                 "closed": bool(row["closed"]),
                 **dict(stats),
                 "devices": [dict(d) for d in devices],
+                "geography": geography.response(self.db, room_id),
             }
 
     def rooms(self) -> list[dict]:
@@ -204,6 +207,7 @@ class Store:
             self.db.execute(
                 "UPDATE totals SET bytes=bytes+?,frames=frames+1 WHERE id=1", (len(payload),)
             )
+            geography.save(self.db, room_id, device_id, h, cursor.lastrowid, now)
             receipt = dict(
                 sequence=cursor.lastrowid,
                 sha256=digest,

@@ -19,6 +19,7 @@ public struct FrameHeader: Codable {
     public var cx: Float
     public var cy: Float
     public var camera_to_world: [Float]
+    public var geographic_anchor: GeographicAnchor? = nil
 }
 
 public enum PacketError: Error {
@@ -65,4 +66,47 @@ public struct FramePacket {
         packet.append(jpeg)
         return packet
     }
+}
+
+/// Approximate WGS84 context only. All matrices retain ARKit local metre coordinates.
+public struct GeographicAnchor: Codable {
+    public var latitude: Double
+    public var longitude: Double
+    public var horizontal_accuracy_m: Double
+    public var timestamp_unix_s: Double
+    public var pose_timestamp_s: Double
+    public var pose_time_offset_s: Double
+    public var camera_to_world: [Float]
+    public var heading: GeographicHeading?
+
+    func improves(_ old: GeographicAnchor) -> Bool {
+        guard timestamp_unix_s > old.timestamp_unix_s,
+              horizontal_accuracy_m <= old.horizontal_accuracy_m else { return false }
+        if let previous = old.heading {
+            guard let next = heading,
+                  next.accuracy_degrees <= previous.accuracy_degrees,
+                  previous.reference != "true_north" || next.reference == "true_north"
+            else { return false }
+        }
+        let betterHeading = heading.map { next in
+            guard let previous = old.heading else { return true }
+            return (next.accuracy_degrees < previous.accuracy_degrees &&
+                    next.accuracy_degrees <= previous.accuracy_degrees * 0.8) ||
+                (next.reference == "true_north" && previous.reference != "true_north")
+        } ?? false
+        return (horizontal_accuracy_m < old.horizontal_accuracy_m &&
+                horizontal_accuracy_m <= old.horizontal_accuracy_m * 0.8) || betterHeading
+    }
+}
+
+public struct GeographicHeading: Codable {
+    public var degrees: Double
+    public var accuracy_degrees: Double
+    public var reference: String
+    public var orientation = "landscape_right"
+    public var timestamp_unix_s: Double
+    public var pose_timestamp_s: Double
+    public var pose_time_offset_s: Double
+    public var camera_to_world: [Float]
+    public var reference_direction_world: [Float]
 }

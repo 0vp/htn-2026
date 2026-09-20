@@ -7,7 +7,13 @@ struct Room: Decodable, Identifiable, Equatable {
     let frames_stored: Int
     var leader_device_id: String? = nil
     var devices: [RoomDevice]? = nil
+    var geography: GeographicCapability? = nil
     var id: String { room_id }
+}
+
+/// Presence negotiates additive capture metadata with older deployed servers.
+struct GeographicCapability: Decodable, Equatable {
+    let schema_version: Int
 }
 
 struct RoomDevice: Decodable, Identifiable, Equatable {

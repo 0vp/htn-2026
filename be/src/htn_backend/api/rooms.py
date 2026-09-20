@@ -23,6 +23,10 @@ def router(store: Store) -> APIRouter:
     def get_room(room_id: RoomID) -> dict:
         return store.room(room_id)
 
+    @routes.get("/{room_id}/geography")
+    def geography(room_id: RoomID) -> dict:
+        return store.room(room_id)["geography"]
+
     @routes.post("/{room_id}/join")
     def join_room(room_id: RoomID, data: JoinRoom) -> dict:
         return store.join(room_id, data.device_id, data.name)

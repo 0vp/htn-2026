@@ -92,6 +92,7 @@ class ProcessingState:
             ).fetchone()
             return {
                 "room_id": room_id,
+                "geography": room["geography"],
                 "received": room["frames_stored"],
                 "raw_frames_retained": room["raw_frames_retained"] or 0,
                 "raw_bytes_retained": room["bytes_stored"],
