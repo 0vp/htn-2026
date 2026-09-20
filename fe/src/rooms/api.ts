@@ -7,8 +7,16 @@ export type Room = {
   devices: Array<{ device_id: string; name: string; joined_at: number }>;
 };
 
+export type GeographicAnchor = {
+  latitude: number;
+  longitude: number;
+  horizontal_accuracy_m: number;
+  heading?: { degrees: number; reference_direction_world: [number, number, number] };
+};
+
 export type ProcessingStatus = {
   room_id: string;
+  geography?: { anchors: Array<{ anchor: GeographicAnchor }> };
   received: number;
   mapped: number;
   pending: number;

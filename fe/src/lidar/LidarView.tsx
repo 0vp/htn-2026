@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RoomScene } from '../rooms/api';
 import { ObjectPanel } from '../objects/ObjectPanel';
+import { bestAnchor } from '../geo/anchor';
 import { feed } from './feed';
 import { LidarRenderer, type CloudStats, type ColorMode } from './renderer';
 import { canMove, control, useControl } from '../control/store';
@@ -46,6 +47,22 @@ export function LidarView() {
       renderer.current = null;
     };
   }, []);
+
+  const anchor = useMemo(
+    () => (replaying ? null : bestAnchor(room.status)),
+    // The fix only matters to a few metres; ignore status churn that leaves it unchanged.
+    [replaying, JSON.stringify(room.status?.geography?.anchors.map((a) => [a.anchor.latitude, a.anchor.longitude]))],
+  );
+  // Indoor fixes rarely carry a compass heading, so north is hand-set per room and remembered.
+  const northKey = `north:${room.roomId}`;
+  const [northDegrees, setNorthDegrees] = useState(0);
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(northKey); } catch { /* Storage unavailable. */ }
+    setNorthDegrees(saved !== null ? +saved : Math.round((((anchor?.north ?? 0) * 180) / Math.PI + 360) % 360));
+  }, [northKey, anchor?.north]);
+  useEffect(() => renderer.current?.setGeo(anchor), [anchor]);
+  useEffect(() => renderer.current?.setNorth((northDegrees * Math.PI) / 180), [northDegrees]);
 
   useEffect(() => {
     renderer.current?.clearRoomMesh();
@@ -114,6 +131,22 @@ export function LidarView() {
               ['age', 'Age'],
             ]}
           />}
+          {anchor && (
+            <label className="label flex items-center gap-3 text-blue-soft" title={`${anchor.latitude.toFixed(5)}, ${anchor.longitude.toFixed(5)} · © OpenStreetMap`}>
+              Map north {northDegrees}°
+              <input
+                type="range"
+                min={0}
+                max={359}
+                value={northDegrees}
+                onChange={(event) => {
+                  setNorthDegrees(+event.target.value);
+                  try { localStorage.setItem(northKey, event.target.value); } catch { /* Storage unavailable. */ }
+                }}
+                className="w-36 accent-white"
+              />
+            </label>
+          )}
           <div className="flex gap-2">
             {(!room.scene || replaying) && <TextButton tone="dark" onClick={() => renderer.current?.clear()}>
               Clear
@@ -162,6 +195,11 @@ export function LidarView() {
           <span>
             {pose ? `x ${pose.x.toFixed(2)}  z ${pose.z.toFixed(2)}  θ ${((pose.yaw * 180) / Math.PI).toFixed(0)}°` : 'No pose'}
           </span>
+          {anchor && (
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="text-blue-soft hover:text-white">
+              © OpenStreetMap
+            </a>
+          )}
           <label htmlFor="room-source" className="ml-auto text-blue-soft">Room</label>
           <select
             id="room-source"

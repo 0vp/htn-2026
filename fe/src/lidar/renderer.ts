@@ -6,6 +6,7 @@ import type { Ground } from '../scene/ground';
 import { prepareSurfaces } from '../scene/prepare';
 import { ObjectLayer, disposeTree } from '../objects/layer';
 import type { RoomScene } from '../rooms/api';
+import { GeoLayer, type GeoAnchor } from '../geo/layer';
 import type { LidarBatch, Pose } from './protocol';
 
 export type ViewMode = 'orbit' | 'top' | 'follow';
@@ -60,7 +61,7 @@ const fragmentShader = /* glsl */ `
 export class LidarRenderer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(50, 1, 0.05, 200);
+  private camera = new THREE.PerspectiveCamera(50, 1, 0.05, 3000);
   private controls: OrbitControls;
   private positions = new Float32Array(CAPACITY * 3);
   private births = new Float32Array(CAPACITY);
@@ -91,6 +92,8 @@ export class LidarRenderer {
   private meshGeneration = 0;
   private surfaceAbort = new AbortController();
   private objectLayer = new ObjectLayer();
+  private geoLayer = new GeoLayer();
+  private marker = new THREE.Group();
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
@@ -107,7 +110,7 @@ export class LidarRenderer {
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI * 0.495;
     this.controls.minDistance = 1;
-    this.controls.maxDistance = 60;
+    this.controls.maxDistance = 600;
 
     const position = new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage);
     const birth = new THREE.BufferAttribute(this.births, 1).setUsage(THREE.DynamicDrawUsage);
@@ -142,8 +145,9 @@ export class LidarRenderer {
     Object.assign(sunlight.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 0.1, far: 40 });
     sunlight.shadow.bias = -0.001;
     this.scene.add(sunlight);
-    this.scene.add(this.objectLayer.group);
+    this.scene.add(this.objectLayer.group, this.geoLayer.group);
     this.buildRobot();
+    this.buildMarker();
     const trailGeometry = new THREE.BufferGeometry();
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(this.trailPoints, 3));
     trailGeometry.setDrawRange(0, 0);
@@ -180,6 +184,31 @@ export class LidarRenderer {
     this.robot.add(body, mast, nose);
     this.robot.visible = false;
     this.scene.add(this.robot);
+  }
+
+  private buildMarker(): void {
+    // A map pin over the robot, kept readable from street-level zoom by scaling in render().
+    const red = new THREE.MeshBasicMaterial({ color: 0xeb1700 });
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 20).rotateX(Math.PI), red);
+    tip.position.y = 0.35;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 16), red);
+    head.position.y = 0.9;
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    core.position.y = 0.9;
+    core.renderOrder = 1;
+    (core.material as THREE.Material).depthTest = false;
+    this.marker.add(tip, head, core);
+    this.marker.visible = false;
+    this.scene.add(this.marker);
+  }
+
+  setGeo(anchor: GeoAnchor | null): void {
+    this.geoLayer.load(anchor);
+    this.marker.visible = anchor !== null;
+  }
+
+  setNorth(radians: number): void {
+    this.geoLayer.setNorth(radians);
   }
 
   private buildGoal(): THREE.Line {
@@ -367,6 +396,7 @@ export class LidarRenderer {
     this.scene.add(this.roomMesh);
     this.objectLayer.update(data.objects, templates, ground);
     this.groundGrid.position.y = ground?.height ?? 0;
+    this.geoLayer.setGround(ground?.height ?? 0);
     this.groundGrid.visible = ground !== null;
     const bounds = new THREE.Box3().setFromObject(this.roomMesh);
     if (first && !bounds.isEmpty()) {
@@ -449,6 +479,9 @@ export class LidarRenderer {
       target.add(delta);
       this.camera.position.add(delta);
     }
+    // Without a robot pose the pin marks the scan origin, which is where the GPS fix was taken.
+    this.marker.position.set(this.pose?.x ?? 0, this.pose?.y ?? this.groundGrid.position.y, this.pose?.z ?? 0);
+    this.marker.scale.setScalar(THREE.MathUtils.clamp(this.camera.position.distanceTo(this.marker.position) / 14, 1, 40));
     this.updateGoalLine();
     this.material.uniforms.now.value = this.clock.getElapsedTime();
     this.controls.update();
@@ -457,6 +490,7 @@ export class LidarRenderer {
 
   dispose(): void {
     this.clearRoomMesh();
+    this.geoLayer.dispose();
     this.renderer.setAnimationLoop(null);
     this.resize.disconnect();
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
