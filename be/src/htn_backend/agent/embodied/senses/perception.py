@@ -40,6 +40,8 @@ class Sense:
     obstacles_world: np.ndarray | None = None  # (N, 2) world x, z of LiDAR obstacles
     depth: np.ndarray | None = None
     header: object | None = None
+    wall_left_m: float | None = None  # Sideways distance to the nearest obstacle beside the lane
+    wall_right_m: float | None = None
 
     def world_point(self, x: float, y: float) -> tuple[float, float, float] | None:
         """World (x, z) and range of the surface at a picture position (0..1 from top-left)."""
@@ -74,6 +76,8 @@ class Sense:
             clear_ahead_m=metres(self.clear_ahead_m),
             clear_left_m=metres(self.clear_left_m),
             clear_right_m=metres(self.clear_right_m),
+            wall_left_m=metres(self.wall_left_m),
+            wall_right_m=metres(self.wall_right_m),
             lidar_range_m=RANGE_M,
         )
 
@@ -103,6 +107,18 @@ def _points(frame) -> tuple[np.ndarray, np.ndarray]:
     origin = pose[:3, 3]
     ground_plane = np.stack([world[:, 0] + origin[0], world[:, 2] + origin[2]], axis=1)
     return points, pose, ground_plane
+
+
+def _side_gap(obstacles: np.ndarray, side: float, reach: float) -> float | None:
+    """Sideways distance to the nearest obstacle on one side (-1 left, +1 right) over the next
+    couple of metres: what a driver watches to stay in the middle of a corridor or doorway."""
+    # Only what the robot will pass: nearer than whatever ends the lane, and outside the hull's
+    # centre, so a wall straight ahead is not mistaken for a wall beside.
+    ahead = obstacles[(obstacles[:, 2] > 0.4) & (obstacles[:, 2] < reach)]
+    beside = ahead[ahead[:, 0] * side > 0.3]
+    if len(beside) < 15:
+        return None
+    return float(np.percentile(np.abs(beside[:, 0]), 5))
 
 
 def _clearance(obstacles: np.ndarray, centre: float) -> float | None:
@@ -192,7 +208,7 @@ class Senses:
             [0.0, 0.0, -1.0 if frame.header.camera_convention == "arkit" else 1.0]
         )
         heading = math.degrees(math.atan2(-forward[0], -forward[2]))
-        ahead = left = right = None
+        ahead = left = right = wall_left = wall_right = None
         floor = obstacles = np.zeros((0, 3))
         floor_world = obstacles_world = np.zeros((0, 2))
         if len(points) > 500:
@@ -203,6 +219,9 @@ class Senses:
             floor_world, obstacles_world = ground_plane[low], ground_plane[tall]
             ahead = _clearance(obstacles, 0.0)
             left, right = _clearance(obstacles, -0.7), _clearance(obstacles, 0.7)
+            reach = min(2.5, (ahead or 2.5) - 0.3)
+            wall_left = _side_gap(obstacles, -1.0, reach)
+            wall_right = _side_gap(obstacles, 1.0, reach)
         return Sense(
             sequence=int(info["sequence"]),
             age_s=float(info.get("receipt_age_s") or 0.0),
@@ -212,6 +231,8 @@ class Senses:
             clear_ahead_m=ahead,
             clear_left_m=left,
             clear_right_m=right,
+            wall_left_m=wall_left,
+            wall_right_m=wall_right,
             rgb_jpeg=frame.rgb_jpeg,
             map_png=_draw(floor, obstacles) if render else b"",
             floor_world=floor_world,

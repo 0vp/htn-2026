@@ -27,6 +27,14 @@ DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
 # Measured on the floor: after the wheels are released the base still coasts this much, whatever
 # the size of the move (a 45 degree turn became 56, a 90 became 100).
 COAST = {"turn": 11.0, "forward": 0.05}
+# Lane keeping. Pose is ~0.5 s old, so the heading gain is kept low enough not to oscillate:
+# a 10 degree error asks for ~10 deg/s of correction.
+HEADING_GAIN = 0.006  # drive level per degree of heading error
+MAX_STEER = 0.12
+OPEN_SIDE_M = 1.3  # Beyond this a side counts as open and does not pull the robot.
+CENTRE_GAIN = 14.0  # Degrees of lean per metre of left/right imbalance
+MAX_LEAN_DEG = 12.0
+REAR_IR = (0, 3)  # Positions of the rear-facing sensors in the firmware's ir_raw list.
 STOP_MARGIN_M = 0.65  # From the phone at the centre: leaves ~0.25 m between hull and obstacle.
 MAX_TURN_DEG, MAX_FORWARD_M, MAX_REVERSE_M = 180.0, 3.0, 0.4
 
@@ -146,12 +154,18 @@ class Navigator:
         # short, which then taught the rate model that the robot was slow.
         blocked, moving = [], threading.Event()
         moving.set()
+        steer = [0.0] if guard and tracked and kind == "forward" else None
         if guard and tracked:
-            threading.Thread(target=self._guard, args=(moving, blocked), daemon=True).start()
+            hold = origin[0] if steer is not None else None
+            threading.Thread(
+                target=self._guard, args=(moving, blocked, steer, hold), daemon=True
+            ).start()
         self.link.set_command(command)
         try:
             while time.monotonic() - started < duration:
                 time.sleep(0.04)
+                if steer is not None:  # Lane keeping: blend the latest steering into the drive.
+                    command = {"drive": dict(command["drive"], angular=steer[0])}
                 self.link.set_command(command)  # Renew the lease: one unbroken motion.
                 telemetry, age = self.link.telemetry()
                 owner = telemetry.get("control", {}).get("owner")
@@ -192,14 +206,26 @@ class Navigator:
             result["needs"] = target - measured
         return result
 
-    def _guard(self, moving, blocked) -> None:
+    def _guard(self, moving, blocked, steer=None, hold_deg=None) -> None:
+        """Runs beside a straight leg: stops it when the lane closes and, a few times a second,
+        steers it. Steering is lane keeping as a driver does it: hold the heading the leg
+        started on (the wheels are unequal, so an open-loop leg curves into walls), and when a
+        wall or doorframe is close on one side, aim a few degrees toward the roomier side."""
         while moving.is_set():
             pose = self.senses.read(render=False)
             if pose and pose.fresh and pose.clear_ahead_m is not None:
                 if pose.clear_ahead_m < STOP_MARGIN_M:
                     blocked.append(f"obstacle {pose.clear_ahead_m:.2f} m ahead")
                     return
-            time.sleep(0.1)
+                if steer is not None and hold_deg is not None:
+                    left = pose.wall_left_m if pose.wall_left_m is not None else OPEN_SIDE_M
+                    right = pose.wall_right_m if pose.wall_right_m is not None else OPEN_SIDE_M
+                    lean = 0.0
+                    if min(left, right) < OPEN_SIDE_M:
+                        lean = max(-MAX_LEAN_DEG, min(MAX_LEAN_DEG, CENTRE_GAIN * (left - right)))
+                    error = wrap(hold_deg + lean - pose.heading_deg)
+                    steer[0] = max(-MAX_STEER, min(MAX_STEER, HEADING_GAIN * error))
+            time.sleep(0.05)
 
     def _settled_pose(self):
         """The pose once the base has really stopped: two fresh frames that agree.

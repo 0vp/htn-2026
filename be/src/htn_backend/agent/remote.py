@@ -12,10 +12,12 @@ turns go to it; otherwise they run on the server's own Codex when one is install
 
 import asyncio
 import hmac
+import json
 import os
 import time
 import uuid
 
+import httpx
 from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
@@ -93,6 +95,20 @@ async def execute(room_id: str, prompt: str, progress=None) -> str:
     return await run(room_id, prompt, backend, codex_binary(), server_motion())
 
 
+TRIAGE = (
+    "A robot is in the middle of a task. New speech arrived; transcripts are noisy and include "
+    'bystanders. Classify ONLY the last User line. Reply JSON {"kind": one of '
+    '"stop" (wants it to halt or pause now), '
+    '"instruction" (a new or changed task, destination, direction or correction), '
+    '"chatter" (encouragement like keep going or faster, praise, insults, laughter, questions '
+    "about progress, remarks to other people, or unintelligible fragments)}."
+)
+
+
+class Triage(BaseModel):
+    conversation: str = Field(max_length=6000)
+
+
 class Result(BaseModel):
     result: str = Field(max_length=20000)
 
@@ -112,6 +128,34 @@ def router() -> APIRouter:
         authorize(authorization)
         job = await hub.claim()
         return job if job else Response(status_code=204)
+
+    @routes.post("/triage")
+    async def triage(body: Triage, authorization: str | None = Header(default=None)):
+        """Should new speech interrupt the running task? A small model decides in under a second."""
+        authorize(authorization)
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            return {"kind": "instruction"}
+        try:
+            async with httpx.AsyncClient(timeout=6) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {key}"},
+                    json={
+                        "model": os.environ.get("HTN_WATCH_MODEL", "gpt-5.4-mini"),
+                        "reasoning_effort": "none",
+                        "max_completion_tokens": 30,
+                        "response_format": {"type": "json_object"},
+                        "messages": [
+                            {"role": "system", "content": TRIAGE},
+                            {"role": "user", "content": body.conversation[-1500:]},
+                        ],
+                    },
+                )
+            kind = json.loads(response.json()["choices"][0]["message"]["content"]).get("kind")
+        except (httpx.HTTPError, KeyError, ValueError):
+            kind = None
+        return {"kind": kind if kind in ("stop", "instruction", "chatter") else "instruction"}
 
     @routes.post("/jobs/{job_id}/progress")
     async def progress(job_id: str, body: Result, authorization: str | None = Header(default=None)):

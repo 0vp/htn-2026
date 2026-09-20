@@ -52,6 +52,23 @@ class Narrator:
             pass
 
 
+async def triage(client, conversation: str) -> str:
+    try:
+        response = await client.post(
+            "/v1/agent/triage", json={"conversation": conversation[-6000:]}
+        )
+        return response.json().get("kind", "instruction")
+    except (httpx.HTTPError, ValueError):
+        return "instruction"
+
+
+async def deliver(client, job_id: str, result: str) -> None:
+    try:
+        await client.post(f"/v1/agent/jobs/{job_id}/result", json={"result": result})
+    except httpx.HTTPError:
+        stamp("Could not deliver the result")
+
+
 async def work(client, session, job, motion) -> None:
     narrator = Narrator(client, job["job_id"], asyncio.get_running_loop())
     try:
@@ -94,18 +111,25 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
             job = response.json()
             stamp(f"▶ {job['prompt']}")
             spoken = job["prompt"].lower()
-            if motion and any(word in spoken for word in STOP_WORDS):
+            last = spoken.rsplit("user:", 1)[-1]
+            stopping = any(word in last for word in STOP_WORDS)
+            if motion and stopping:
                 motion.link.release()  # Wheels first, reasoning second.
             if running and not running.done():
-                # The newest request wins, like talking to a person: stop and listen.
+                kind = "stop" if stopping else await triage(client, job["prompt"])
+                if kind == "chatter":
+                    # Cheering, heckling and half-heard remarks must not cancel a move: the
+                    # live voice already chats back; the task simply carries on.
+                    stamp("· chatter while working: task continues")
+                    await deliver(client, job["job_id"], "")
+                    continue
                 running.cancel()
                 await asyncio.gather(running, return_exceptions=True)
                 job["prompt"] = (
                     "(New speech arrived while you were working, so your move was paused; wheels "
-                    "are stopped. If it is a new instruction, a correction or 'stop', follow it. "
-                    "If it is a comment, a question, unclear, or not meant for you, answer in one "
-                    "short `say` and RESUME the task you were doing by calling the next tool now; "
-                    "do not drop the task to ask what they meant.)\n" + job["prompt"]
+                    "are stopped. Follow it if it is a new instruction, a correction or 'stop'; "
+                    "otherwise answer in one short `say` and resume the task by calling the "
+                    "next tool now.)\n" + job["prompt"]
                 )
             session = sessions.get(job["room_id"])
             if session is None:
