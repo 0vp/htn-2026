@@ -67,8 +67,9 @@ final class VoiceModelTests: XCTestCase {
         XCTAssertEqual(api.ended, ["live_test"])
         XCTAssertFalse(model.codexEnabled)
         XCTAssertEqual(model.phase, .idle)
+        // Turning it off lasts for the session only: every launch starts connected to the agent.
         let restored = VoiceModel(api: api, preferences: defaults, makePeer: { peer }, permission: { true })
-        XCTAssertFalse(restored.codexEnabled)
+        XCTAssertTrue(restored.codexEnabled)
     }
     @MainActor func testRejectsModeMismatchAndUnavailableCodex() async throws {
         let api = FakeVoiceAPI(), peer = FakeVoicePeer()
