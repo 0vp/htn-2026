@@ -78,17 +78,16 @@ def router(reliable):
         reliable.service.authorize(room_id, data.device_id)
         reliable.start()
         cap = reliable.service.capabilities(room_id, data.device_id)
-        if not cap["available"] or data.codex_enabled and not cap["codex_available"]:
+        if not cap["available"]:
+            raise HTTPException(503, "Voice unavailable")
+        # The robot always acts through its agent when one is reachable; the phone's
+        # "Connect to Codex" switch only matters when none is.
+        codex = cap["codex_available"]
+        if data.codex_enabled and not codex:
             raise HTTPException(503, "Voice or Codex unavailable")
         ident = reliable.journal.create(
-            "buffered-" + uuid.uuid4().hex,
-            room_id,
-            data.device_id,
-            data.request_id,
-            data.codex_enabled,
+            "buffered-" + uuid.uuid4().hex, room_id, data.device_id, data.request_id, codex
         )
-        if bool(reliable.journal.session(ident)[2]) != data.codex_enabled:
-            raise HTTPException(409, "Finish pending audio before changing Codex mode")
         reliable.journal.reopen(ident)
         reliable.runtime(ident, room_id, data.device_id)
         return {"session_id": ident, "sdp": ident, "codex_enabled": data.codex_enabled}
