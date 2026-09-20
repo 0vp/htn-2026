@@ -32,7 +32,7 @@ final class ScanModel: ObservableObject {
                 guard let self, !self.finished else { return }
                 if self.uploads.enqueue(data, header: header) { self.captured += 1 }
                 else {
-                    self.capture.uploadCompleted()
+                    self.capture.uploadCompleted(bytes: data.count)
                     self.error = "Upload buffer is full. Keep the app open and retry."
                     self.pause()
                     self.restartAfterUpload = true
@@ -45,9 +45,9 @@ final class ScanModel: ObservableObject {
         let stream = FrameStream(room: room.id, device: device)
         self.stream = stream
         uploads = UploadQueue { data, header in try await stream.send(data, header: header) }
+        uploads.released = { [weak self] bytes in self?.capture.uploadCompleted(bytes: bytes) }
         uploads.acknowledged = { [weak self] in
             guard let self else { return }
-            self.capture.uploadCompleted()
             if self.uploads.pending == 0, self.restartAfterUpload {
                 self.restartAfterUpload = false
                 Task { await self.start() }

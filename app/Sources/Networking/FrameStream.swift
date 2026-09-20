@@ -49,8 +49,12 @@ final class FrameStream {
     }
 
     func send(_ packet: Data, header: FrameHeader) async throws {
+        try await MediaUploadBudget.shared.waitForTurn()
         if socket == nil {
-            socket = session.webSocketTask(with: url)
+            var request = URLRequest(url: url)
+            request.networkServiceType = .background
+            socket = session.webSocketTask(with: request)
+            socket?.priority = URLSessionTask.lowPriority
             socket?.maximumMessageSize = 32_768
             socket?.resume()
         }

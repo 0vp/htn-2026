@@ -12,6 +12,7 @@ final class VoicePeer: NSObject, VoiceTransport {
         self.factory = factory ?? Self.sharedFactory
         super.init()
     }
+    private let budgetOwner = UUID()
     private let recovery = VoiceConnectionRecovery()
     private var peer: RTCPeerConnection?
     private var channel: RTCDataChannel?
@@ -24,6 +25,7 @@ final class VoicePeer: NSObject, VoiceTransport {
     private var microphoneMeter = SpeechMeter()
 
     func offer() async throws -> String {
+        MediaUploadBudget.shared.begin(budgetOwner)
         trace = VoiceTrace()
         try VoiceAudioSession.configure()
         let config = RTCConfiguration()
@@ -129,11 +131,18 @@ final class VoicePeer: NSObject, VoiceTransport {
         let remote = report.statistics.values.filter {
             $0.type == "remote-inbound-rtp" && ($0.values["kind"] as? String == "audio" || $0.values["mediaType"] as? String == "audio")
         }
+        for report in remote {
+            MediaUploadBudget.shared.observe(id: report.id, timestamp: report.timestamp_us,
+                lost: (report.values["packetsLost"] as? NSNumber)?.intValue,
+                rtt: (report.values["roundTripTime"] as? NSNumber)?.doubleValue)
+        }
         let loss = remote.compactMap { ($0.values["fractionLost"] as? NSNumber)?.doubleValue }.max()
         let lossText = loss.map { String(format: "last uplink loss %.1f%%", $0 * 100) } ?? "uplink loss unavailable"
         receive?(.diagnostic(capture + " · " + lossText))
         var row: [String: Any] = ["event": "sample", "capture": capture, "muted": muted,
                                   "packets_sent": sent, "ice_state": peer?.iceConnectionState.rawValue ?? -1]
+        for (key, value) in MediaUploadBudget.shared.videoMetrics { row[key] = value }
+        row["video_spacing_s"] = MediaUploadBudget.shared.spacing
         row["capture_seconds"] = duration
         row["microphone_energy"] = source.compactMap { ($0.values["totalAudioEnergy"] as? NSNumber)?.doubleValue }.max()
         row["microphone_level"] = source.compactMap { ($0.values["audioLevel"] as? NSNumber)?.doubleValue }.max()
@@ -159,6 +168,7 @@ final class VoicePeer: NSObject, VoiceTransport {
         trace?.write(["event": "user_mute", "muted": muted])
     }
     func close() {
+        MediaUploadBudget.shared.end(budgetOwner)
         recovery.cancel()
         metering?.cancel(); metering = nil
         trace?.stop(); trace = nil

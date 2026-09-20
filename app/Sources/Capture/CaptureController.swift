@@ -6,7 +6,7 @@ import Foundation
 /// Owns a serial capture queue. No UIKit dependency; embed in the host iPhone app.
 public final class CaptureController: NSObject, ARSessionDelegate {
     public let session = ARSession()
-    private let queue = DispatchQueue(label: "htn.capture")
+    private let queue = DispatchQueue(label: "htn.capture", qos: .utility)
     private let context = CIContext()
     private let onPacket: (Data) -> Void
     private let onFrame: ((Data, FrameHeader) -> Void)?
@@ -78,9 +78,9 @@ public final class CaptureController: NSObject, ARSessionDelegate {
         }
     }
 
-    /// Release one buffered capture after its transport acknowledgment.
-    public func uploadCompleted() {
-        queue.async { [self] in uploads.complete() }
+    /// Release camera memory after upload, replacement, or explicit discard.
+    public func uploadCompleted(bytes: Int) {
+        queue.async { [self] in uploads.complete(bytes) }
     }
 
     public func session(_ session: ARSession, didUpdate frame: ARFrame) {

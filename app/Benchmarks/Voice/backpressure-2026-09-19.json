@@ -1,0 +1,72 @@
+{
+  "date": "2026-09-19",
+  "method": "iPhone 17 Pro simulator, native WebRTC with identical generated PCM repeated for 120 seconds, 600 depth-only 256x192 camera packets attempted at 5 Hz against production room server. Slow condition adds 800 ms completion delay after 60 seconds.",
+  "limitations": [
+    "Synthetic audio bypasses physical microphone DSP and camera encoding/ARKit.",
+    "Slow receiver is application backpressure, not simulated Wi-Fi loss.",
+    "Sequential runs have different network conditions; cannot infer effect on speech accuracy or reproduce the physical phone issue.",
+    "RTCP reports can lag; counts are observed cumulative maxima.",
+    "Phone unavailable for sustained on-device validation."
+  ],
+  "observations": [
+    "Before: 18 complete repeated sentences. After: one two-word omission. Slow: two short omissions. Speech continued through the end in all runs.",
+    "No progressive capture stall in any run. The new camera queue stayed bounded at two packets under backpressure.",
+    "10,000-frame blocked-upload unit test retained only the in-flight and newest frame; released all reservations.",
+    "17 targeted tests passed with forced-backpressure soak; signed iOS device build passed."
+  ],
+  "runs": [
+    {
+      "bytes_stored": 147669585,
+      "duration_s": 120.00157308334019,
+      "lost": false,
+      "max_pending": 3,
+      "pending": 0,
+      "rejected": 0,
+      "stored": 600,
+      "transcript_age_s": 2.2073330833227374,
+      "condition": "before",
+      "capture_elapsed_s": 119.05000000002424,
+      "wall_elapsed_s": 119.07599091529846,
+      "capture_stalled_samples": 0,
+      "reported_packets_lost_max": 0,
+      "rtt_max_ms": 183.868
+    },
+    {
+      "buffered_bytes": 246117,
+      "bytes_stored": 131425907,
+      "duration_s": 120.00882883329177,
+      "lost": false,
+      "max_pending": 2,
+      "pending": 1,
+      "rejected": 0,
+      "stored": 534,
+      "transcript_age_s": 2.198062999988906,
+      "video_dropped": 65,
+      "condition": "after",
+      "capture_elapsed_s": 119.61000000002454,
+      "wall_elapsed_s": 119.67814207077026,
+      "capture_stalled_samples": 0,
+      "reported_packets_lost_max": 29,
+      "rtt_max_ms": 306.305
+    },
+    {
+      "buffered_bytes": 246116,
+      "bytes_stored": 69896864,
+      "duration_s": 120.00624912499916,
+      "lost": false,
+      "max_pending": 2,
+      "pending": 1,
+      "rejected": 0,
+      "slow_receiver": true,
+      "stored": 284,
+      "transcript_age_s": 2.2309348750277422,
+      "video_dropped": 315,
+      "condition": "slow",
+      "capture_elapsed_s": 119.59000000002442,
+      "wall_elapsed_s": 119.58483695983887,
+      "capture_stalled_samples": 0,
+      "reported_packets_lost_max": 0,
+      "rtt_max_ms": 410.919
+    }
+  ]
+}

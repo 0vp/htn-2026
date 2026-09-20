@@ -68,9 +68,9 @@ final class TransportTests: XCTestCase {
 
     func testWindowBoundsAndRoomCodes() {
         var window = CaptureWindow()
-        for _ in 0..<64 { XCTAssertTrue(window.reserve(100)) }
+        for _ in 0..<3 { XCTAssertTrue(window.reserve(100)) }
         XCTAssertFalse(window.reserve(100))
-        window.complete()
+        window.complete(100)
         XCTAssertTrue(window.reserve(100))
         XCTAssertTrue(RoomAPI.validCode("ABCDEF12"))
         XCTAssertFalse(RoomAPI.validCode("../rooms"))
