@@ -2,7 +2,8 @@
 
 #include <Arduino.h>
 
-#include "../link/robot_link.h"
+#include "../hal/motor.h"
+#include "../link/server.h"
 #include "draw.h"
 
 using namespace theme;
@@ -35,12 +36,10 @@ const char *modeHint(Mode mode) {
   switch (mode) {
     case Mode::Drive:
       return "D-PAD DRIVE  A SPEED";
-    case Mode::Arm:
-      return "L/R JOINT  U/D MOVE";
     case Mode::Auto:
       return "AGENT DRIVES";
     default:
-      return "L/R WINCH  U IN  D OUT";
+      return "D-PAD DRIVE  A SPEED";
   }
 }
 
@@ -48,11 +47,11 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
   const ControlState &s = m.controller->state();
   Block block = Block::Blue;
   const char *word = "SAFE";
-  const char *detail = m.linkOpen ? "HOLD START TO ARM" : "WAITING FOR ROBOT";
+  const char *detail = "HOLD START TO ARM";
   if (s.estop) {
     block = Block::Signal;
     word = "E-STOP";
-    detail = m.linkOpen ? "HOLD START TO CLEAR" : "WAITING FOR ROBOT";
+    detail = "HOLD START TO CLEAR";
   } else if (m.controller->supervising()) {
     block = Block::Ok;
     word = "AUTO";
@@ -75,44 +74,25 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
 }
 
 void footer(LGFX_Sprite &g, const UiModel &m) {
-  const Telemetry &t = robotlink::telemetry();
   g.fillRect(0, FOOTER_Y, 320, 240 - FOOTER_Y, PAPER);
   g.drawFastHLine(0, FOOTER_Y, 320, HAIRLINE);
   const int y = FOOTER_Y + 11;
   char text[40];
 
-  // Battery: five square cells, like a meter, then the pack voltage.
-  if (!isnan(t.packVolts) && t.packVolts > 1) {
-    const float soc = stateOfCharge(t.packVolts);
-    const uint8_t fill = soc < 0.2f ? SIGNAL : (soc < 0.4f ? WARN : theme::OK);
-    for (int i = 0; i < 5; i++) {
-      const bool lit = soc > i * 0.2f + 0.05f;
-      if (lit) g.fillRect(10 + i * 7, y - 1, 5, 9, fill);
-      else g.drawRect(10 + i * 7, y - 1, 5, 9, HAIRLINE);
-    }
-    snprintf(text, sizeof text, "%.1fV", t.packVolts);
-    label(g, text, 50, y, INK);
-  } else {
-    label(g, "BATT --", 10, y, INK_35);
-  }
-
-  if (!isnan(t.rpmLeft) || !isnan(t.rpmRight)) {
-    snprintf(text, sizeof text, "RPM %.0f/%.0f", isnan(t.rpmLeft) ? 0 : t.rpmLeft, isnan(t.rpmRight) ? 0 : t.rpmRight);
-    label(g, text, 104, y, INK_60);
-  }
+  // What the wheel is being given right now, straight from the motor outputs.
+  snprintf(text, sizeof text, "DUTY %+.2f", motor::appliedDuty());
+  label(g, text, 10, y, motor::appliedDuty() == 0 ? INK_35 : INK);
+  snprintf(text, sizeof text, "STEER %+.0f", motor::appliedSteering());
+  label(g, text, 96, y, INK_60);
 
   // Link state, right-aligned with a square status light.
   uint8_t light = INK_35;
-  switch (robotlink::status()) {
-    case robotlink::Status::Open:
-      light = theme::OK;
-      snprintf(text, sizeof text, "ONLINE %d", m.wifiRssi);
+  switch (robotserver::status()) {
+    case robotserver::Status::Ready:
+      light = m.agentConnected ? theme::OK : WARN;
+      snprintf(text, sizeof text, "%s %d", m.agentConnected ? "AGENT" : "READY", m.wifiRssi);
       break;
-    case robotlink::Status::Silent:
-      light = SIGNAL;
-      snprintf(text, sizeof text, "ROBOT SILENT");
-      break;
-    case robotlink::Status::Unconfigured:
+    case robotserver::Status::Unconfigured:
       light = SIGNAL;
       snprintf(text, sizeof text, "%s", m.linkText);
       break;
@@ -166,17 +146,11 @@ void render(const UiModel &m) {
     setupView(g, m);
   } else {
     switch (m.controller->mode()) {
-      case Mode::Drive:
-        driveView(g, m);
-        break;
-      case Mode::Arm:
-        armView(g, m);
-        break;
       case Mode::Auto:
         autoView(g, m);
         break;
       default:
-        winchView(g, m);
+        driveView(g, m);
         break;
     }
   }

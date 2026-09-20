@@ -8,8 +8,8 @@
 struct Settings {
   String ssid;
   String password;
-  /** Robot control socket, e.g. ws://robot.local:81/ — the same URL the dashboard uses. */
-  String url;
+  /** Shared secret the agent must present: ws://<badge-ip>:81/?token=... */
+  String token;
   bool invertLcd = true;
   /** Rotates the landscape screen 180 degrees. */
   bool flipLcd = false;
@@ -23,8 +23,8 @@ void load();
 void save();
 
 /**
- * USB serial console. Commands: help, status, wifi, url, lcd, datapin, map, polarity,
- * buttons, reboot. Returns true when the Wi-Fi or URL settings changed.
+ * USB serial console. Commands: help, status, wifi, token, lcd, datapin, map, polarity,
+ * buttons, reboot. Returns true when the Wi-Fi or token settings changed.
  */
 bool pollConsole();
 
@@ -34,7 +34,7 @@ bool monitoringButtons();
 /** True once after `shot` was typed; the main loop then dumps the frame. */
 bool takeShotRequest();
 
-/** Mode index (0 drive, 1 arm, 2 winch, 3 auto) once after `mode` was typed, else -1. */
+/** Mode index (0 drive, 1 auto) once after `mode` was typed, else -1. */
 int takeModeRequest();
 
 }  // namespace settings

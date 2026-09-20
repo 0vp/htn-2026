@@ -23,9 +23,12 @@ constexpr int SR_DATA_DEFAULT = 7;
 // START is the BOOT strap and has its own pin (active low).
 constexpr int BTN_START = 9;
 
-// Six WS2812B LEDs around the board, one daisy chain through a level shifter.
-constexpr int LED_DATA = 3;
-constexpr int LED_COUNT = 6;
+// Motor and steering outputs, on the pins freed by dropping the LED ring (3) and the
+// unused I2C peripherals (5, 6). Wiring matches robot/steering: BTS7960 RPWM/LPWM and an
+// MG90S signal. RPWM and LPWM are never driven together.
+constexpr int MOTOR_RPWM = 5;
+constexpr int MOTOR_LPWM = 6;
+constexpr int SERVO_SIGNAL = 3;
 
 constexpr int SCREEN_W = 320;
 constexpr int SCREEN_H = 240;

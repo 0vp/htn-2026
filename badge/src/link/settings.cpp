@@ -4,7 +4,7 @@
 #include <WiFi.h>
 
 #include "../board.h"
-#include "robot_link.h"
+#include "server.h"
 
 namespace {
 
@@ -37,10 +37,11 @@ void printStatus() {
   const ButtonMap &m = current.buttons;
   Serial.printf("wifi ssid: %s (%s)\n", current.ssid.length() ? current.ssid.c_str() : "<unset>",
                 current.password.length() ? "password set" : "open");
-  Serial.printf("robot url: %s\n", current.url.length() ? current.url.c_str() : "<unset>");
+  Serial.printf("agent token: %s\n", current.token.length() ? "set" : "<unset>");
+  Serial.printf("control url: ws://%s:81/?token=...\n", robotserver::localIp().c_str());
   Serial.printf("wifi status code: %d\n", WiFi.status());
-  Serial.printf("link: %s, ip %s, sent %lu, received %lu\n", robotlink::statusText(), robotlink::localIp().c_str(),
-                static_cast<unsigned long>(robotlink::sentCount()), static_cast<unsigned long>(robotlink::receivedCount()));
+  Serial.printf("link: %s, ip %s, clients %u\n", robotserver::statusText(),
+                robotserver::localIp().c_str(), robotserver::clientCount());
   Serial.printf("lcd invert: %d, flip: %d\n", current.invertLcd, current.flipLcd);
   Serial.printf("buttons: data GPIO%d, active %s, map", m.dataPin, m.activeHigh ? "high" : "low");
   for (uint8_t i = 0; i < 8; i++) Serial.printf(" %s=%u", buttonName(static_cast<Button>(i)), m.bitOf[i]);
@@ -53,12 +54,12 @@ void printHelp() {
       "  status                      show settings and link state\n"
       "  wifi <ssid> [password]      join a network (quote SSIDs with spaces)\n"
       "  scan                        list 2.4 GHz networks the badge can see\n"
-      "  url <ws://host:port/path>   robot control socket (same as the dashboard's ?control=)\n"
+      "  token <secret>              shared secret the agent must present to drive\n"
       "  lcd invert <0|1>            fix inverted colours (applies after reboot)\n"
       "  lcd flip                    rotate the screen 180 degrees (applies after reboot)\n"
       "  buttons                     toggle printing raw shift-register bytes\n"
       "  shot                        dump the screen as hex (tools/badge_shot.py)\n"
-      "  mode <drive|arm|winch|auto>  switch the screen's mode\n"
+      "  mode <drive|auto>            switch the screen's mode\n"
       "  datapin <gpio>              74HC165 QH pin (7 or 8)\n"
       "  map <A B Home Down Left Right Up Aux1>   shift position of each button\n"
       "  polarity <low|high>         level of a pressed button\n"
@@ -86,10 +87,10 @@ bool handle(String cmdLine) {
                     WiFi.encryptionType(i) == WIFI_AUTH_WPA2_ENTERPRISE ? "enterprise" : "");
     }
     Serial.printf("%d networks\n", n);
-  } else if (cmd == "url") {
-    current.url = nextToken(cmdLine);
+  } else if (cmd == "token") {
+    current.token = nextToken(cmdLine);
     settings::save();
-    Serial.printf("saved url %s\n", current.url.c_str());
+    Serial.println(current.token.length() ? "saved token" : "cleared token");
     return true;
   } else if (cmd == "lcd") {
     const String what = nextToken(cmdLine);
@@ -105,12 +106,12 @@ bool handle(String cmdLine) {
     Serial.println("saved; reboot to apply");
   } else if (cmd == "mode") {
     const String which = nextToken(cmdLine);
-    const char *const names[] = {"drive", "arm", "winch", "auto"};
+    const char *const names[] = {"drive", "auto"};
     modeRequest = -1;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
       if (which == names[i]) modeRequest = i;
     }
-    if (modeRequest < 0) Serial.println("mode drive|arm|winch|auto");
+    if (modeRequest < 0) Serial.println("mode drive|auto");
   } else if (cmd == "shot") {
     shotRequested = true;
   } else if (cmd == "buttons") {
@@ -163,7 +164,7 @@ void load() {
   prefs.begin(NS, true);
   current.ssid = prefs.getString("ssid", "");
   current.password = prefs.getString("pass", "");
-  current.url = prefs.getString("url", "");
+  current.token = prefs.getString("token", "");
   current.invertLcd = prefs.getBool("invert", true);
   current.flipLcd = prefs.getBool("flip", false);
   current.buttons = {board::SR_DATA_DEFAULT, {0, 1, 2, 3, 4, 5, 6, 7}, false};
@@ -177,7 +178,7 @@ void save() {
   prefs.begin(NS, false);
   prefs.putString("ssid", current.ssid);
   prefs.putString("pass", current.password);
-  prefs.putString("url", current.url);
+  prefs.putString("token", current.token);
   prefs.putBool("invert", current.invertLcd);
   prefs.putBool("flip", current.flipLcd);
   prefs.putInt("data", current.buttons.dataPin);
