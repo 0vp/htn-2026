@@ -56,11 +56,13 @@ class VoiceService:
         if not self.key() or (data.codex_enabled and not codex_ready()):
             raise HTTPException(503, "Voice or Codex is not configured")
         async with self.lock:
-            for call in self.calls.values():
+            for call in tuple(self.calls.values()):
                 if call.room == room:
-                    if call.request_id == data.request_id and call.codex == data.codex_enabled:
-                        return self.response(call)
-                    raise HTTPException(409, "End the current voice session first")
+                    if call.request_id == data.request_id:
+                        return self.response(call, data.codex_enabled)
+                    # One robot, one voice: a new Talk replaces a session the app lost track of
+                    # (crash, reinstall, dropped network) instead of locking the room for an hour.
+                    await self.end(call.session_id)
             if len(self.calls) >= 4:
                 raise HTTPException(429, "Voice capacity reached")
             # The robot acts through its agent whenever one is reachable, whatever the phone's
@@ -101,14 +103,15 @@ class VoiceService:
             except BaseException:
                 await self.end(call.session_id)
                 raise
-            return self.response(call)
+            return self.response(call, data.codex_enabled)
 
     def headers(self):
         return {"Authorization": f"Bearer {self.key()}"}
 
     @staticmethod
-    def response(call):
-        return {"session_id": call.session_id, "sdp": call.sdp, "codex_enabled": call.codex}
+    def response(call, requested):
+        # The phone verifies its own switch is echoed; the agent is used whenever reachable.
+        return {"session_id": call.session_id, "sdp": call.sdp, "codex_enabled": requested}
 
     async def monitor(self, call, ready):
         try:

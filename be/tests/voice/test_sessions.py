@@ -64,7 +64,9 @@ def test_conversation_mode_isolated_and_idempotent(client):
     config = json.loads(requests[0].content)["session"]
     assert config["model"] == "gpt-live-1"
     assert "Codex is disconnected" in config["instructions"]
-    assert client.post(path + "/sessions", json=offer(request="two")).status_code == 409
+    # A new Talk replaces the session the app lost track of: the old call is hung up first.
+    assert client.post(path + "/sessions", json=offer(request="two")).status_code == 201
+    assert any(r.url.path.endswith("/hangup") for r in requests)
     client.post(f"/v1/rooms/{room}/close")
     assert client.post(
         path + "/end", json={"device_id": "leader", "session_id": "live_test"}
