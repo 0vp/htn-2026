@@ -107,7 +107,7 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
                 )
             session = sessions.get(job["room_id"])
             if session is None:
-                session = AgentSession(job["room_id"], backend, binary, motion, embodied=True)
+                session = AgentSession(job["room_id"], backend, binary, motion)
                 sessions[job["room_id"]] = session
             running = asyncio.create_task(work(client, session, job, motion))
 

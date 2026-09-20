@@ -81,7 +81,7 @@ short, bounded skills, and everything safety-critical lives next to the motors.
 |---|---|---|
 | World + speech | Cloud VM | Phone streams, map/scene, speech-to-text, room tool APIs, turn queue |
 | Agent (Codex) | This laptop | Reasoning with your `codex login`; calls cloud room tools over HTTPS and motion skills locally |
-| Skills | This laptop (`drive.py`) | `drive_base` ≤ 2 s bounded moves, calibration, keyboard override, command lease |
+| Skills | This laptop (`drive.py`, `agent/embodied`) | Route planning around obstacles, measured moves, calibration, keyboard override, command lease |
 | Reflexes | ESP32 firmware | 300 ms watchdog, ramp, reversal pause, E-STOP latch |
 
 Flow: phone speech → cloud transcribes and queues the finalized turn → the laptop worker
@@ -95,9 +95,10 @@ network jitter cannot stutter or strand a move. Auth is the shared secret in
 (`robot/agent.log`). If no worker is polling, the server falls back to its own Codex
 (`be/deploy/codex/install.sh`) and drives through the cloud relay that `drive.py` dials.
 
-`drive_base(linear, angular, seconds)` takes levels up to 0.5 for at most 2 s. The agent is
-blocked while a human holds an arrow key (`owner: human`), after an E-STOP, or if `drive.py`
-is not running. Arm and winch tools report `hardware_capability_unavailable`.
+The agent's tools are `look`, `scan`, `go_to`, `approach`, `path`, `room_map`, `recall` and
+`stop` (see `agent/harness.md`). The base is treated as a round body 80 cm across with the phone
+at its centre. The agent is blocked while a human holds an arrow key (`owner: human`), after an
+E-STOP, or if `drive.py` is not running.
 
 ## Calibration status (2026-09-19)
 

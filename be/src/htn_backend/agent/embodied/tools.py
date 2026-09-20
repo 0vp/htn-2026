@@ -27,16 +27,6 @@ class Empty(BaseModel):
 SAY = "One short sentence spoken aloud the moment this starts, while the robot moves."
 
 
-class Turn(Empty):
-    degrees: float = Field(ge=-180, le=180, description="+ left (counter-clockwise), - right")
-    say: str | None = Field(default=None, max_length=160, description=SAY)
-
-
-class Forward(Empty):
-    meters: float = Field(ge=-1.0, le=3.0, description="+ ahead, - reverse (reverse is blind)")
-    say: str | None = Field(default=None, max_length=160, description=SAY)
-
-
 class Scan(Empty):
     views: int = Field(default=6, ge=4, le=8, description="Pictures around the full circle")
     say: str | None = Field(default=None, max_length=160, description=SAY)
@@ -73,12 +63,6 @@ TOOLS = {
         Empty,
         "See now: camera picture, LiDAR floor map and clear distances. Free; no motion.",
     ),
-    "turn": (Turn, "Rotate in place by an angle, measured by the phone. Returns the new view."),
-    "forward": (
-        Forward,
-        "Drive straight by a distance, measured by the phone. Shortens itself before LiDAR "
-        "obstacles and stops if the lane closes. Returns the new view.",
-    ),
     "go_to": (
         GoTo,
         "Travel to a spot given as direction and distance from where you stand, finding a route "
@@ -95,10 +79,10 @@ TOOLS = {
     ),
     "path": (
         Path,
-        "Chain several turns and straight legs into one fluid move with no pauses to think, e.g. "
-        "[{turn: 40}, {forward: 2}, {turn: -90}, {forward: 1.5}]. Use it whenever the route is "
-        "clear from the last picture/map: it is several times faster than separate calls. Stops "
-        "at the first leg LiDAR shortens or blocks and reports which; returns the final view.",
+        "Raw moves with no route planning: one or more turns and straight legs run back to back, "
+        "e.g. [{turn: 90}] to face something, [{turn: 30}, {turn: -60}, {turn: 30}] to wiggle, "
+        "[{forward: -0.6}] to back out. Straight legs only check the lane directly ahead and "
+        "stop at the first obstacle. For getting somewhere use go_to or approach instead.",
     ),
     "scan": (
         Scan,
@@ -183,18 +167,6 @@ class EmbodiedTools:
 
     def _look(self, _):
         return self.observation(self.senses.read())
-
-    def _turn(self, args):
-        before = self.senses.read(render=False)
-        result = self.navigator.turn(args.degrees)
-        self.moves += 1
-        return self.observation(self.navigator.settle_and_sense(before), dict(turn=result))
-
-    def _forward(self, args):
-        before = self.senses.read(render=False)
-        result = self.navigator.forward(args.meters, before)
-        self.moves += 1
-        return self.observation(self.navigator.settle_and_sense(before), dict(forward=result))
 
     def _travel(self, target, note):
         before = self.senses.read(render=False)

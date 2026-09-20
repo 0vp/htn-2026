@@ -44,8 +44,7 @@ class Navigator:
             self.rates.update(json.loads(RATES_FILE.read_text()))
 
     def blockers(self) -> list[str]:
-        telemetry, age = self.link.telemetry()
-        return self.motion._blockers(telemetry, age)
+        return self.motion.blockers()
 
     def stop(self) -> None:
         self.link.release()

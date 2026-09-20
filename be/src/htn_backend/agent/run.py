@@ -15,7 +15,6 @@ from .embodied.tools import definitions as embodied_definitions
 from .feedback.stream import stream
 from .motion.link import RobotLink
 from .motion.skills import Motion
-from .motion.tools import INSTRUCTIONS as MOTION_INSTRUCTIONS
 from .profile import MODEL, server_command, thread_params
 from .protocol import AppServer
 from .tools import RobotTools, definitions
@@ -99,9 +98,9 @@ class AgentSession:
 
     MAX_TURNS = 40
 
-    def __init__(self, room_id, backend, binary, motion=None, embodied=False):
+    def __init__(self, room_id, backend, binary, motion=None):
         self.room_id, self.backend, self.binary = room_id, backend, binary
-        self.motion, self.embodied = motion, embodied
+        self.motion = motion
         self.stack = self.server = self.thread_id = self.prefix = self.tools = None
         self.turns = 0
 
@@ -112,11 +111,12 @@ class AgentSession:
         client = self.stack.enter_context(
             httpx.Client(base_url=self.backend, timeout=15, follow_redirects=False)
         )
-        if self.embodied and self.motion:
-            # The robot's own loop: sense-returning verbs and an explorer's prompt.
+        if self.motion:
+            # With a body: the robot's own loop, sense-returning verbs and an explorer's prompt.
             tools = EmbodiedTools(client, self.room_id, self.motion.link)
         else:
-            tools = RobotTools(client, self.room_id, self.motion)
+            # Without one: read-only room tools (scene, observations, grounding).
+            tools = RobotTools(client, self.room_id)
         self.prefix, self.tools = tools.prefix, tools
         self.server = AppServer(server_command(self.binary), tools)
         await self.server.start()
@@ -128,11 +128,7 @@ class AgentSession:
             params["baseInstructions"] = EMBODIED_INSTRUCTIONS
             params["developerInstructions"] = "Act through your tools until the task is done."
         else:
-            params = thread_params(
-                workspace, definitions(motion=self.motion is not None), inherited["config"]
-            )
-            if self.motion:
-                params["developerInstructions"] += MOTION_INSTRUCTIONS
+            params = thread_params(workspace, definitions(), inherited["config"])
         thread = await self.server.request("thread/start", params)
         if thread.get("model", MODEL) != MODEL:
             raise RuntimeError("App-server did not select the requested Astra model")
@@ -151,7 +147,7 @@ class AgentSession:
                 emit=emit,
                 feedback_backend=self.backend,
                 prefix=self.prefix,
-                last_only=self.embodied,
+                last_only=self.motion is not None,
             )
         except asyncio.CancelledError:
             raise  # Interrupted by a newer request: the turn was stopped, the agent lives on.
@@ -172,9 +168,9 @@ class AgentSession:
             stack.close()
 
 
-async def run(room_id, prompt, backend, binary, motion=None, embodied=False, emit=print):
+async def run(room_id, prompt, backend, binary, motion=None, emit=print):
     """One-shot: a fresh agent for a single request."""
-    session = AgentSession(room_id, backend, binary, motion, embodied)
+    session = AgentSession(room_id, backend, binary, motion)
     try:
         return await session.turn(prompt, emit)
     finally:

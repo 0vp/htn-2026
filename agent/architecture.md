@@ -142,36 +142,21 @@ accuracy or physical robot validation.
 
 ## Supervised motion
 
-The confirmed chassis has one fixed powered wheel, a separate MG90S-steered
-small wheel, and four swivel casters. See `robot/reference` for photographs and
-unmeasured calibration fields. It cannot execute differential-drive turns in place.
+The physical base is a two-wheel differential drive on two BTS7960 drivers (`robot/README.md`);
+the earlier single-steer chassis, its firmware and its `drive_base` / `set_arm` / `run_winch`
+tools were removed. How the agent drives it is described in `agent/harness.md`:
 
-With `HTN_ROBOT_URL` set, the launcher registers `robot_status`, `drive_base`,
-`set_arm`, `run_winch` and `stop`. `drive_base` commands signed wheel duty and
-steering-servo offset for at most two seconds. The adapter requires fresh
-`single_steer_v1` telemetry and human supervision; incompatible firmware is
-blocked. Arm/winch tools also require explicitly reported hardware capabilities.
-The supplied steering firmware does not enable them.
+- `sh drive.sh` runs `robot/scripts/drive.py` (keyboard, calibration, local and cloud motion
+  links) and the laptop Codex worker (`be/src/htn_backend/agent/worker.py`).
+- With a motion link the agent gets the embodied tool set (`look`, `scan`, `go_to`, `approach`,
+  `path`, `room_map`, `recall`, `stop`); without one it gets the read-only room tools only.
+- Every move checks one gate (`agent/motion/skills.py`): link up, telemetry fresh, firmware
+  `bts7960_diff_v2`, no E-STOP, supervised, and no human at the keys. Host commands expire
+  after 250 ms and firmware commands after 300 ms.
 
-`robot/steering` builds the stopped-by-default ESP32-S3 serial controller using the
-confirmed GPIO wiring. A loopback serial/WebSocket bridge connects it to the
-laptop agent. Read `robot/steering/bench.md` before opening the serial port: the
-old one-shot test sketch can move on reset. No physical board was flashed by this
-implementation. Active host commands expire after 250 ms even if the background
-heartbeat remains alive; firmware commands expire after 300 ms. A missing stop
-report cannot produce a completed motion result.
-
-The badge can hold that supervision instead of the `--supervise` flag: the bridge's
-token-guarded badge endpoint turns the badge's AUTO heartbeat into firmware supervision
-and forwards its E-STOP, and never forwards badge motion (see `robot/steering/bench.md`).
-
-These are supervised actuator commands, not calibrated navigation. Raw encoder
-counts and commanded servo offsets do not establish meters, chassis yaw, contact
-clearance or physical task success. Server `navigate`/`pick`/`place` remain blocked
-for physical execution. The historical simulator's powered steering wheel and
-ball casters differ from the photographed hardware; its delivery scores are not
-validation of this chassis. Updating that model requires measured geometry and
-steering/rolling calibration.
+Moves are measured by the phone's visual-inertial pose, not wheel encoders; distances are
+estimates. Server `navigate`/`pick`/`place` remain blocked for physical execution. The
+simulator's chassis differs from this hardware; its scores are not validation of it.
 
 ## Reference architecture
 

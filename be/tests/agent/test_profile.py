@@ -31,9 +31,12 @@ def test_official_runtime_prompt_and_tool_surface(tmp_path):
     class RoomTools:
         def call(self, name, arguments):
             calls.append((name, arguments))
-            return {"success": True, "contentItems": [
-                {"type": "inputText", "text": "scene-contract-ok"},
-            ]}
+            return {
+                "success": True,
+                "contentItems": [
+                    {"type": "inputText", "text": "scene-contract-ok"},
+                ],
+            }
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -44,23 +47,37 @@ def test_official_runtime_prompt_and_tool_surface(tmp_path):
             requests.append(json.loads(body))
             events = [
                 {"type": "response.created", "response": {"id": "test-response"}},
-                {"type": "response.completed", "response": {
-                    "id": "test-response", "usage": {
-                        "input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                {
+                    "type": "response.completed",
+                    "response": {
+                        "id": "test-response",
+                        "usage": {
+                            "input_tokens": 0,
+                            "output_tokens": 0,
+                            "total_tokens": 0,
+                        },
                     },
-                }},
+                },
             ]
             if len(requests) == 1:
-                events.insert(1, {"type": "response.output_item.done", "item": {
-                    "type": "custom_tool_call", "call_id": "room-check",
-                    "namespace": "functions", "name": "exec",
-                    "input": (
-                        "if (typeof tools.exec_command !== 'undefined' || "
-                        "typeof tools.apply_patch !== 'undefined') "
-                        "throw new Error('Unexpected coding capability');"
-                        "text(await tools.read_scene({}));"
-                    ),
-                }})
+                events.insert(
+                    1,
+                    {
+                        "type": "response.output_item.done",
+                        "item": {
+                            "type": "custom_tool_call",
+                            "call_id": "room-check",
+                            "namespace": "functions",
+                            "name": "exec",
+                            "input": (
+                                "if (typeof tools.exec_command !== 'undefined' || "
+                                "typeof tools.apply_patch !== 'undefined') "
+                                "throw new Error('Unexpected coding capability');"
+                                "text(await tools.read_scene({}));"
+                            ),
+                        },
+                    },
+                )
             payload = "".join(f"data: {json.dumps(event)}\n\n" for event in events).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -80,16 +97,21 @@ def test_official_runtime_prompt_and_tool_surface(tmp_path):
                 "config/read", {"cwd": str(tmp_path), "includeLayers": False}
             )
             params = thread_params(tmp_path, definitions(), inherited["config"])
-            params["config"].update({
-                "model_provider": "robot-test",
-                "model_providers": {"robot-test": {
-                    "name": "Local robot contract test",
-                    "base_url": f"http://127.0.0.1:{http.server_port}/v1",
-                    "wire_api": "responses", "requires_openai_auth": False,
-                    "supports_websockets": False,
-                }},
-                "features.enable_request_compression": False,
-            })
+            params["config"].update(
+                {
+                    "model_provider": "robot-test",
+                    "model_providers": {
+                        "robot-test": {
+                            "name": "Local robot contract test",
+                            "base_url": f"http://127.0.0.1:{http.server_port}/v1",
+                            "wire_api": "responses",
+                            "requires_openai_auth": False,
+                            "supports_websockets": False,
+                        }
+                    },
+                    "features.enable_request_compression": False,
+                }
+            )
             params["modelProvider"] = "robot-test"
             result = await server.request("thread/start", params)
             assert result["model"] == MODEL
@@ -109,9 +131,7 @@ def test_official_runtime_prompt_and_tool_surface(tmp_path):
     assert "scene-contract-ok" in json.dumps(requests[-1])
     request = requests[0]
     messages = [
-        content.get("text", "")
-        for item in request["input"]
-        for content in item.get("content", [])
+        content.get("text", "") for item in request["input"] for content in item.get("content", [])
     ]
     assert BASE_INSTRUCTIONS in messages or request.get("instructions") == BASE_INSTRUCTIONS
     context = "\n".join(messages)
@@ -120,7 +140,9 @@ def test_official_runtime_prompt_and_tool_surface(tmp_path):
     assert "You are a coding agent" not in context
 
     specs = request.get("tools", []) + [
-        tool for item in request["input"] if item.get("type") == "additional_tools"
+        tool
+        for item in request["input"]
+        if item.get("type") == "additional_tools"
         for tool in item["tools"]
     ]
     leaves = [leaf for spec in specs for leaf in spec.get("tools", [spec])]

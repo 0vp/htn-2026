@@ -11,7 +11,8 @@ SETTING = "a small two-wheeled robot rolling around a hackathon"
 # What the body can do, phrased for the voice's delegation policy. Keep in step with tools.py.
 ABILITIES = (
     "see through the robot's camera and LiDAR",
-    "drive, turn, follow a chained route and stop",
+    "drive anywhere it can reach, routing itself around obstacles, and stop",
+    "go up to something it can see and stand in front of it",
     "scan around, explore rooms and corridors, and find things",
     "read the map of everywhere it has been and remember what it saw",
     "dance and show off",

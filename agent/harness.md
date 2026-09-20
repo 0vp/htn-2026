@@ -19,8 +19,8 @@ cannot stutter or strand a move.
 
 ### 2. Every action returns a fresh observation
 
-The act-observe loop is taken from coding agents. All moving and sensing tools (`look`, `turn`,
-`forward`, `path`, `scan`, `stop`) return a fresh camera frame, a robot-centred LiDAR floor map
+The act-observe loop is taken from coding agents. All moving and sensing tools (`look`, `scan`,
+`go_to`, `approach`, `path`, `stop`) return a fresh camera frame, a robot-centred LiDAR floor map
 and the clear distance ahead, left and right. Results report what was measured and why a move
 stopped. When a tool fails, the error tells the model what to do next instead of ending the turn.
 
@@ -44,7 +44,7 @@ rates settled at about 49°/s turning and 0.33 m/s driving.
 
 ### 5. A LiDAR safety reflex that lets the agent be bold
 
-`forward` shortens itself before anything LiDAR sees and stops if the lane closes, so the prompt
+Every straight leg shortens itself before anything LiDAR sees and stops if the lane closes, so the prompt
 can tell the model to plan boldly. LiDAR does not reliably see glass or drop-offs, and the
 prompt says so. A human at the laptop can always override with the keyboard.
 
