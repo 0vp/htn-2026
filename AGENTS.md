@@ -12,4 +12,4 @@
 - Make focused local commits only. Do not push unless explicitly requested.
 
 - Before changing robot hardware, transport or calibration, read
-  `robot/reference/base-bringup.md`; preserve measured facts versus hypotheses.
+  `robot/README.md`; preserve measured facts versus hypotheses.
