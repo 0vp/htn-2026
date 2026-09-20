@@ -50,11 +50,15 @@ void wheelsPanel(LGFX_Sprite &g, int x, int w, const UiModel &m) {
     snprintf(text, sizeof text, "%+.2f", duties[i]);
     label(g, text, cx + 8, TOP + 90, INK, Align::Centre);
   }
-  // drive.py's own arrow keys outrank the badge, so say plainly who has the wheel.
+  // drive.py's own arrow keys outrank the badge, so say plainly who has the wheel. It also
+  // reports "serial lost" while the base is unplugged and it is redialling the port.
   const bool ours = strcmp(m.robot.source, "app") == 0;
-  label(g, "OBEYING", x + 88, TOP + 24, INK_60);
-  const char *who = strcmp(m.robot.source, "keyboard") == 0 ? "LAPTOP" : (ours ? "BADGE" : "IDLE");
-  pixel(g, who, x + 88, TOP + 38, 2, ours ? BLUE : INK_60);
+  const bool offline = strncmp(m.robot.source, "serial", 6) == 0;
+  label(g, offline ? "BASE" : "OBEYING", x + 88, TOP + 24, INK_60);
+  const char *who = offline ? "NO SERIAL"
+                            : (strcmp(m.robot.source, "keyboard") == 0 ? "LAPTOP"
+                                                                       : (ours ? "BADGE" : "IDLE"));
+  pixel(g, who, x + 88, TOP + 38, offline ? 1 : 2, offline ? SIGNAL : (ours ? BLUE : INK_60));
   snprintf(text, sizeof text, "TRIM %.2f/%.2f", m.robot.trimLeft, m.robot.trimRight);
   label(g, text, x + 88, TOP + 66, INK_35);
   if (m.robot.estop) label(g, "BASE E-STOP", x + 88, TOP + 84, SIGNAL);

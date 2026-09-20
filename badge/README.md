@@ -67,14 +67,13 @@ Three consequences worth knowing:
 
 - **The laptop's arrow keys always win.** `drive.py` prefers the keyboard over any app client, so
   a hand on the laptop overrides the badge without disconnecting it.
-- **`drive.py` accepts one app client at a time**, so the badge and the iOS app/dashboard cannot
+- **`drive.py` accepts one local client at a time**, so the badge and the iOS app/dashboard cannot
   both be connected to `:8793`. The cloud relay is a separate socket, so the cloud agent still gets
   through.
-- **AUTO goes silent on purpose.** The cloud agent's commands land in the same slot inside
-  `drive.py`, so a badge that kept sending `armed:false` would zero them 20 times a second. In AUTO
-  the badge transmits nothing until it intervenes, and a change of arm or E-STOP state is always
-  flushed so a stop still lands. A badge sitting in DRIVE while disarmed *does* hold the base
-  stopped — press HOME to hand the base to the agent.
+- **AUTO goes silent on purpose.** `drive.py` keeps one command per connection and obeys the first
+  that is still within its 500 ms lease, so a badge that kept transmitting while supervising would
+  be racing the cloud agent for the base. In AUTO the badge sends nothing until it intervenes, and
+  a change of arm or E-STOP state is always flushed so a stop still lands.
 
 If the link drops, the badge stops transmitting and `drive.py`'s 500 ms lease plus the base
 firmware's 300 ms watchdog stop the motors.

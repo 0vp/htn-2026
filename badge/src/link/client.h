@@ -11,7 +11,7 @@ struct Settings;
  * The badge owns no motors: it is the same kind of client the iOS app is, so the D-pad and the
  * laptop's arrow keys reach the base through one path. Packets go out at 20 Hz because drive.py
  * drops an app command after 0.5 s, and drive.py's keyboard always outranks us. drive.py accepts
- * one app client at a time, so the dashboard cannot be connected at the same time.
+ * one local client at a time, so the dashboard cannot be connected to the same socket.
  */
 namespace robotlink {
 
@@ -43,9 +43,11 @@ int wifiRssi();
 bool linked();
 
 /**
- * Publishes the operator's intent for the next packets. `silent` withholds them entirely, which
- * is how AUTO lets the cloud agent's own commands through drive.py untouched; a change of
- * `armed`, `estop` or `silent` is still flushed so a stop always lands.
+ * Publishes the operator's intent for the next packets. `silent` withholds them entirely, so a
+ * badge supervising in AUTO never competes with the cloud agent: drive.py keeps one command per
+ * connection and obeys the first that is still live, so an idle badge that kept transmitting
+ * could win that race. A change of `armed`, `estop` or `silent` is still flushed, so a stop
+ * always lands.
  */
 void command(bool armed, bool estop, float linear, float angular, bool silent);
 
