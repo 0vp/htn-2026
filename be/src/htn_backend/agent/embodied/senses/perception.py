@@ -147,6 +147,11 @@ def _draw(floor: np.ndarray, obstacles: np.ndarray) -> bytes:
     draw.polygon(
         [(middle, base - 14), (middle - 9, base + 8), (middle + 9, base + 8)], fill=(255, 210, 0)
     )
+    draw.line([middle, base - 14, middle, base - 60], fill=(255, 210, 0), width=2)
+    draw.polygon(
+        [(middle, base - 72), (middle - 6, base - 58), (middle + 6, base - 58)], fill=(255, 210, 0)
+    )
+    draw.text((middle + 10, base - 72), "you face this way", fill=(255, 210, 0))
     buffer = io.BytesIO()
     image.save(buffer, format="PNG", optimize=True)
     return buffer.getvalue()

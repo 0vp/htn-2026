@@ -18,6 +18,7 @@ from ..motion.link import RobotLink
 from .navigator import Navigator
 from .planner import draw as draw_route
 from .senses.perception import Sense, Senses, data_url
+from .senses.places import survey
 from .senses.watcher import Watcher, first_sighting
 from .senses.worldmap import render
 
@@ -63,6 +64,12 @@ class Path(Empty):
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
+class Surroundings(Empty):
+    query: str | None = Field(
+        default=None, max_length=60, description="Building name or code to look for, e.g. 'E6'"
+    )
+
+
 class Recall(Empty):
     query: str = Field(min_length=1, max_length=120)
 
@@ -105,6 +112,14 @@ TOOLS = {
         "free floor, walls, labelled known objects with distance and the turn needed to face "
         "them, and you (yellow dot, line = facing). Use it to choose unexplored (grey) regions or "
         "to route to a remembered object. It is memory, not live: trust move results up close.",
+    ),
+    "surroundings": (
+        Surroundings,
+        "Outdoor-scale map from the phone's GPS and compass plus OpenStreetMap: named buildings "
+        "and their entrances within 400 m, each with distance, compass direction and the turn "
+        "needed to face it, and which way you face. Use it for any destination outside the "
+        "current room ('go to E6'): it tells you which way to head and which exit to look for. "
+        "Rough indoors (10-30 m, ~10 degrees): pick a direction with it, then navigate by sight.",
     ),
     "recall": (
         Recall,
@@ -308,6 +323,13 @@ class EmbodiedTools:
             return [self.text("The server has not built a map yet. Explore with scan and forward.")]
         return [self.text(drawn[1]), data_url(drawn[0], "png")]
 
+    def _surroundings(self, args):
+        sense = self.senses.read(render=False)
+        summary, picture = survey(self.client, self.prefix, sense, args.query)
+        if picture is None:
+            return [self.text(dict(surroundings=summary))]
+        return [self.text(summary), data_url(picture, "png")]
+
     def _recall(self, args):
         response = self.client.get(self.prefix + "/scene/search", params={"q": args.query})
         response.raise_for_status()
@@ -315,4 +337,6 @@ class EmbodiedTools:
 
     def _stop(self, _):
         self.navigator.stop()
-        return self.observation(self.senses.read(), dict(stopped=True))
+        return [
+            self.text(dict(stopped=True, note="Wheels released. Call look if you need a view."))
+        ]

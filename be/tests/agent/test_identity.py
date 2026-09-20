@@ -14,6 +14,16 @@ def test_both_prompts_share_name_character_and_language():
 
 
 def test_agent_prompt_only_names_tools_that_exist():
-    assert set(TOOLS) == {"look", "go_to", "approach", "path", "scan", "room_map", "recall", "stop"}
+    assert set(TOOLS) == {
+        "look",
+        "go_to",
+        "approach",
+        "path",
+        "scan",
+        "room_map",
+        "surroundings",
+        "recall",
+        "stop",
+    }
     for name in TOOLS:
         assert name in TOOLS and name in INSTRUCTIONS

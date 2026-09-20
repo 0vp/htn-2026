@@ -101,9 +101,11 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
                 running.cancel()
                 await asyncio.gather(running, return_exceptions=True)
                 job["prompt"] = (
-                    "(You were interrupted mid-task by this new request. Wheels are stopped. "
-                    "Decide whether it replaces, changes or cancels what you were doing.)\n"
-                    + job["prompt"]
+                    "(New speech arrived while you were working, so your move was paused; wheels "
+                    "are stopped. If it is a new instruction, a correction or 'stop', follow it. "
+                    "If it is a comment, a question, unclear, or not meant for you, answer in one "
+                    "short `say` and RESUME the task you were doing by calling the next tool now; "
+                    "do not drop the task to ask what they meant.)\n" + job["prompt"]
                 )
             session = sessions.get(job["room_id"])
             if session is None:

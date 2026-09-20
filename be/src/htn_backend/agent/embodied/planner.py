@@ -180,6 +180,9 @@ def draw(grid: Grid, position, heading_deg, waypoints, span_m=8.0) -> bytes:
     cv2.circle(image, points[0], int(ROBOT_RADIUS_M / CELL_M * 5), (255, 210, 0), 2)
     theta = math.radians(heading_deg)
     tip = (int(points[0][0] - math.sin(theta) * 30), int(points[0][1] - math.cos(theta) * 30))
-    cv2.line(image, points[0], tip, (255, 210, 0), 2)
+    cv2.arrowedLine(image, points[0], tip, (255, 210, 0), 2, tipLength=0.35)
+    cv2.putText(
+        image, "facing", (tip[0] + 4, tip[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 210, 0), 1
+    )
     ok, encoded = cv2.imencode(".png", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     return encoded.tobytes()

@@ -9,6 +9,7 @@ corrective turn. Forward moves still poll LiDAR and stop if the lane closes.
 
 import json
 import math
+import threading
 import time
 from pathlib import Path
 
@@ -19,14 +20,14 @@ from .senses.perception import Sense, Senses, wait_fresh
 
 TURN_LEVEL, DRIVE_LEVEL = 0.3, 0.3
 # Starting rates at these levels; every measured move refines them (robot/scripts/rates.json).
-DEFAULT_RATES = {"turn": 48.0, "forward": 0.35}  # deg/s, m/s
-RATE_LIMITS = {"turn": (15.0, 150.0), "forward": (0.08, 1.2)}
+DEFAULT_RATES = {"turn": 48.0, "forward": 0.33}  # deg/s, m/s
+RATE_LIMITS = {"turn": (32.0, 75.0), "forward": (0.22, 0.55)}  # Around the floor calibration.
+LEARN_FROM = {"turn": 30.0, "forward": 0.5}  # Short moves are mostly ramp: do not learn from them.
 RATES_FILE = Path(__file__).resolve().parents[5] / "robot/scripts/rates.json"
 DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
 STOP_MARGIN_M = 0.65  # From the phone at the centre: leaves ~0.25 m between hull and obstacle.
 LEG_M = 2.0  # Re-sense and re-plan at least this often while following a route.
 ARRIVE_M = 0.35
-POLL_S = 0.3
 MAX_TURN_DEG, MAX_FORWARD_M = 180.0, 3.0
 
 
@@ -41,7 +42,10 @@ class Navigator:
         self.last_position = None
         self.rates = dict(DEFAULT_RATES)
         if RATES_FILE.exists():
-            self.rates.update(json.loads(RATES_FILE.read_text()))
+            saved = json.loads(RATES_FILE.read_text())
+            for kind, (low, high) in RATE_LIMITS.items():
+                if low <= saved.get(kind, 0) <= high:  # Ignore a file poisoned by bad runs.
+                    self.rates[kind] = saved[kind]
 
     def blockers(self) -> list[str]:
         return self.motion.blockers()
@@ -52,6 +56,15 @@ class Navigator:
     def turn(self, degrees: float) -> dict:
         degrees = max(-MAX_TURN_DEG, min(MAX_TURN_DEG, degrees))
         sign = 1.0 if degrees > 0 else -1.0
+        if abs(degrees) > 100:  # Two halves: a single long timed turn is where errors grow.
+            first = self.turn(degrees / 2)
+            if not first.get("moved") or first.get("stopped_by"):
+                return first
+            second = self.turn(degrees / 2)
+            if first.get("measured") is not None and second.get("measured") is not None:
+                second["measured"] = round(first["measured"] + second["measured"], 1)
+            second["requested"] = round(abs(degrees), 1)
+            return second
         result = self._turn_once(degrees)
         error = result.pop("needs", 0.0)  # Degrees still missing (+) or overshot (-).
         if abs(error) > 15:  # One corrective turn; the rate model has just been updated.
@@ -103,10 +116,17 @@ class Navigator:
         origin = self.senses.pose_only()
         tracked = bool(origin and origin[2] < 2.5 and origin[3] != "unavailable")
         duration = DEAD_TIME_S + target / self.rates[kind]
-        started, polled, stopped_by = time.monotonic(), time.monotonic(), None
+        started, stopped_by = time.monotonic(), None
+        # LiDAR is watched from a second thread: a frame download takes ~0.5 s, and doing it in
+        # the command loop let the 0.25 s command lease lapse, so moves stuttered and measured
+        # short, which then taught the rate model that the robot was slow.
+        blocked, moving = [], threading.Event()
+        moving.set()
+        if guard and tracked:
+            threading.Thread(target=self._guard, args=(moving, blocked), daemon=True).start()
         self.link.set_command(command)
         try:
-            while (now := time.monotonic()) - started < duration:
+            while time.monotonic() - started < duration:
                 time.sleep(0.04)
                 self.link.set_command(command)  # Renew the lease: one unbroken motion.
                 telemetry, age = self.link.telemetry()
@@ -116,26 +136,19 @@ class Navigator:
                         "; ".join(self.motion._blockers(telemetry, age)) or "human took over"
                     )
                     break
-                if guard and tracked and now - polled >= POLL_S:
-                    polled = now
-                    pose = self.senses.read(render=False)
-                    if (
-                        pose
-                        and pose.clear_ahead_m is not None
-                        and pose.clear_ahead_m < STOP_MARGIN_M
-                    ):
-                        stopped_by = f"obstacle {pose.clear_ahead_m:.2f} m ahead"
-                        break
+                if blocked:
+                    stopped_by = blocked[0]
+                    break
         finally:
+            moving.clear()
             self.link.release()
         ran = time.monotonic() - started
-        measured = None
-        if tracked:
-            time.sleep(0.6)  # Let the base settle and a post-move frame arrive.
-            final = self.senses.pose_only()
-            if final and final[2] < 2.5:
-                measured = measure(origin, final[:2])
-        if measured is not None and measured > 0.15 * target and ran > DEAD_TIME_S + 0.2:
+        final = self._settled_pose() if tracked else None
+        measured = measure(origin, final[:2]) if final else None
+        if measured is not None and kind == "turn" and measured < -20:
+            measured += 360.0  # Overshot past half a circle: the angle wrapped around.
+        clean = measured is not None and not stopped_by and target >= LEARN_FROM[kind]
+        if clean and 0.4 <= measured / target <= 2.5 and ran > DEAD_TIME_S + 0.3:
             self._learn(kind, measured / (ran - DEAD_TIME_S))
         result = dict(
             moved=True,
@@ -152,9 +165,38 @@ class Navigator:
             result["needs"] = target - measured
         return result
 
+    def _guard(self, moving, blocked) -> None:
+        while moving.is_set():
+            pose = self.senses.read(render=False)
+            if pose and pose.fresh and pose.clear_ahead_m is not None:
+                if pose.clear_ahead_m < STOP_MARGIN_M:
+                    blocked.append(f"obstacle {pose.clear_ahead_m:.2f} m ahead")
+                    return
+            time.sleep(0.1)
+
+    def _settled_pose(self):
+        """The pose once the base has really stopped: two fresh frames that agree.
+
+        A frame from before the stop under-measures the move, and under-measuring is what made
+        the rate model run away, so wait (up to ~3 s) rather than trust the first frame.
+        """
+        time.sleep(0.5)
+        previous, deadline = None, time.monotonic() + 3.0
+        while time.monotonic() < deadline:
+            pose = self.senses.pose_only()
+            if pose and pose[2] < 1.5:
+                still = previous and abs(wrap(pose[0] - previous[0])) < 1.0
+                if still and math.dist(pose[1], previous[1]) < 0.03:
+                    return pose
+                previous = pose
+            time.sleep(0.2)
+        return previous
+
     def _learn(self, kind: str, rate: float) -> None:
+        """Nudge the rate toward a clean measurement; never far from the floor calibration."""
         low, high = RATE_LIMITS[kind]
-        self.rates[kind] = 0.5 * self.rates[kind] + 0.5 * max(low, min(high, rate))
+        rate = max(low, min(high, rate))
+        self.rates[kind] = round(0.7 * self.rates[kind] + 0.3 * rate, 3)
         RATES_FILE.write_text(json.dumps(self.rates, indent=2) + "\n")
 
     def remember(self, sense: Sense | None) -> None:
@@ -169,7 +211,7 @@ class Navigator:
 
     def go_to(self, target: tuple[float, float], spotted=None) -> dict:
         """Drive to a world point around obstacles: plan, drive one leg, look, re-plan."""
-        legs, travelled, reason, waypoints = [], 0.0, None, []
+        legs, travelled, reason, waypoints, spins = [], 0.0, None, [], 0
         sense = self.senses.read(render=False)
         for _ in range(40):
             if sense is None or not sense.fresh:
@@ -192,16 +234,24 @@ class Navigator:
             dx, dz = nxt[0] - sense.position[0], nxt[1] - sense.position[1]
             bearing = math.degrees(math.atan2(-dx, -dz))
             swing = wrap(bearing - sense.heading_deg)
-            if abs(swing) > 6:
+            if abs(swing) > 12:
                 turned = self.turn(swing)
                 if not turned.get("moved"):
                     reason = turned.get("stopped_by")
                     break
                 sense = self.senses.read(render=False)  # LiDAR now faces the leg: check it.
+                if sense is None or not sense.fresh:
+                    continue
                 self.remember(sense)
-                check, _ = planner.plan(self.grid, sense.position, target) if sense else (None, 0)
-                if check is None or len(check) < 2 or math.dist(check[1], nxt) > 0.5:
-                    continue  # The turn revealed something: plan again before driving.
+                lane = sense.clear_ahead_m if sense.clear_ahead_m is not None else 4.0
+                if lane < STOP_MARGIN_M + 0.3:
+                    # Facing something solid: re-plan, but never spin on the spot for long.
+                    spins += 1
+                    if spins >= 3:
+                        reason = "kept facing obstacles here; no clear lane toward the goal"
+                        break
+                    continue
+            spins = 0
             leg = min(math.hypot(dx, dz), LEG_M)
             moved = self.forward(leg, sense)
             legs.append(dict(turn=round(swing), forward=moved.get("measured") or round(leg, 2)))

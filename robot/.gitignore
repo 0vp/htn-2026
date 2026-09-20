@@ -3,3 +3,4 @@ __pycache__/
 .robot_token
 agent.log
 rates.json
+.places_cache.json
