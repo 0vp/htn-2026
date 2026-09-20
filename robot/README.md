@@ -60,9 +60,8 @@ uvx --from platformio pio run -t upload --upload-port /dev/cu.usbserial-10
 
 | Script | Purpose |
 |---|---|
-| `calibrate.py PORT` | Floor calibration using the laptop camera as a visual gyro. Writes `calibration.json`. |
-| `teleop.py PORT` | Arrow-key driving (hold to move, space stop, q quit). |
-| `agent_bridge.py PORT` | WebSocket `ws://127.0.0.1:8793` for the agent app; protocol in its docstring. |
+| `calibrate.py PORT` | Floor calibration (`--signs`, `--mins` skip steps already known) using the laptop camera as a visual gyro. Writes `calibration.json`. |
+| `drive.py PORT` | One app: arrow-key driving plus the WebSocket (`ws://…:8793`) for the iOS/agent app. Keyboard wins; `[` `]` trim live and save. Protocol in its docstring. |
 | `base.py` | Shared serial link; applies calibration (sign, swap, per-wheel minimum duty and gain). |
 | `sense.py` | Camera yaw estimator. |
 
@@ -70,6 +69,14 @@ The MacBook's accelerometer/gyro is not readable without root on macOS, so calib
 camera: yaw from horizontal image shift, forward/back from image scale change. It yields wheel
 direction, minimum moving duty, left/right trim and spin rate in deg/s. It does **not** yield
 metric speed; measure distance with a tape if that is needed.
+
+## Calibration status (2026-09-19)
+
+Provisional, in `scripts/calibration.json`: both signs +1 (lifted-wheel check), minimum duty
+left 0.20 / right 0.30 (floor pulses; right side was slipping and the rear casters dragged).
+Left/right trim is **not** measured: camera yaw during straight runs was swamped by a
+translation artifact (about -13 deg regardless of gain), so `calibrate.py` step 2 is not
+trustworthy yet. Tune trim by eye with `[` `]` in `drive.py`, or rerun after fixing the casters.
 
 ## Measured vs assumed
 

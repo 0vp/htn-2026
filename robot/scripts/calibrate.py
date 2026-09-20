@@ -14,7 +14,7 @@ import time
 from base import CALIBRATION, DEFAULTS, Base
 from sense import VisualGyro, settle
 
-YAW_MOVED_DEG = 1.0
+YAW_MOVED_DEG = 1.5
 
 
 def pulse(base, gyro, left, right, seconds, undo=True):
@@ -50,6 +50,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("port")
     parser.add_argument("--camera-faces", choices=("rear", "front"), default="rear")
+    parser.add_argument(
+        "--signs", help="Known forward polarity 'L,R' (e.g. 1,1 from a lifted-wheel check)"
+    )
+    parser.add_argument("--mins", help="Skip step 1 and use these minimum moving duties 'L,R'")
     parser.add_argument("--top", type=float, default=0.45, help="Highest raw duty to try")
     parser.add_argument("--level", type=float, default=0.35, help="0..1 level for trim/spin runs")
     parser.add_argument("--seconds", type=float, default=0.8)
@@ -59,10 +63,14 @@ def main():
     try:
         with Base(args.port, raw=True) as base:
             print("1/3 minimum moving duty and direction per wheel")
-            for side in ("left", "right"):
+            for side in () if args.mins else ("left", "right"):
                 cal[f"{side}_min"], cal[f"{side}_sign"] = find_minimum(
                     base, gyro, side, args.top, args.seconds
                 )
+            if args.mins:
+                cal["left_min"], cal["right_min"] = (float(v) + 0.03 for v in args.mins.split(","))
+            if args.signs:
+                cal["left_sign"], cal["right_sign"] = (int(v) for v in args.signs.split(","))
             # Margin under the measured minimum so level 0+ starts just below motion.
             for side in ("left", "right"):
                 cal[f"{side}_min"] = round(max(cal[f"{side}_min"] - 0.03, 0.0), 3)
