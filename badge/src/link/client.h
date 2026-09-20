@@ -5,8 +5,12 @@
 struct Settings;
 
 /**
- * Wi-Fi station and the control client that dials the laptop running robot/scripts/drive.py
- * (`ws://<laptop-ip>:8793/?token=...`, started with `--host 0.0.0.0 --token ...`).
+ * The control client that reaches the laptop running robot/scripts/drive.py, over either
+ * transport (`link usb` / `link wifi` on the console):
+ *
+ *   USB   the same JSON packets as lines on this console, read by `drive.py --badge <port>`.
+ *         Nothing wireless is involved, so the radio stays off.
+ *   Wi-Fi dials `ws://<laptop-ip>:8793/?token=...` (drive.py started `--host 0.0.0.0 --token ...`).
  *
  * The badge owns no motors: it is the same kind of client the iOS app is, so the D-pad and the
  * laptop's arrow keys reach the base through one path. Packets go out at 20 Hz because drive.py
@@ -52,5 +56,8 @@ void command(bool armed, bool estop, float linear, float angular);
 const Telemetry &telemetry();
 /** Milliseconds since the last telemetry frame, or UINT32_MAX if none has arrived. */
 uint32_t telemetrySilenceMs();
+
+/** Hands a `{...}` console line to the USB transport; the console owns the serial reader. */
+void feedTelemetry(const String &line);
 
 }  // namespace robotlink

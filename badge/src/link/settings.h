@@ -12,6 +12,8 @@ struct Settings {
   String url;
   /** Shared secret drive.py was started with (--token); appended to `url` when dialling. */
   String token;
+  /** Drive over the USB cable (`drive.py --badge <port>`) instead of Wi-Fi; radio stays off. */
+  bool usb = false;
   bool invertLcd = true;
   /** Rotates the landscape screen 180 degrees. */
   bool flipLcd = false;
@@ -25,8 +27,10 @@ void load();
 void save();
 
 /**
- * USB serial console. Commands: help, status, wifi, url, token, lcd, datapin, map, polarity,
- * buttons, reboot. Returns true when the Wi-Fi, URL or token settings changed.
+ * USB serial console. Commands: help, status, link, wifi, url, token, lcd, datapin, map,
+ * polarity, buttons, reboot. A line starting with `{` is drive.py telemetry on the USB
+ * transport, not a command, and goes straight to robotlink::feedTelemetry().
+ * Returns true when the transport, Wi-Fi, URL or token settings changed.
  */
 bool pollConsole();
 

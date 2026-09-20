@@ -77,7 +77,7 @@ void loop() {
                         &input,
                         robotlink::statusText(),
                         robotlink::linked(),
-                        cfg.ssid.length() > 0 && cfg.url.length() > 0,
+                        cfg.usb || (cfg.ssid.length() > 0 && cfg.url.length() > 0),
                         robotlink::wifiRssi(),
                         robotlink::telemetry()};
     ui::render(model);

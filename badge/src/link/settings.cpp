@@ -36,6 +36,7 @@ void printStatus() {
   const ButtonMap &m = current.buttons;
   Serial.printf("wifi ssid: %s (%s)\n", current.ssid.length() ? current.ssid.c_str() : "<unset>",
                 current.password.length() ? "password set" : "open");
+  Serial.printf("transport: %s\n", current.usb ? "usb cable" : "wifi");
   Serial.printf("drive.py url: %s\n", current.url.length() ? current.url.c_str() : "<unset>");
   Serial.printf("token: %s\n", current.token.length() ? "set" : "<unset>");
   Serial.printf("wifi status code: %d\n", WiFi.status());
@@ -52,6 +53,7 @@ void printHelp() {
   Serial.println(
       "commands:\n"
       "  status                      show settings and link state\n"
+      "  link usb|wifi               drive over this cable (drive.py --badge) or over Wi-Fi\n"
       "  wifi <ssid> [password]      join a network (quote SSIDs with spaces)\n"
       "  scan                        list 2.4 GHz networks the badge can see\n"
       "  url ws://<ip>:8793/         where drive.py listens (--host 0.0.0.0)\n"
@@ -73,6 +75,17 @@ bool handle(String cmdLine) {
     printHelp();
   } else if (cmd == "status") {
     printStatus();
+  } else if (cmd == "link") {
+    const String what = nextToken(cmdLine);
+    if (what != "usb" && what != "wifi") {
+      Serial.println("link usb | link wifi");
+      return false;
+    }
+    current.usb = what == "usb";
+    settings::save();
+    Serial.println(current.usb ? "driving over usb; run: drive.py --badge <this port>"
+                               : "driving over wifi");
+    return true;
   } else if (cmd == "wifi") {
     current.ssid = nextToken(cmdLine);
     current.password = nextToken(cmdLine);
@@ -163,6 +176,7 @@ void load() {
   current.password = prefs.getString("pass", "");
   current.url = prefs.getString("url", "");
   current.token = prefs.getString("token", "");
+  current.usb = prefs.getBool("usb", false);
   current.invertLcd = prefs.getBool("invert", true);
   current.flipLcd = prefs.getBool("flip", false);
   current.buttons = {board::SR_DATA_DEFAULT, {0, 1, 2, 3, 4, 5, 6, 7}, false};
@@ -178,6 +192,7 @@ void save() {
   prefs.putString("pass", current.password);
   prefs.putString("url", current.url);
   prefs.putString("token", current.token);
+  prefs.putBool("usb", current.usb);
   prefs.putBool("invert", current.invertLcd);
   prefs.putBool("flip", current.flipLcd);
   prefs.putInt("data", current.buttons.dataPin);
@@ -191,12 +206,15 @@ bool pollConsole() {
   while (Serial.available()) {
     const char c = Serial.read();
     if (c == '\r' || c == '\n') {
-      if (line.length()) {
+      if (line.startsWith("{")) {
+        // drive.py telemetry on the USB transport; never echoed, it arrives at 20 Hz.
+        robotlink::feedTelemetry(line);
+      } else if (line.length()) {
         Serial.printf("> %s\n", line.c_str());
         changed |= handle(line);
       }
       line = "";
-    } else if (line.length() < 200) {
+    } else if (line.length() < 1024) {  // drive.py's telemetry line is longer than a command.
       line += c;
     }
   }

@@ -3,6 +3,7 @@
   python drive.py /dev/cu.usbserial-10                      # keyboard + ws://127.0.0.1:8793
   python drive.py PORT --host 0.0.0.0 --token SECRET        # let a phone on the LAN connect:
                                                             # ws://<laptop-ip>:8793/?token=SECRET
+  python drive.py PORT --badge /dev/cu.usbmodem1101         # the badge, driving over its USB cable
 By default it also dials out to the cloud backend's relay (token in HTN_ROBOT_TOKEN or
 scripts/.robot_token) so the server-side agent can drive; --no-cloud disables that.
 Keys: arrows drive while held | space stop | [ ] trim left/right (saved) | - = speed | q quit.
@@ -28,6 +29,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
 import websockets
+from badge import Badge
 from base import CALIBRATION, Base
 
 KEY_HOLD_S = 0.6  # Covers the OS delay between the first key press and its repeats.
@@ -73,6 +75,7 @@ class App:
         self.retry_at = 0.0
         self.connected, self.source, self.done = False, "idle", False
         self.cloud = "connecting" if args.cloud_token else "off (no token)"
+        self.badge, self.badge_at = None, 0.0
 
     # --- WebSocket side ---
     def allowed(self, ws):
@@ -133,6 +136,23 @@ class App:
                 self.cloud = f"retrying ({type(error).__name__})"
             self.commands.pop("cloud", None)
             await asyncio.sleep(2)
+
+    # --- Badge side (USB cable) ---
+    def badge_step(self):
+        """Same client contract as a socket, over serial: read its packets, push telemetry back."""
+        if self.badge is None:
+            return
+        if self.badge.lost:
+            self.commands.pop("badge", None)
+            self.badge.close()
+            self.badge = None
+            return
+        for message in self.badge.poll():
+            self.accept(message, "badge")
+        now = time.monotonic()
+        if now - self.badge_at >= 0.05:
+            self.badge_at = now
+            self.badge.send(self.report())
 
     def report(self):
         """Firmware telemetry plus the fields the backend motion skills gate on."""
@@ -206,10 +226,14 @@ class App:
         state, cal = self.base.telemetry or {}, self.base.cal
         where = f"ws://{self.args.host}:{self.args.ws_port}"
         local = "connected" if self.connected else "waiting"
+        if self.args.badge:
+            badge = "connected" if self.badge else "lost"
+        else:
+            badge = "off"
         rows = [
             "arrows drive | space stop | [ ] trim | - = speed | q quit",
             f"source {self.source:8} speed {self.speed:.2f}  app {local} {where}",
-            f"cloud {self.cloud}  {self.args.cloud}",
+            f"cloud {self.cloud}  {self.args.cloud}   badge(usb) {badge}",
             f"trim L{cal['left_gain']:.3f} R{cal['right_gain']:.3f}  motors {state.get('motors')}",
             f"ir {state.get('ir_raw')}  estop {state.get('estop')}",
         ]
@@ -225,6 +249,7 @@ class App:
             cloud = asyncio.create_task(self.cloud_link()) if self.args.cloud_token else None
             while not self.done:
                 self.keys(screen)
+                self.badge_step()
                 self.tick()
                 self.draw(screen)
                 await asyncio.sleep(0.04)
@@ -238,6 +263,7 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--ws-port", type=int, default=8793)
     parser.add_argument("--token", help="Required from app clients as ?token=...")
+    parser.add_argument("--badge", help="Badge's USB port, e.g. /dev/cu.usbmodem1101")
     parser.add_argument("--speed", type=float, default=0.2, help="Keyboard level, 0..1")
     parser.add_argument("--limit", type=float, default=0.6, help="Cap on app wheel commands")
     parser.add_argument("--cloud", default=CLOUD, help="Backend relay base URL")
@@ -252,7 +278,15 @@ def main():
     if args.host != "127.0.0.1" and not args.token:
         parser.error("--token is required when listening beyond loopback")
     with Base(args.port) as base:
-        curses.wrapper(lambda screen: asyncio.run(App(base, args).run(screen)))
+        app = App(base, args)
+        # Open the badge before curses takes the screen, so a bad port is a readable error.
+        if args.badge:
+            app.badge = Badge(args.badge)
+        try:
+            curses.wrapper(lambda screen: asyncio.run(app.run(screen)))
+        finally:
+            if app.badge:
+                app.badge.close()
 
 
 if __name__ == "__main__":

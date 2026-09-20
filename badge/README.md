@@ -1,25 +1,45 @@
 # badge — handheld remote for the robot base
 
 Firmware that turns the Hack the North 2026 hacker badge (ESP32-C3, 2.0" ST7789, D-pad) into a
-wireless remote for the differential base. It drives nothing itself: it dials the laptop running
-`robot/scripts/drive.py` over Wi-Fi and sends the same logical command the laptop's arrow keys
-produce, so the D-pad and the arrow keys reach the base through one code path.
+remote for the differential base. It drives nothing itself: it dials the laptop running
+`robot/scripts/drive.py` and sends the same logical command the laptop's arrow keys produce, so
+the D-pad and the arrow keys reach the base through one code path.
 
 ```text
-badge D-pad ──ws──> drive.py (laptop) ──usb serial──> ESP32-S3 ──> BTS7960 ×2 ──> wheels
-                       ^                                   arrow keys outrank the badge
+badge D-pad ──usb or wifi──> drive.py (laptop) ──usb serial──> ESP32-S3 ──> BTS7960 ×2 ──> wheels
+                                ^                                   arrow keys outrank the badge
 ```
 
-## Run it
+## Run it over the USB cable
 
-Start `drive.py` on the laptop so it listens beyond loopback (it refuses a non-loopback host
-without a token):
+Both boards plug into the laptop: the base shows up as `/dev/cu.usbserial-*` and the badge, which
+has native USB, as `/dev/cu.usbmodem*`. Tell the badge once, on its console, to use the cable:
+
+```text
+link usb
+status
+```
+
+Then start the laptop side, which finds both ports itself:
+
+```sh
+sh drive.sh --badge
+```
+
+The badge writes its 20 Hz command packets as lines on the same console and reads telemetry back
+on it, so no radio is involved and the badge needs no Wi-Fi credentials at all. **Close
+`pio device monitor` first** — only one program can hold the port, and `drive.py` needs it.
+
+## Run it over Wi-Fi
+
+`link wifi` switches back. Start `drive.py` so it listens beyond loopback (it refuses a
+non-loopback host without a token):
 
 ```sh
 sh drive.sh --host 0.0.0.0 --token SECRET
 ```
 
-Then, on the badge's USB serial console at 115200 (`pio device monitor`):
+Then, on the badge's console at 115200 (`pio device monitor`):
 
 ```text
 wifi <ssid> <password>
@@ -28,9 +48,9 @@ token SECRET
 status
 ```
 
-Settings live in NVS and survive reflashing. The token is appended to the URL as `?token=`, so a
-URL that already carries one is left alone. Only `ws://` works — TLS on the C3 is not worth it for
-a link that never leaves the LAN, and `drive.py` serves plain WebSocket.
+Settings live in NVS and survive reflashing, transport included. The token is appended to the URL
+as `?token=`, so a URL that already carries one is left alone. Only `ws://` works — TLS on the C3
+is not worth it for a link that never leaves the LAN, and `drive.py` serves plain WebSocket.
 
 ## Controls
 
@@ -50,7 +70,8 @@ The screen shows the stick, the base's two wheel duties from telemetry, which co
 ## Protocol
 
 The badge is an ordinary `drive.py` app client (`robot/scripts/drive.py` → `wheels()`), sending
-at 20 Hz because `drive.py` drops an app command after 500 ms:
+at 20 Hz because `drive.py` drops an app command after 500 ms. The packet is identical on both
+transports — a WebSocket frame over Wi-Fi, one console line over USB (`robot/scripts/badge.py`):
 
 ```json
 {"type":"command","seq":42,"t":1789000000000,"armed":true,"estop":false,
@@ -76,7 +97,8 @@ Three consequences worth knowing:
   a change of arm or E-STOP state is always flushed so a stop still lands.
 
 If the link drops, the badge stops transmitting and `drive.py`'s 500 ms lease plus the base
-firmware's 300 ms watchdog stop the motors.
+firmware's 300 ms watchdog stop the motors. On USB the badge also treats a second of telemetry
+silence as the link being gone, since an unplugged cable raises no socket error.
 
 ## Build and flash
 

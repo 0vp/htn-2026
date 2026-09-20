@@ -10,6 +10,7 @@
 namespace {
 
 constexpr uint32_t COMMAND_MS = 50;  // 20 Hz; drive.py drops an app command after 500 ms.
+constexpr uint32_t USB_SILENCE_MS = 1000;  // No telemetry for this long means drive.py let go.
 constexpr uint32_t WIFI_RETRY_MS = 5000;
 constexpr uint32_t REDIAL_MS = 2000;
 constexpr uint8_t FLUSH_PACKETS = 5;  // Repeats of an armed/estop change, against loss.
@@ -31,6 +32,7 @@ uint32_t sequence = 0;
 
 String ssid, password, host, path;
 uint16_t port = 8793;
+bool usbMode = false;
 bool wifiStarted = false;
 bool dialled = false;
 bool connected = false;
@@ -40,6 +42,7 @@ uint32_t lastTelemetry = 0;
 
 SemaphoreHandle_t settingsLock = nullptr;
 String pendingSsid, pendingPassword, pendingUrl, pendingToken;
+bool pendingUsb = false;
 bool pendingConfig = false;
 
 /** Splits `ws://host[:port][/path][?query]` and appends `token` when the URL carries none. */
@@ -103,7 +106,7 @@ void onEvent(WStype_t type, uint8_t *payload, size_t length) {
 }
 
 /** drive.py -> wheels(): explicit armed/estop booleans, then linear/angular in -1..1. */
-void sendCommand() {
+String commandPacket() {
   portENTER_CRITICAL(&lock);
   const Intent now = intent;
   if (flush) flush--;
@@ -122,7 +125,30 @@ void sendCommand() {
   }
   String out;
   serializeJson(doc, out);
-  socket.sendTXT(out);
+  return out;
+}
+
+/**
+ * USB transport. The packet goes out as one console line, which `drive.py --badge <port>` reads;
+ * telemetry comes back the same way through feedTelemetry(). One write call per line keeps a
+ * packet from interleaving with whatever the console is printing from the main loop.
+ */
+void usbStep() {
+  const uint32_t now = millis();
+  const bool alive = lastTelemetry && now - lastTelemetry < USB_SILENCE_MS;
+  if (alive && !connected) flush = FLUSH_PACKETS;  // Re-announce arm state to a fresh drive.py.
+  if (connected && !alive) {
+    Serial.println("drive.py stopped reading; it stops the base on its own");
+    portENTER_CRITICAL(&lock);
+    state.valid = false;
+    portEXIT_CRITICAL(&lock);
+  }
+  connected = alive;
+  if (now - lastCommand < COMMAND_MS) return;
+  lastCommand = now;
+  String line = commandPacket();
+  line += '\n';
+  Serial.write(reinterpret_cast<const uint8_t *>(line.c_str()), line.length());
 }
 
 void startWifi() {
@@ -141,8 +167,20 @@ void applyConfig() {
   xSemaphoreTake(settingsLock, portMAX_DELAY);
   const String newSsid = pendingSsid, newPassword = pendingPassword;
   const String url = pendingUrl, token = pendingToken;
+  usbMode = pendingUsb;
   pendingConfig = false;
   xSemaphoreGive(settingsLock);
+
+  if (usbMode) {
+    // Nothing wireless while the cable drives: the radio is both useless and latency for free.
+    if (dialled) socket.disconnect();
+    if (wifiStarted) WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    dialled = wifiStarted = connected = false;
+    ssid = newSsid;
+    password = newPassword;
+    return;
+  }
 
   String newHost, newPath;
   uint16_t newPort = 0;
@@ -167,6 +205,10 @@ void applyConfig() {
 
 void networkStep() {
   if (pendingConfig) applyConfig();
+  if (usbMode) {
+    usbStep();
+    return;
+  }
   if (!wifiStarted) return;
   if (WiFi.status() != WL_CONNECTED) {
     const uint32_t now = millis();
@@ -193,7 +235,8 @@ void networkStep() {
   const uint32_t now = millis();
   if (connected && now - lastCommand >= COMMAND_MS) {
     lastCommand = now;
-    sendCommand();
+    String packet = commandPacket();  // sendTXT takes a mutable reference.
+    socket.sendTXT(packet);
   }
 }
 
@@ -224,11 +267,13 @@ void reconfigure(const Settings &settings) {
   pendingPassword = settings.password;
   pendingUrl = settings.url;
   pendingToken = settings.token;
+  pendingUsb = settings.usb;
   pendingConfig = true;
   xSemaphoreGive(settingsLock);
 }
 
 Status status() {
+  if (usbMode) return connected ? Status::Linked : Status::Dialing;
   if (ssid.isEmpty() || host.isEmpty()) return Status::Unconfigured;
   if (WiFi.status() != WL_CONNECTED) return Status::JoiningWifi;
   return connected ? Status::Linked : Status::Dialing;
@@ -241,14 +286,17 @@ const char *statusText() {
     case Status::JoiningWifi:
       return "joining wifi";
     case Status::Dialing:
-      return "dialling drive.py";
+      return usbMode ? "waiting for drive.py" : "dialling drive.py";
     default:
-      return "linked";
+      return usbMode ? "linked by usb" : "linked";
   }
 }
 
-String localIp() { return WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("-"); }
-int wifiRssi() { return WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0; }
+String localIp() {
+  if (usbMode) return "usb";
+  return WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("-");
+}
+int wifiRssi() { return !usbMode && WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0; }
 bool linked() { return connected; }
 
 void command(bool armed, bool estop, float linear, float angular) {
@@ -264,5 +312,9 @@ void command(bool armed, bool estop, float linear, float angular) {
 const Telemetry &telemetry() { return state; }
 
 uint32_t telemetrySilenceMs() { return lastTelemetry ? millis() - lastTelemetry : UINT32_MAX; }
+
+void feedTelemetry(const String &line) {
+  readTelemetry(reinterpret_cast<const uint8_t *>(line.c_str()), line.length());
+}
 
 }  // namespace robotlink

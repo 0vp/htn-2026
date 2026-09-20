@@ -61,7 +61,7 @@ uvx --from platformio pio run -t upload --upload-port /dev/cu.usbserial-10
 | Script | Purpose |
 |---|---|
 | `calibrate.py PORT` | Floor calibration (`--signs`, `--mins` skip steps already known) using the laptop camera as a visual gyro. Writes `calibration.json`. |
-| `drive.py PORT` | One app: arrow-key driving plus the WebSocket (`ws://…:8793`) for the iOS app, the badge remote (`badge/`) and the agent. Keyboard wins; `[` `]` trim live and save. Protocol in its docstring. |
+| `drive.py PORT` | One app: arrow-key driving plus the WebSocket (`ws://…:8793`) for the iOS app and the agent, and `--badge <usbmodem port>` for the badge remote (`badge/`) over its cable. Keyboard wins; `[` `]` trim live and save. Protocol in its docstring. |
 | `base.py` | Shared serial link; applies calibration (sign, swap, per-wheel minimum duty and gain). |
 | `sense.py` | Camera yaw estimator. |
 
