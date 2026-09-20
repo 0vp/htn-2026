@@ -136,12 +136,7 @@ final class VoiceModel: ObservableObject {
         let transport = peer; peer = nil
         transport?.receive = nil
         phase = .ending
-        do {
-            try await transport?.finish()
-            if let text = transport?.finalizedTranscript {
-                rawUser = String(text.suffix(2000)); userTranscript = Caption.spoken(rawUser)
-            }
-        }
+        do { try await transport?.finish() }
         catch { self.error = error.localizedDescription; transport?.close() }
         reconnecting = false
         mouth = 0; microphoneLevel = 0

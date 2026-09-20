@@ -78,6 +78,13 @@ TOOLS = {
         "Returns every picture with its turn offset and clear distance. Best first move of a "
         "search.",
     ),
+    "room_map": (
+        Empty,
+        "Bird's-eye picture of everywhere mapped so far, from the server's accumulated LiDAR map: "
+        "free floor, walls, labelled known objects with distance and the turn needed to face "
+        "them, and you (yellow dot, line = facing). Use it to choose unexplored (grey) regions or "
+        "to route to a remembered object. It is memory, not live: trust move results up close.",
+    ),
     "recall": (
         Recall,
         "Search objects the room's cameras recorded earlier. Hints only, maybe stale.",

@@ -11,7 +11,7 @@ from fastapi import HTTPException
 
 from ..agent.remote import hub
 from .bridge import bridge, codex_binary
-from .persona import LIVE_INSTRUCTIONS
+from .persona import LIVE_INSTRUCTIONS, OFFLINE_INSTRUCTIONS
 
 
 def codex_ready() -> bool:
@@ -63,13 +63,10 @@ class VoiceService:
                     raise HTTPException(409, "End the current voice session first")
             if len(self.calls) >= 4:
                 raise HTTPException(429, "Voice capacity reached")
-            # The robot acts through its agent whenever one is reachable (see reliable/routes.py).
+            # The robot acts through its agent whenever one is reachable, whatever the phone's
+            # "Connect to Codex" switch says.
             codex = codex_ready()
-            offline = (
-                "You are Kevin, a friendly robot's voice. Codex is disconnected, so your body is "
-                "offline: say so if asked to move or look, and keep chatting."
-            )
-            instructions = LIVE_INSTRUCTIONS if codex else offline
+            instructions = LIVE_INSTRUCTIONS if codex else OFFLINE_INSTRUCTIONS
             response = await self.client.post(
                 "/live/sessions",
                 headers=self.headers(),

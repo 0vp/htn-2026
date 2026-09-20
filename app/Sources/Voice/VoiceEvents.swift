@@ -34,12 +34,10 @@ protocol VoiceTransport: AnyObject {
     func mute(_ muted: Bool)
     func close()
     func finish() async throws
-    var finalizedTranscript: String? { get }
 }
 
 extension VoiceTransport {
     func finish() async throws { close() }
-    var finalizedTranscript: String? { nil }
 }
 
 /// Loudness of just the last polling slice, shaped for a mouth.

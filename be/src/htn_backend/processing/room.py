@@ -16,6 +16,7 @@ from ..mapping.objects.confirmation import ObjectConfirmation
 from ..mapping.objects.lifecycle import ObjectLifecycle
 from ..mapping.objects.orientation import AxialOrientation
 from ..mapping.objects.surfaces import samples
+from ..storage.database import StoreError
 from ..storage.retention import cleanup
 from .alignment import Alignment
 from .atlas.store import Atlas
@@ -73,7 +74,16 @@ class RoomProcessor:
         self.last_work = time.monotonic()
         ready = []
         for row in rows:
-            frame = decode(self.state.store.payload(self.room_id, row["sequence"]))
+            try:
+                frame = decode(self.state.store.payload(self.room_id, row["sequence"]))
+            except StoreError as error:
+                if error.status != 410:
+                    raise
+                # Storage pressure reclaimed this capture before it mapped; it cannot be
+                # recovered, so move on instead of stalling the room on it forever.
+                self.state.mark(row["sequence"], "skipped_cleaned", error.detail)
+                self.cursor = row["sequence"]
+                continue
             if frame.header.tracking != "normal" or not frame.rgb_jpeg:
                 self.state.mark(
                     row["sequence"], "skipped_tracking", "Normal tracking and RGB required"
