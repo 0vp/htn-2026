@@ -75,24 +75,38 @@ export function useRoomStream() {
         loading = false;
       }
     };
-    const events = new EventSource(apiUrl(`/v1/rooms/${roomId}/events`));
-    events.addEventListener('processing', (event) => {
-      if (controller.signal.aborted) return;
-      try {
-        const next = JSON.parse((event as MessageEvent<string>).data) as ProcessingStatus;
-        setStatus(next);
-        setLink(next.map ? 'live' : 'waiting');
-        setError(next.error?.detail ?? null);
-        wanted = next.map?.revision ?? null;
-        void refresh();
-      } catch {
-        setError('Invalid room update');
-      }
-    });
-    events.onerror = () => { if (!controller.signal.aborted) setLink('offline'); };
+    let events: EventSource;
+    let reconnect = 0;
+    const connect = () => {
+      events = new EventSource(apiUrl(`/v1/rooms/${roomId}/events`));
+      events.addEventListener('processing', (event) => {
+        if (controller.signal.aborted) return;
+        try {
+          const next = JSON.parse((event as MessageEvent<string>).data) as ProcessingStatus;
+          setStatus(next);
+          setLink(next.map ? 'live' : 'waiting');
+          setError(next.error?.detail ?? null);
+          wanted = next.map?.revision ?? null;
+          void refresh();
+        } catch {
+          setError('Invalid room update');
+        }
+      });
+      events.onerror = () => {
+        if (controller.signal.aborted) return;
+        setLink('offline');
+        // A refused stream (a 502 while the backend restarts) closes for good; the browser
+        // only retries dropped ones, so reopen it ourselves.
+        if (events.readyState !== EventSource.CLOSED) return;
+        window.clearTimeout(reconnect);
+        reconnect = window.setTimeout(connect, 3000);
+      };
+    };
+    connect();
     const retry = window.setInterval(() => void refresh(), 1000);
     return () => {
       controller.abort();
+      window.clearTimeout(reconnect);
       events.close();
       window.clearInterval(retry);
     };
