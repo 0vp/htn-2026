@@ -72,6 +72,9 @@ metric speed; measure distance with a tape if that is needed.
 
 ## Calibration status (2026-09-19)
 
+Front = the big drive-wheel end. The drivers were labelled from the other end, so
+`calibration.json` has `swap: true` with signs left -1 / right +1 (floor driving test).
+
 Provisional, in `scripts/calibration.json`: both signs +1 (lifted-wheel check), minimum duty
 left 0.20 / right 0.30 (floor pulses; right side was slipping and the rear casters dragged).
 Left/right trim is **not** measured: camera yaw during straight runs was swamped by a

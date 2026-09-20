@@ -173,7 +173,7 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--ws-port", type=int, default=8793)
     parser.add_argument("--token", help="Required from app clients as ?token=...")
-    parser.add_argument("--speed", type=float, default=0.4, help="Keyboard level, 0..1")
+    parser.add_argument("--speed", type=float, default=0.2, help="Keyboard level, 0..1")
     parser.add_argument("--limit", type=float, default=0.6, help="Cap on app wheel commands")
     args = parser.parse_args()
     if args.host != "127.0.0.1" and not args.token:
