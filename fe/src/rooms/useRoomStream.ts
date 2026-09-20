@@ -87,6 +87,11 @@ export function useRoomStream() {
           setLink(next.map ? 'live' : 'waiting');
           setError(next.error?.detail ?? null);
           wanted = next.map?.revision ?? null;
+          if (!next.map) {
+            // The room was reset: revisions restart, so forget the one already shown.
+            loaded = null;
+            setScene(null);
+          }
           void refresh();
         } catch {
           setError('Invalid room update');

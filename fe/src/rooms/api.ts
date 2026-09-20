@@ -39,6 +39,12 @@ export async function listRooms(signal?: AbortSignal): Promise<Room[]> {
   return payload.rooms;
 }
 
+/** Permanently deletes the room's captures and map on the server; members stay joined. */
+export async function resetRoom(roomId: string): Promise<void> {
+  const response = await fetch(apiUrl(`/v1/rooms/${encodeURIComponent(roomId)}/reset`), { method: 'POST' });
+  if (!response.ok) throw new Error(`Reset returned ${response.status}`);
+}
+
 export type RoomObject = {
   object_id: string;
   label: string;

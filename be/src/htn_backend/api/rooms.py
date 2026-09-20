@@ -35,6 +35,10 @@ def router(store: Store) -> APIRouter:
     def close_room(room_id: RoomID) -> dict:
         return store.close_room(room_id)
 
+    @routes.post("/{room_id}/reset")
+    def reset_room(room_id: RoomID) -> dict:
+        return store.reset_room(room_id)
+
     @routes.get("/{room_id}/frames")
     def list_frames(
         room_id: RoomID,

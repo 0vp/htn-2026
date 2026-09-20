@@ -61,6 +61,10 @@ def run() -> None:
                     if completed.get(code) == room["frames_stored"] and code not in rooms:
                         continue
                     try:
+                        if code in rooms and rooms[code].reset_count != room["reset_count"]:
+                            # The room was wiped; nothing held in memory describes it any more.
+                            rooms.pop(code).close()
+                            completed.pop(code, None)
                         if code not in rooms:
                             if len(rooms) >= 2:
                                 idle = next((r for r in rooms if r in completed), None)
@@ -68,6 +72,7 @@ def run() -> None:
                                     continue
                                 rooms.pop(idle).close(checkpoint=True)
                             rooms[code] = RoomProcessor(state, code, detector)
+                            rooms[code].reset_count = room["reset_count"]
                         processor = rooms[code]
                         rooms.move_to_end(code)
                         if completed.get(code) != room["frames_stored"]:

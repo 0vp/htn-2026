@@ -20,6 +20,24 @@ MAX_BYTES = 4_000_000_000
 MIN_FREE_BYTES = 2_000_000_000
 
 
+# Everything keyed by room that exists only because of its captures.
+ROOM_DERIVED_TABLES = (
+    "processing_counts",
+    "processing_errors",
+    "maps",
+    "object_evidence",
+    "object_search",
+    "alignments",
+    "alignment_references",
+    "atlas_state",
+    "atlas_tiles",
+    "atlas_objects",
+    "geographic_anchors",
+    "frames",
+    "room_counts",
+)
+
+
 class StoreError(Exception):
     def __init__(self, status: int, detail: str):
         self.status, self.detail = status, detail
@@ -67,6 +85,8 @@ class Store:
             room_columns = {r[1] for r in self.db.execute("PRAGMA table_info(rooms)")}
             if "leader_device_id" not in room_columns:
                 self.db.execute("ALTER TABLE rooms ADD COLUMN leader_device_id TEXT")
+            if "reset_count" not in room_columns:
+                self.db.execute("ALTER TABLE rooms ADD COLUMN reset_count INTEGER NOT NULL DEFAULT 0")
             columns = {r[1] for r in self.db.execute("PRAGMA table_info(frames)")}
             if "archived" not in columns:
                 self.db.execute("ALTER TABLE frames ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
@@ -195,6 +215,36 @@ class Store:
         with self.lock, self.db:
             self.require_room(room_id)
             self.db.execute("UPDATE rooms SET closed=1 WHERE room_id=?", (room_id,))
+        return self.room(room_id)
+
+    def reset_room(self, room_id: str) -> dict:
+        """Forget every capture and everything mapped from it; members and the room remain."""
+        with self.lock, self.db:
+            self.require_room(room_id)
+            freed = self.db.execute(
+                "SELECT COUNT(*),COALESCE(SUM(length(payload)),0) FROM frames WHERE room_id=?",
+                (room_id,),
+            ).fetchone()
+            self.db.execute(
+                "DELETE FROM processing WHERE sequence IN "
+                "(SELECT sequence FROM frames WHERE room_id=?)",
+                (room_id,),
+            )
+            # Other modules create their tables lazily, so this process may not have them all.
+            present = {r[0] for r in self.db.execute("SELECT name FROM sqlite_master")}
+            for table in ROOM_DERIVED_TABLES:
+                if table in present:
+                    self.db.execute(f"DELETE FROM {table} WHERE room_id=?", (room_id,))
+            self.db.execute(
+                "UPDATE totals SET bytes=MAX(0,bytes-?),frames=MAX(0,frames-?) WHERE id=1",
+                (freed[1], freed[0]),
+            )
+            # The processing worker watches this to drop the map it still holds in memory.
+            self.db.execute(
+                "UPDATE rooms SET reset_count=reset_count+1,closed=0 WHERE room_id=?", (room_id,)
+            )
+        with self.lock:
+            self.db.execute("PRAGMA incremental_vacuum(4096)")
         return self.room(room_id)
 
     def save(self, room_id: str, device_id: str, frame: Frame, payload: bytes) -> dict:

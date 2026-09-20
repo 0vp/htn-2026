@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RoomScene } from '../rooms/api';
+import { resetRoom, type RoomScene } from '../rooms/api';
 import { ObjectPanel } from '../objects/ObjectPanel';
 import { bestAnchor } from '../geo/anchor';
 import { feed } from './feed';
@@ -82,6 +82,29 @@ export function LidarView() {
     };
   }, [room.scene]);
 
+  useEffect(() => {
+    if (room.scene) return;
+    renderer.current?.clearRoomMesh();
+    setDisplayedScene(null);
+  }, [room.scene]);
+
+  // Wiping the server's room is permanent, so the button must be pressed twice.
+  const [resetting, setResetting] = useState<'idle' | 'confirm' | 'busy'>('idle');
+  useEffect(() => {
+    if (resetting !== 'confirm') return;
+    const timer = window.setTimeout(() => setResetting('idle'), 4000);
+    return () => window.clearTimeout(timer);
+  }, [resetting]);
+  const reset = () => {
+    if (resetting === 'idle') return setResetting('confirm');
+    if (resetting === 'busy') return;
+    setResetting('busy');
+    resetRoom(room.roomId)
+      .then(() => setRenderError(null))
+      .catch((error: unknown) => setRenderError(error instanceof Error ? error.message : 'Reset failed'))
+      .finally(() => setResetting('idle'));
+  };
+
   useEffect(() => renderer.current?.selectObject(selectedObject), [selectedObject]);
   useEffect(() => renderer.current?.setColorMode(color), [color]);
 
@@ -161,6 +184,15 @@ export function LidarView() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            disabled={!room.roomId || resetting === 'busy'}
+            onClick={reset}
+            title="Permanently delete this room's captures and map on the server"
+            className={`px-3 py-1 disabled:opacity-40 ${resetting === 'idle' ? 'hairline-light border hover:bg-white hover:text-blue' : 'bg-signal text-white'}`}
+          >
+            {resetting === 'confirm' ? 'Wipe room? Click again' : resetting === 'busy' ? 'Resetting…' : 'Reset room'}
+          </button>
           {room.error && <span className="max-w-64 truncate text-signal" title={room.error}>{room.error}</span>}
         </div>
       </div>
