@@ -36,5 +36,10 @@ def ensure(db: sqlite3.Connection, room_id: str) -> None:
                 "VALUES(?,?,?,0,NULL) ON CONFLICT(room_id) DO UPDATE SET closed=0",
                 (room_id, "World", time.time()),
             )
+            # The global byte budget must forget the purged rooms or uploads hit the cap early.
+            db.execute(
+                "UPDATE totals SET bytes=(SELECT COALESCE(SUM(length(payload)),0) FROM frames) "
+                "WHERE id=1"
+            )
     finally:
         db.execute("PRAGMA foreign_keys=ON")
