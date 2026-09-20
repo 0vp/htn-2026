@@ -56,7 +56,12 @@ struct VoiceAPI: VoiceServing {
         let _: EndReceipt = try await perform(request)
     }
 
-    @MainActor func transport() -> any VoiceTransport { ReliableVoicePeer(api: self) }
+    /// Direct phone-to-OpenAI WebRTC keeps GPT-Live's latency low; the server joins the same
+    /// session over a sideband socket for delegation and tool work. The buffered relay through
+    /// the server stays available behind the `voiceReliableTransport` default.
+    @MainActor func transport() -> any VoiceTransport {
+        UserDefaults.standard.bool(forKey: "voiceReliableTransport") ? ReliableVoicePeer(api: self) : VoicePeer()
+    }
     func finishReliable(_ ident: String, next: Int) async throws -> String {
         var request = URLRequest(url: endpoint("reliable/end"))
         request.httpMethod = "POST"

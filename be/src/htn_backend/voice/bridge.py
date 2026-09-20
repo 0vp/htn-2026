@@ -10,9 +10,9 @@ from websockets.asyncio.client import connect
 from ..agent import remote
 
 
-async def run(room_id, prompt, backend=None, binary=None, motion=None):
+async def run(room_id, prompt, backend=None, binary=None, motion=None, progress=None):
     """Laptop worker when one is polling, else the server's own Codex (see agent/remote.py)."""
-    return await remote.execute(room_id, prompt)
+    return await remote.execute(room_id, prompt, progress)
 
 
 def codex_binary():
@@ -27,9 +27,9 @@ async def bridge(session_id, key, room_id, enabled, ready):
         max_size=4_000_000,
         open_timeout=15,
     ) as socket:
-        history = []
+        history, last_role = [], None
         seen = set()
-        tasks = asyncio.Queue(maxsize=4)
+        jobs = set()
         ready.set()
 
         async def say(ident, text):
@@ -43,35 +43,37 @@ async def bridge(session_id, key, room_id, enabled, ready):
                 )
             )
 
-        async def work():
-            while True:
-                ident, context = await tasks.get()
-                try:
-                    result = await run(
-                        room_id,
-                        "Voice conversation context (transcripts may be incomplete). "
-                        "Answer the latest request using room evidence; ask if unclear.\n"
-                        + context,
-                    )
-                    await say(ident, result or "The task finished without a confirmed result.")
-                except asyncio.CancelledError:
-                    raise
-                except Exception:
-                    await say(
-                        ident, "Codex could not complete the request. No result is confirmed."
-                    )
-                finally:
-                    tasks.task_done()
+        async def work(ident, context):
+            """One delegated request. A newer one interrupts it on the worker (newest wins)."""
 
-        worker = asyncio.create_task(work())
+            async def progress(text):
+                await say(ident, text)
+
+            try:
+                result = await run(
+                    room_id,
+                    "Live voice conversation so far (transcripts can contain mistakes). Act on "
+                    "the user's latest request.\n" + context,
+                    progress=progress,
+                )
+                if result:  # Empty: a newer request took over and will answer instead.
+                    await say(ident, result)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                await say(ident, "Something went wrong on my side. Ask me again.")
+
         try:
             async for raw in socket:
                 event = json.loads(raw)
                 kind = event.get("type")
                 if kind in {"session.input_transcript.delta", "session.output_transcript.delta"}:
-                    role = "User" if kind == "session.input_transcript.delta" else "Assistant"
-                    history.append(f"{role}: {event.get('delta', '')}")
-                    history = history[-160:]
+                    role = "\nUser: " if kind == "session.input_transcript.delta" else "\nKevin: "
+                    if last_role != role:
+                        history.append(role)
+                    last_role = role
+                    history.append(event.get("delta", ""))
+                    history = history[-400:]
                 elif kind == "session.delegation.created":
                     ident = event["delegation"]["id"]
                     if ident in seen:
@@ -83,15 +85,13 @@ async def bridge(session_id, key, room_id, enabled, ready):
                             "Conversation-only mode: Codex and room tools are disconnected. "
                             "Do not claim to inspect the room or perform actions.",
                         )
-                    elif tasks.full():
-                        await say(
-                            ident,
-                            "There are already several requests waiting. Please wait for a result.",
-                        )
                     else:
-                        tasks.put_nowait((ident, "\n".join(history)[-16000:]))
+                        job = asyncio.create_task(work(ident, "".join(history)[-6000:]))
+                        jobs.add(job)
+                        job.add_done_callback(jobs.discard)
                 elif kind == "session.closed":
                     return
         finally:
-            worker.cancel()
-            await asyncio.gather(worker, return_exceptions=True)
+            for job in tuple(jobs):
+                job.cancel()
+            await asyncio.gather(*jobs, return_exceptions=True)

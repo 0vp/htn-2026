@@ -11,6 +11,7 @@ from fastapi import HTTPException
 
 from ..agent.remote import hub
 from .bridge import bridge, codex_binary
+from .persona import LIVE_INSTRUCTIONS
 
 
 def codex_ready() -> bool:
@@ -62,18 +63,13 @@ class VoiceService:
                     raise HTTPException(409, "End the current voice session first")
             if len(self.calls) >= 4:
                 raise HTTPException(429, "Voice capacity reached")
-            instructions = (
-                "You are the voice of a room robot. Be brief, warm and conversational. "
-                "You can listen while speaking. Only describe task completion "
-                "from verified backend results. "
+            # The robot acts through its agent whenever one is reachable (see reliable/routes.py).
+            codex = codex_ready()
+            offline = (
+                "You are Kevin, a friendly robot's voice. Codex is disconnected, so your body is "
+                "offline: say so if asked to move or look, and keep chatting."
             )
-            instructions += (
-                "Delegate room questions and tasks to Codex. "
-                "Ask for clarification when the target is ambiguous."
-                if data.codex_enabled
-                else "Conversation-only test: Codex is disconnected. Do not claim to see the room, "
-                "control a robot, or execute any task. Explain that tools are unavailable if asked."
-            )
+            instructions = LIVE_INSTRUCTIONS if codex else offline
             response = await self.client.post(
                 "/live/sessions",
                 headers=self.headers(),
@@ -95,8 +91,8 @@ class VoiceService:
                 data.request_id,
                 result["session"]["id"],
                 result["transport"]["sdp"],
-                data.codex_enabled,
-                time.monotonic() + 600,
+                codex,
+                time.monotonic() + 3600,
             )
             self.calls[call.session_id] = call
             if self.reaper is None:
