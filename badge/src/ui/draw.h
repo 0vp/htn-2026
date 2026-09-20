@@ -15,8 +15,6 @@ constexpr int FOOTER_Y = 212;
 constexpr int BOTTOM = FOOTER_Y - 6;
 
 void driveView(LGFX_Sprite &g, const UiModel &m);
-void armView(LGFX_Sprite &g, const UiModel &m);
-void winchView(LGFX_Sprite &g, const UiModel &m);
 void autoView(LGFX_Sprite &g, const UiModel &m);
 void setupView(LGFX_Sprite &g, const UiModel &m);
 

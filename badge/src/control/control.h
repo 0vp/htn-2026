@@ -1,75 +1,59 @@
 #pragma once
 
-#include <stddef.h>
 #include <stdint.h>
 
 #include "../hal/buttons.h"
 
 /**
- * Operator intent, the same shape as the dashboard's ControlState (fe/src/control/store.ts)
- * so the robot firmware parses one command format:
- *   drive.left/right  -1..1   signed duty for each BTS7960 (base motors)
- *   arm.*             degrees from each servo's mechanical neutral
- *   winch[i]          -1 reel in, 0 hold, 1 pay out (N20 via TB6612FNG)
- *   armed             false until the operator arms; nothing moves while false
+ * Operator intent for the fixed drive wheel and steering servo. The badge is the robot
+ * controller now, so DRIVE moves the robot from the D-pad and AUTO hands driving to the agent
+ * while the human supervises. Limits match robot/steering: 30% duty, 20 degrees of offset.
  */
-enum class Mode : uint8_t { Drive, Arm, Winch, Auto, Count };
+enum class Mode : uint8_t { Drive, Auto, Count };
 
-enum Joint : uint8_t { Shoulder, Elbow, Wrist, JointCount };
-
-constexpr uint8_t WINCH_COUNT = 3;
+constexpr float MAX_DUTY = 0.3f;
+constexpr float MAX_STEERING_DEG = 20.0f;
 
 struct ControlState {
   bool estop = false;
   bool armed = false;
-  float stickX = 0;  // > 0 turns clockwise seen from above
+  float stickX = 0;  // > 0 steers one way; a servo offset, never a measured yaw
   float stickY = 0;  // > 0 drives forward
   float speedLimit = 0.5f;
-  float arm[JointCount] = {0, 0, 0};
-  int8_t winch[WINCH_COUNT] = {0, 0, 0};
-};
-
-struct WheelDuty {
-  float left;
-  float right;
 };
 
 const char *modeName(Mode mode);
-const char *jointName(Joint joint);
-void jointLimits(Joint joint, int &lo, int &hi);
 
 class Controller {
  public:
   /**
    * Maps one poll of the buttons onto the control state.
-   *   B            E-STOP (latches, disarms)
-   *   START hold   arm (only while the link is up); tap START again to disarm
+   *   B            E-STOP (latches until a human arms again)
+   *   START hold   arm; tap START again to disarm
    *   HOME         next mode
-   *   Drive        D-pad drives while held, A cycles the speed limit
-   *   Arm          Left/Right picks a joint, Up/Down moves it, A re-centres it
-   *   Winch        Left/Right picks a winch, Up reels in, Down pays out, A stops all
-   *   Auto         armed, the badge only supervises and the agent drives; any button is an E-STOP
+   *   Drive        D-pad drives the robot while held, A cycles the speed limit
+   *   Auto         armed, the badge supervises and the agent drives; any button is an E-STOP
    */
-  void update(const ButtonState &input, float dt, bool linkUp);
+  void update(const ButtonState &input, float dt);
 
-  /** Clears all motion and disarms, e.g. when the link drops. */
+  /** Clears motion and disarms. */
   void disarm();
 
   bool canMove() const { return state_.armed && !state_.estop; }
-  /** Armed in AUTO: packets are a supervision heartbeat for the agent, not drive commands. */
+  /** Armed in AUTO: the agent may drive while this stays true. */
   bool supervising() const { return mode_ == Mode::Auto && canMove(); }
-  WheelDuty mix() const;
+  /** True while the human is driving from the badge's own D-pad. */
+  bool driving() const { return mode_ == Mode::Drive && canMove(); }
 
-  /** Writes the JSON command packet; returns its length (0 if `size` was too small). */
-  size_t packet(char *out, size_t size, uint32_t seq, uint64_t timeMs) const;
+  /** Commanded duty (-0.3..0.3) and steering offset (-20..20 degrees) from the D-pad. */
+  float duty() const;
+  float steering() const;
 
-  /** Switches the screen's mode (console `mode`); motion commands in the old mode are released. */
+  /** Switches the screen's mode (console `mode`); motion in the old mode is released. */
   void setMode(Mode mode) { mode_ = mode; }
 
   const ControlState &state() const { return state_; }
   Mode mode() const { return mode_; }
-  uint8_t selectedJoint() const { return joint_; }
-  uint8_t selectedWinch() const { return winch_; }
   /** 0..1 progress of the START hold towards arming. */
   float armProgress() const { return armHold_ / ARM_HOLD_S; }
 
@@ -77,13 +61,9 @@ class Controller {
   static constexpr float ARM_HOLD_S = 1.0f;
 
   void driveInput(const ButtonState &input, float dt);
-  void armInput(const ButtonState &input, float dt);
-  void winchInput(const ButtonState &input);
 
   ControlState state_;
   Mode mode_ = Mode::Drive;
-  uint8_t joint_ = Shoulder;
-  uint8_t winch_ = 0;
   float armHold_ = 0;
   bool startConsumed_ = false;
 };

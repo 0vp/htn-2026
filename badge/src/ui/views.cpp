@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include <string.h>
 
-#include "../link/robot_link.h"
+#include "../hal/motor.h"
+#include "../link/server.h"
 #include "draw.h"
 
 using namespace theme;
@@ -36,10 +37,21 @@ void key(LGFX_Sprite &g, int cx, int cy, bool held) {
   else g.drawRect(cx - 6, cy - 6, 13, 13, HAIRLINE);
 }
 
-/** One selectable row: a panel with a blue marker on the left when selected. */
-void row(LGFX_Sprite &g, int y, bool selected) {
-  panel(g, 10, y, 300, 32);
-  if (selected) g.fillRect(10, y, 4, 32, BLUE);
+/** Applied motor output: duty column, steering track and the numbers, as the wheel sees them. */
+void outputPanel(LGFX_Sprite &g, int x, int w) {
+  panel(g, x, TOP, w, PANEL_H);
+  label(g, "OUTPUT", x + 8, TOP + 8, INK_60);
+  const float duty = motor::appliedDuty();
+  // Full column height is the 30% duty limit, so small commands stay readable.
+  column(g, x + 14, TOP + 24, 16, 60, duty / MAX_DUTY);
+  char text[12];
+  snprintf(text, sizeof text, "%+.2f", duty);
+  pixel(g, text, x + 22, TOP + 92, 1, INK, Align::Centre);
+  label(g, "STEER", x + 46, TOP + 24, INK_60);
+  track(g, x + 46, TOP + 40, w - 58, motor::appliedSteering(), -MAX_STEERING_DEG, MAX_STEERING_DEG,
+        BLUE);
+  snprintf(text, sizeof text, "%+.0f", motor::appliedSteering());
+  pixel(g, text, x + w - 10, TOP + 60, 2, INK, Align::Right);
 }
 
 }  // namespace
@@ -63,114 +75,42 @@ void driveView(LGFX_Sprite &g, const UiModel &m) {
   const int dy = cy - static_cast<int>(s.stickY * (r - 8));
   g.fillRect(dx - 5, dy - 5, 11, 11, m.controller->canMove() ? BLUE : INK_35);
 
-  // Wheel duty, exactly what goes in the packet.
-  const WheelDuty duty = m.controller->mix();
-  panel(g, 126, TOP, 96, PANEL_H);
-  label(g, "WHEELS", 134, TOP + 8, INK_60);
-  column(g, 146, TOP + 24, 16, 60, duty.left);
-  column(g, 186, TOP + 24, 16, 60, duty.right);
-  snprintf(text, sizeof text, "%+.1f", duty.left);
-  pixel(g, text, 154, TOP + 92, 1, INK, Align::Centre);
-  snprintf(text, sizeof text, "%+.1f", duty.right);
-  pixel(g, text, 194, TOP + 92, 1, INK, Align::Centre);
+  outputPanel(g, 126, 96 + 40);
 
   // Speed limit: big pixel number and four step cells.
-  panel(g, 228, TOP, 82, PANEL_H);
-  label(g, "SPEED", 236, TOP + 8, INK_60);
+  panel(g, 268, TOP, 42, PANEL_H);
+  label(g, "SPD", 276, TOP + 8, INK_60);
   snprintf(text, sizeof text, "%d", static_cast<int>(s.speedLimit * 100 + 0.5f));
-  pixel(g, text, 236, TOP + 28, 3, INK);
-  label(g, "%", 238 + pixelWidth(text, 3), TOP + 42, INK_60);
+  pixel(g, text, 276, TOP + 26, 2, INK);
   for (int i = 0; i < 4; i++) {
     const bool lit = s.speedLimit >= (i + 1) * 0.25f - 0.01f;
-    if (lit) g.fillRect(236 + i * 17, TOP + 66, 14, 8, BLUE);
-    else g.drawRect(236 + i * 17, TOP + 66, 14, 8, HAIRLINE);
+    if (lit) g.fillRect(276, TOP + 52 + i * 12, 26, 8, BLUE);
+    else g.drawRect(276, TOP + 52 + i * 12, 26, 8, HAIRLINE);
   }
-  label(g, "A CYCLE", 236, TOP + 88, INK_35);
-}
-
-void armView(LGFX_Sprite &g, const UiModel &m) {
-  const ControlState &s = m.controller->state();
-  const uint8_t selected = m.controller->selectedJoint();
-  char text[12];
-  for (uint8_t i = 0; i < JointCount; i++) {
-    const int y = TOP + i * 38;
-    const bool on = i == selected;
-    row(g, y, on);
-    label(g, jointName(static_cast<Joint>(i)), 24, y + 13, on ? INK : INK_60);
-    int lo, hi;
-    jointLimits(static_cast<Joint>(i), lo, hi);
-    track(g, 110, y + 12, 130, s.arm[i], lo, hi, on ? BLUE : INK_35);
-    snprintf(text, sizeof text, "%+d", static_cast<int>(lroundf(s.arm[i])));
-    pixel(g, text, 302, y + 8, 2, on ? INK : INK_60, Align::Right);
-  }
-}
-
-void winchView(LGFX_Sprite &g, const UiModel &m) {
-  const ControlState &s = m.controller->state();
-  const Telemetry &t = robotlink::telemetry();
-  const uint8_t selected = m.controller->selectedWinch();
-  char text[12];
-  for (uint8_t i = 0; i < WINCH_COUNT; i++) {
-    const int y = TOP + i * 38;
-    const bool on = i == selected;
-    row(g, y, on);
-    snprintf(text, sizeof text, "WINCH %u", i + 1);
-    label(g, text, 24, y + 13, on ? INK : INK_60);
-
-    // Command chip: solid blue while running.
-    const int8_t cmd = s.winch[i];
-    const char *state = cmd < 0 ? "IN" : (cmd > 0 ? "OUT" : "HOLD");
-    if (cmd) g.fillRect(96, y + 8, 40, 16, BLUE);
-    else g.drawRect(96, y + 8, 40, 16, HAIRLINE);
-    label(g, state, 116, y + 13, cmd ? WHITE : INK_60, Align::Centre);
-
-    // Spool position (0 in .. 1 out) and the two end stops, from telemetry.
-    g.drawRect(146, y + 12, 110, 8, HAIRLINE);
-    if (!isnan(t.winchPos[i])) {
-      g.fillRect(147, y + 13, static_cast<int>(108 * constrain(t.winchPos[i], 0.0f, 1.0f)), 6, on ? BLUE : INK_35);
-    }
-    for (int end = 0; end < 2; end++) {
-      const int x = 270 + end * 16;
-      if (t.limits[i][end]) g.fillRect(x, y + 11, 10, 10, SIGNAL);
-      else g.drawRect(x, y + 11, 10, 10, HAIRLINE);
-    }
-  }
+  label(g, "A", 276, TOP + 100, INK_35);
 }
 
 void autoView(LGFX_Sprite &g, const UiModel &m) {
-  const Telemetry &t = robotlink::telemetry();
-  const bool agent = strcmp(t.owner, "agent") == 0;
+  const bool agent = strcmp(robotserver::owner(), "agent") == 0;
 
-  // Who is driving, as the robot reports it.
   panel(g, 10, TOP, 186, PANEL_H);
   label(g, "AGENT", 18, TOP + 8, INK_60);
   pixel(g, agent ? "DRIVING" : "IDLE", 18, TOP + 26, 2, agent ? BLUE : INK_35);
   const bool supervising = m.controller->supervising();
-  const bool confirmed = supervising && t.supervised;
-  g.fillRect(18, TOP + 56, 7, 7, confirmed ? theme::OK : (supervising ? WARN : INK_35));
-  label(g, confirmed ? "SUPERVISED BY BADGE" : (supervising ? "WAITING FOR ROBOT" : "NOT SUPERVISED"), 30, TOP + 56,
-        INK);
+  g.fillRect(18, TOP + 56, 7, 7, supervising ? theme::OK : INK_35);
+  label(g, supervising ? "SUPERVISED" : "NOT SUPERVISED", 30, TOP + 56, INK);
   label(g, supervising ? "PRESS ANY BUTTON TO STOP" : "HOLD START TO ALLOW", 18, TOP + 76, INK_60);
   if (!supervising) label(g, "THE AGENT TO DRIVE", 18, TOP + 88, INK_60);
 
-  // Wheel output the robot is applying right now.
-  panel(g, 202, TOP, 108, PANEL_H);
-  label(g, "WHEELS", 210, TOP + 8, INK_60);
-  column(g, 224, TOP + 24, 16, 60, t.dutyLeft);
-  column(g, 270, TOP + 24, 16, 60, t.dutyRight);
-  char text[12];
-  snprintf(text, sizeof text, "%+.1f", t.dutyLeft);
-  pixel(g, text, 232, TOP + 92, 1, INK, Align::Centre);
-  snprintf(text, sizeof text, "%+.1f", t.dutyRight);
-  pixel(g, text, 278, TOP + 92, 1, INK, Align::Centre);
+  outputPanel(g, 202, 108);
 }
 
 void setupView(LGFX_Sprite &g, const UiModel &m) {
   panel(g, 10, TOP, 300, PANEL_H);
-  label(g, "CONNECT THE ROBOT", 22, TOP + 12, INK);
+  label(g, "CONNECT THE AGENT", 22, TOP + 12, INK);
   label(g, "USB SERIAL 115200, THEN TYPE", 22, TOP + 30, INK_60);
-  label(g, "WIFI HTN-ROBOT <PASSWORD>", 22, TOP + 50, BLUE);
-  label(g, "URL WS://192.168.4.1:81/", 22, TOP + 66, BLUE);
+  label(g, "WIFI <SSID> <PASSWORD>", 22, TOP + 50, BLUE);
+  label(g, "TOKEN <SECRET>", 22, TOP + 66, BLUE);
   label(g, m.linkText, 22, TOP + 88, INK_35);
 }
 

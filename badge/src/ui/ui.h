@@ -7,10 +7,11 @@ struct UiModel {
   const Controller *controller;
   const ButtonState *input;
   const char *linkText;
-  bool linkOpen;
+  /** An agent client is connected and sending commands. */
+  bool agentConnected;
   bool configured;
   int wifiRssi;
-  uint32_t robotSilenceMs;
+  uint32_t agentSilenceMs;
 };
 
 namespace ui {
