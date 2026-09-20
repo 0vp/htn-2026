@@ -18,7 +18,7 @@ import httpx
 
 from .motion.link import RobotLink
 from .motion.skills import Motion
-from .run import run
+from .run import AgentSession
 
 CLOUD = "https://qasim-test.35-253-10-71.sslip.io"
 TOKEN_FILE = Path(__file__).resolve().parents[4] / "robot/scripts/.robot_token"
@@ -65,6 +65,7 @@ class Narrator:
 
 async def serve(backend: str, token: str, binary: str, motion: Motion | None) -> None:
     headers = {"Authorization": f"Bearer {token}"}
+    sessions: dict[str, AgentSession] = {}  # One long-lived Codex agent per room.
     async with httpx.AsyncClient(base_url=backend, headers=headers, timeout=40) as client:
         stamp(f"Codex worker ready · {backend} · motion {'on' if motion else 'off'}")
         while True:
@@ -81,15 +82,12 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
             stamp(f"▶ {job['prompt']}")
             narrator = Narrator(client, job["job_id"])
             try:
-                result = await run(
-                    job["room_id"],
-                    job["prompt"],
-                    backend,
-                    binary,
-                    motion,
-                    embodied=True,
-                    emit=narrator,
-                )
+                session = sessions.get(job["room_id"])
+                if session is None:
+                    session = AgentSession(job["room_id"], backend, binary, motion, embodied=True)
+                    sessions[job["room_id"]] = session
+                stamp("Continuing the running Codex agent" if session.server else "Starting Codex")
+                result = await session.turn(job["prompt"], emit=narrator)
             except Exception as error:  # The phone must always get an answer.
                 result = f"Codex could not complete the request ({type(error).__name__})."
             stamp(f"◀ {result}")

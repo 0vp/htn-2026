@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import contextlib
 import os
 import shutil
 import tempfile
@@ -82,46 +83,92 @@ async def run_turn(
             await asyncio.gather(monitor, return_exceptions=True)
 
 
+class AgentSession:
+    """One Codex app-server and thread kept alive, so later requests continue the same agent.
+
+    It remembers earlier requests and what it saw ("go back to that bin"). The thread is renewed
+    after MAX_TURNS or an error, because pictures accumulate in its context.
+    """
+
+    MAX_TURNS = 12
+
+    def __init__(self, room_id, backend, binary, motion=None, embodied=False):
+        self.room_id, self.backend, self.binary = room_id, backend, binary
+        self.motion, self.embodied = motion, embodied
+        self.stack = self.server = self.thread_id = self.prefix = None
+        self.turns = 0
+
+    async def start(self):
+        self.stack = contextlib.ExitStack()
+        # Empty workspace avoids inheriting repository instructions or editing source files.
+        workspace = self.stack.enter_context(tempfile.TemporaryDirectory(prefix="room-agent-"))
+        client = self.stack.enter_context(
+            httpx.Client(base_url=self.backend, timeout=15, follow_redirects=False)
+        )
+        if self.embodied and self.motion:
+            # The robot's own loop: sense-returning verbs and an explorer's prompt.
+            tools = EmbodiedTools(client, self.room_id, self.motion.link)
+        else:
+            tools = RobotTools(client, self.room_id, self.motion)
+        self.prefix = tools.prefix
+        self.server = AppServer(server_command(self.binary), tools)
+        await self.server.start()
+        inherited = await self.server.request(
+            "config/read", {"cwd": workspace, "includeLayers": False}
+        )
+        if isinstance(tools, EmbodiedTools):
+            params = thread_params(workspace, embodied_definitions(), inherited["config"])
+            params["baseInstructions"] = EMBODIED_INSTRUCTIONS
+            params["developerInstructions"] = "Act through your tools until the task is done."
+        else:
+            params = thread_params(
+                workspace, definitions(motion=self.motion is not None), inherited["config"]
+            )
+            if self.motion:
+                params["developerInstructions"] += MOTION_INSTRUCTIONS
+        thread = await self.server.request("thread/start", params)
+        if thread.get("model", MODEL) != MODEL:
+            raise RuntimeError("App-server did not select the requested Astra model")
+        self.thread_id, self.turns = thread["thread"]["id"], 0
+
+    async def turn(self, prompt, emit=print):
+        if self.server is None or self.turns >= self.MAX_TURNS or not self.alive():
+            await self.close()
+            await self.start()
+        self.turns += 1
+        try:
+            return await run_turn(
+                self.server,
+                self.thread_id,
+                prompt,
+                emit=emit,
+                feedback_backend=self.backend,
+                prefix=self.prefix,
+            )
+        except BaseException:
+            await self.close()  # Next request starts a clean agent.
+            raise
+
+    def alive(self):
+        process = self.server.process if self.server else None
+        return process is not None and process.returncode is None
+
+    async def close(self):
+        server, stack = self.server, self.stack
+        self.server = self.stack = self.thread_id = None
+        if server:
+            await server.close()
+        if stack:
+            stack.close()
+
+
 async def run(room_id, prompt, backend, binary, motion=None, embodied=False, emit=print):
-    # Empty workspace avoids inheriting repository instructions or editing source files.
-    with tempfile.TemporaryDirectory(prefix="room-agent-") as workspace:
-        with httpx.Client(base_url=backend, timeout=15, follow_redirects=False) as client:
-            if embodied and motion:
-                # The robot's own loop: six sense-returning verbs and an explorer's prompt.
-                tools = EmbodiedTools(client, room_id, motion.link)
-            else:
-                tools = RobotTools(client, room_id, motion)
-            server = AppServer(server_command(binary), tools)
-            try:
-                await server.start()
-                inherited = await server.request(
-                    "config/read", {"cwd": workspace, "includeLayers": False}
-                )
-                if isinstance(tools, EmbodiedTools):
-                    params = thread_params(workspace, embodied_definitions(), inherited["config"])
-                    params["baseInstructions"] = EMBODIED_INSTRUCTIONS
-                    params["developerInstructions"] = (
-                        "Act through your tools until the task is done."
-                    )
-                else:
-                    params = thread_params(
-                        workspace, definitions(motion=motion is not None), inherited["config"]
-                    )
-                    if motion:
-                        params["developerInstructions"] += MOTION_INSTRUCTIONS
-                thread = await server.request("thread/start", params)
-                if thread.get("model", MODEL) != MODEL:
-                    raise RuntimeError("App-server did not select the requested Astra model")
-                return await run_turn(
-                    server,
-                    thread["thread"]["id"],
-                    prompt,
-                    emit=emit,
-                    feedback_backend=backend,
-                    prefix=tools.prefix,
-                )
-            finally:
-                await server.close()
+    """One-shot: a fresh agent for a single request."""
+    session = AgentSession(room_id, backend, binary, motion, embodied)
+    try:
+        return await session.turn(prompt, emit)
+    finally:
+        await session.close()
 
 
 def main():
