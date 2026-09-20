@@ -46,11 +46,7 @@ def router(store: Store) -> APIRouter:
 
     @routes.get(
         "/{room_id}/frames/{sequence}",
-        responses={
-            410: {
-                "description": "Raw capture cleaned; its durable map remains available"
-            }
-        },
+        responses={410: {"description": "Raw capture cleaned; its durable map remains available"}},
     )
     def get_frame(room_id: RoomID, sequence: int) -> Response:
         return Response(store.payload(room_id, sequence), media_type="application/octet-stream")

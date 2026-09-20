@@ -51,7 +51,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Observe ESP32 telemetry without controlling motors"
     )
-    parser.add_argument("room_id", nargs="?", default="A0000001", help="Defaults to the single shared room")
+    parser.add_argument(
+        "room_id", nargs="?", default="A0000001", help="Defaults to the single shared room"
+    )
     args = parser.parse_args()
     backend = os.environ.get("HTN_SERVER_URL", "https://qasim-test.35-253-10-71.sslip.io")
     robot_url = os.environ.get("HTN_ROBOT_URL", "ws://192.168.4.1:81/")

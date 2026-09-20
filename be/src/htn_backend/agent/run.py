@@ -109,7 +109,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Astra room agent using the official Codex harness"
     )
-    parser.add_argument("room_id", nargs="?", default="A0000001", help="Defaults to the single shared room")
+    parser.add_argument(
+        "room_id", nargs="?", default="A0000001", help="Defaults to the single shared room"
+    )
     parser.add_argument("command", help="User command or finalized speech transcript")
     args = parser.parse_args()
     binary = os.environ.get("CODEX_BINARY") or shutil.which("codex")

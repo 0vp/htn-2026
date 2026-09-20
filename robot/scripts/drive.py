@@ -3,6 +3,8 @@
   python drive.py /dev/cu.usbserial-10                      # keyboard + ws://127.0.0.1:8793
   python drive.py PORT --host 0.0.0.0 --token SECRET        # let a phone on the LAN connect:
                                                             # ws://<laptop-ip>:8793/?token=SECRET
+By default it also dials out to the cloud backend's relay (token in HTN_ROBOT_TOKEN or
+scripts/.robot_token) so the server-side agent can drive; --no-cloud disables that.
 Keys: arrows drive while held | space stop | [ ] trim left/right (saved) | - = speed | q quit.
 The keyboard always wins over the app; space also drops the app's current command.
 
@@ -20,15 +22,18 @@ import curses
 import hmac
 import json
 import math
+import os
 import time
-from urllib.parse import parse_qs, urlsplit
+from pathlib import Path
+from urllib.parse import parse_qs, quote, urlsplit
 
 import websockets
-
 from base import CALIBRATION, Base
 
 KEY_HOLD_S = 0.6  # Covers the OS delay between the first key press and its repeats.
-APP_LEASE_S = 0.3
+APP_LEASE_S = 0.5  # Tolerates internet jitter; the agent's own lease is 0.25 s.
+CLOUD = "wss://qasim-test.35-253-10-71.sslip.io"
+TOKEN_FILE = Path(__file__).with_name(".robot_token")  # gitignored
 KEYS = {
     curses.KEY_UP: (1, 1),
     curses.KEY_DOWN: (-1, -1),
@@ -66,6 +71,7 @@ class App:
         self.key_motion, self.key_at = (0, 0), 0.0
         self.app_motion, self.app_at = None, 0.0
         self.connected, self.source, self.done = False, "idle", False
+        self.cloud = "connecting" if args.cloud_token else "off (no token)"
 
     # --- WebSocket side ---
     def allowed(self, ws):
@@ -76,34 +82,55 @@ class App:
 
     async def client(self, ws):
         if not self.allowed(ws) or self.connected:
-            await ws.close(
-                code=1008, reason="Token required or controller already connected"
-            )
+            await ws.close(code=1008, reason="Token required or controller already connected")
             return
         self.connected = True
         feed = asyncio.create_task(self.feed(ws))
         try:
             async for message in ws:
-                try:
-                    target = wheels(message, self.args.limit)
-                except (ValueError, TypeError, AttributeError) as error:
-                    await ws.close(code=1008, reason=str(error)[:100])
+                if not self.accept(message):
+                    await ws.close(code=1008, reason="Invalid command")
                     break
-                if target == "estop":
-                    self.base.estop()
-                    target = None
-                self.app_motion, self.app_at = target, time.monotonic()
         except websockets.ConnectionClosed:
             pass
         finally:
             feed.cancel()
             self.app_motion, self.connected = None, False
 
+    def accept(self, message) -> bool:
+        try:
+            target = wheels(message, self.args.limit)
+        except (ValueError, TypeError, AttributeError):
+            self.app_motion = None
+            return False
+        if target == "estop":
+            self.base.estop()
+            target = None
+        self.app_motion, self.app_at = target, time.monotonic()
+        return True
+
+    async def cloud_link(self):
+        """Dial out to the backend relay so the cloud agent can drive through this laptop."""
+        path = f"/v1/rooms/{self.args.room}/robot/base?token={quote(self.args.cloud_token)}"
+        url = self.args.cloud + path
+        while True:
+            try:
+                async with websockets.connect(url, open_timeout=5, max_size=8192) as ws:
+                    self.cloud = "connected"
+                    feed = asyncio.create_task(self.feed(ws))
+                    try:
+                        async for message in ws:
+                            self.accept(message)
+                    finally:
+                        feed.cancel()
+            except (OSError, TimeoutError, websockets.WebSocketException) as error:
+                self.cloud = f"retrying ({type(error).__name__})"
+            self.app_motion = None
+            await asyncio.sleep(2)
+
     def report(self):
         """Firmware telemetry plus the fields the backend motion skills gate on."""
-        state = dict(
-            self.base.telemetry or {}, source=self.source, calibration=self.base.cal
-        )
+        state = dict(self.base.telemetry or {}, source=self.source, calibration=self.base.cal)
         owner = dict(keyboard="human", app="agent").get(self.source, "none")
         # Running this app is the act of supervising: a person is at the keyboard with space/q.
         state["control"] = dict(
@@ -147,9 +174,7 @@ class App:
         elif key in (ord("["), ord("]")):
             self.trim(0.02 if key == ord("]") else -0.02)  # ] = steer more to the right
         elif key in (ord("-"), ord("=")):
-            self.speed = max(
-                0.1, min(1.0, self.speed + (0.05 if key == ord("=") else -0.05))
-            )
+            self.speed = max(0.1, min(1.0, self.speed + (0.05 if key == ord("=") else -0.05)))
 
     def tick(self):
         now = time.monotonic()
@@ -167,9 +192,11 @@ class App:
     def draw(self, screen):
         state, cal = self.base.telemetry or {}, self.base.cal
         where = f"ws://{self.args.host}:{self.args.ws_port}"
+        local = "connected" if self.connected else "waiting"
         rows = [
             "arrows drive | space stop | [ ] trim | - = speed | q quit",
-            f"source {self.source:8} speed {self.speed:.2f}  app {'connected' if self.connected else 'waiting'} {where}",
+            f"source {self.source:8} speed {self.speed:.2f}  app {local} {where}",
+            f"cloud {self.cloud}  {self.args.cloud}",
             f"trim L{cal['left_gain']:.3f} R{cal['right_gain']:.3f}  motors {state.get('motors')}",
             f"ir {state.get('ir_raw')}  estop {state.get('estop')}",
         ]
@@ -181,14 +208,15 @@ class App:
     async def run(self, screen):
         curses.curs_set(0)
         screen.nodelay(True)
-        async with websockets.serve(
-            self.client, self.args.host, self.args.ws_port, max_size=2048
-        ):
+        async with websockets.serve(self.client, self.args.host, self.args.ws_port, max_size=2048):
+            cloud = asyncio.create_task(self.cloud_link()) if self.args.cloud_token else None
             while not self.done:
                 self.keys(screen)
                 self.tick()
                 self.draw(screen)
                 await asyncio.sleep(0.04)
+            if cloud:
+                cloud.cancel()
 
 
 def main():
@@ -198,10 +226,16 @@ def main():
     parser.add_argument("--ws-port", type=int, default=8793)
     parser.add_argument("--token", help="Required from app clients as ?token=...")
     parser.add_argument("--speed", type=float, default=0.2, help="Keyboard level, 0..1")
-    parser.add_argument(
-        "--limit", type=float, default=0.6, help="Cap on app wheel commands"
-    )
+    parser.add_argument("--limit", type=float, default=0.6, help="Cap on app wheel commands")
+    parser.add_argument("--cloud", default=CLOUD, help="Backend relay base URL")
+    parser.add_argument("--room", default="A0000001")
+    parser.add_argument("--no-cloud", action="store_true", help="Keyboard and local app only")
     args = parser.parse_args()
+    args.cloud_token = os.environ.get("HTN_ROBOT_TOKEN") or (
+        TOKEN_FILE.read_text().strip() if TOKEN_FILE.exists() else ""
+    )
+    if args.no_cloud:
+        args.cloud_token = ""
     if args.host != "127.0.0.1" and not args.token:
         parser.error("--token is required when listening beyond loopback")
     with Base(args.port) as base:

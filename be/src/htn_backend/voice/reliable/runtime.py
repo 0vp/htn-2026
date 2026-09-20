@@ -8,6 +8,7 @@ import time
 
 from websockets.asyncio.client import connect
 
+from ...agent.motion.shared import server_motion
 from ...agent.run import run
 from ..bridge import codex_binary
 from .transcribe import Utterance, transcribe
@@ -242,6 +243,7 @@ class Runtime:
                         "Finalized user speech:\n" + command,
                         os.environ.get("HTN_SERVER_URL", "http://127.0.0.1:8790"),
                         codex_binary(),
+                        server_motion(),
                     )
                     await asyncio.to_thread(self.journal.result, self.ident, first, result)
                     if self.upstream:

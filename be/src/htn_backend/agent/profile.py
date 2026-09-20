@@ -39,12 +39,32 @@ successful base position arrival as a verified grasp pose. Never bypass reported
 # Keep coding, discovery and host integrations out of the robot's context. These
 # overrides apply only to this subprocess/thread, never to the user's saved config.
 DISABLED_FEATURES = (
-    "shell_tool", "view_image", "js_repl", "code_mode", "code_mode_only",
-    "code_mode_prewarm", "shell_snapshot", "deferred_executor",
-    "multi_agent", "multi_agent_v2", "apps", "plugins", "tool_suggest",
-    "recommended_plugins", "hooks", "plugin_hooks", "memories", "goals",
-    "token_budget", "context_management", "image_generation", "browser_use",
-    "computer_use", "sleep_tool", "collaboration_modes", "request_permissions_tool",
+    "shell_tool",
+    "view_image",
+    "js_repl",
+    "code_mode",
+    "code_mode_only",
+    "code_mode_prewarm",
+    "shell_snapshot",
+    "deferred_executor",
+    "multi_agent",
+    "multi_agent_v2",
+    "apps",
+    "plugins",
+    "tool_suggest",
+    "recommended_plugins",
+    "hooks",
+    "plugin_hooks",
+    "memories",
+    "goals",
+    "token_budget",
+    "context_management",
+    "image_generation",
+    "browser_use",
+    "computer_use",
+    "sleep_tool",
+    "collaboration_modes",
+    "request_permissions_tool",
 )
 
 

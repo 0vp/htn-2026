@@ -14,6 +14,7 @@ from .api.rooms import router as rooms_router
 from .api.uploads import router as uploads_router
 from .capture.codec import MAX_FRAME_BYTES
 from .processing.state import ProcessingState
+from .robotics.relay import router as relay_router
 from .robotics.routes import router as robotics_router
 from .storage.database import Store, StoreError
 from .storage.retention import RAW_HISTORY_SECONDS, RAW_TARGET_BYTES
@@ -85,6 +86,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     app.include_router(reliable_router(reliable))
     app.include_router(mapping_router(processing))
     app.include_router(robotics_router(processing))
+    app.include_router(relay_router())
     app.include_router(rooms_router(store))
     app.include_router(uploads_router(store))
     return app

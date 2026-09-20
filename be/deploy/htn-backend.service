@@ -9,6 +9,8 @@ Group=htn
 WorkingDirectory=/opt/htn/backend
 Environment=HTN_DATA_DIR=/var/lib/htn
 Environment=HTN_ROOM_ID=A0000001
+# HTN_ROBOT_TOKEN and HTN_ROBOT_URL (loopback relay) let server-side agent runs drive the base.
+EnvironmentFile=-/etc/htn/robot.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/htn/venv/bin/uvicorn htn_backend.main:create_app --factory --host 127.0.0.1 --port 8790 --workers 1 --ws-max-size 14000000 --ws-max-queue 1 --no-access-log --timeout-graceful-shutdown 10
 Restart=on-failure
