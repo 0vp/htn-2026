@@ -1,0 +1,58 @@
+{
+  "date": "2026-09-19",
+  "device": "Physical iPhone 17 Pro",
+  "app_commit": "ceb0b11",
+  "method": "Two sequential 120-second native WebRTC runs using generated PCM and 600 depth-only packets at 5 Hz per run. Slow-receiver condition adds 800 ms completion delay after 60 seconds.",
+  "limitations": [
+    "Generated PCM bypasses physical microphone DSP; synthetic depth packets bypass ARKit and JPEG encoding.",
+    "No matched old-build physical baseline in this batch; not proof the user-reported microphone issue is resolved.",
+    "RTCP feedback may lag. Transcription is model output, not a bit-perfect audio check."
+  ],
+  "result": "No capture stalls or voice disconnects. Camera queue bounded to two. Both runs preserved 17 of 18 complete phrases: one early omission in the slow-receiver run, one late omission in the normal run. Progressive worsening was not reproduced; recognition is not lossless.",
+  "runs": [
+    {
+      "buffered_bytes": 492230,
+      "bytes_stored": 80479581,
+      "duration_s": 120.01087808332522,
+      "lost": false,
+      "max_pending": 2,
+      "pending": 2,
+      "rejected": 0,
+      "slow_receiver": true,
+      "stored": 327,
+      "transcript_age_s": 2.177725833331351,
+      "video_dropped": 271,
+      "test": "VoiceSoakTests/testSlowReceiverAndVoice()",
+      "capture_elapsed_s": 119.1900000000242,
+      "wall_elapsed_s": 119.18182802200317,
+      "stalled_samples": 0,
+      "max_reported_packets_lost": 31,
+      "max_rtt_ms": 576.9499999999999,
+      "max_thermal": 0,
+      "max_video_buffer_bytes": 492232,
+      "complete_phrase_matches": 17
+    },
+    {
+      "buffered_bytes": 246116,
+      "bytes_stored": 142500700,
+      "duration_s": 120.00786304166832,
+      "lost": false,
+      "max_pending": 2,
+      "pending": 1,
+      "rejected": 0,
+      "slow_receiver": false,
+      "stored": 579,
+      "transcript_age_s": 2.230083583344822,
+      "video_dropped": 20,
+      "test": "VoiceSoakTests/testSustainedUploadsAndVoice()",
+      "capture_elapsed_s": 119.81000000002452,
+      "wall_elapsed_s": 119.80598497390747,
+      "stalled_samples": 0,
+      "max_reported_packets_lost": 1,
+      "max_rtt_ms": 224.304,
+      "max_thermal": 0,
+      "max_video_buffer_bytes": 492232,
+      "complete_phrase_matches": 17
+    }
+  ]
+}
