@@ -48,6 +48,16 @@ rates settled at about 49°/s turning and 0.33 m/s driving.
 can tell the model to plan boldly. LiDAR does not reliably see glass or drop-offs, and the
 prompt says so. A human at the laptop can always override with the keyboard.
 
+### 5b. Route finding around obstacles (Nav2-style, in 185 lines)
+
+`go_to` and `approach` replace blind straight legs. LiDAR hits accumulate in a world-frame
+occupancy grid, so obstacles stay known after they leave the camera's narrow view. Obstacles are
+inflated by the robot's 40 cm radius plus a margin, A* plans through the middle of free space
+(unseen floor is allowed but costs more), the path is shortened to straight legs, and the route
+is re-planned from fresh LiDAR after every leg. `approach(x, y)` is point-and-go: the agent
+names a pixel in the picture and LiDAR depth turns it into a world goal. There is no distance
+cap; a 25 m goal is just more legs.
+
 ### 6. Chained actions and talking while moving
 
 `path` runs several turns and straight legs as one continuous move with no thinking pauses in
@@ -102,6 +112,8 @@ Not yet exercised on the real robot:
 
 - The direct phone-to-OpenAI voice path (WebRTC cannot be simulated from the laptop).
 - `path` chaining, which has only run in a scripted world.
+- `go_to` / `approach` route finding: passes a simulated room with a doorway detour and a sealed
+  room (hull never touches a wall), but has not driven the real robot yet.
 - Interruption of a running task by a new request.
 
 Known limits: linear speed is learned, not surveyed; the server's room map stops growing when a

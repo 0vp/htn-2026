@@ -7,6 +7,7 @@ why it stopped) so the next step can adapt; errors are instructions, not dead en
 
 import io
 import json
+import math
 
 import httpx
 from PIL import Image
@@ -15,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..motion.link import RobotLink
 from .navigator import Navigator
 from .perception import Sense, Senses, data_url
+from .planner import draw as draw_route
 from .worldmap import render
 
 
@@ -37,6 +39,18 @@ class Forward(Empty):
 
 class Scan(Empty):
     views: int = Field(default=6, ge=4, le=8, description="Pictures around the full circle")
+    say: str | None = Field(default=None, max_length=160, description=SAY)
+
+
+class GoTo(Empty):
+    bearing_deg: float = Field(ge=-180, le=180, description="Direction of the goal, + left")
+    distance_m: float = Field(gt=0.3, le=25, description="How far away the goal is")
+    say: str | None = Field(default=None, max_length=160, description=SAY)
+
+
+class Approach(Empty):
+    x: float = Field(ge=0, le=1, description="Horizontal position in the last picture, 0 = left")
+    y: float = Field(ge=0, le=1, description="Vertical position in the last picture, 0 = top")
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
@@ -64,6 +78,20 @@ TOOLS = {
         Forward,
         "Drive straight by a distance, measured by the phone. Shortens itself before LiDAR "
         "obstacles and stops if the lane closes. Returns the new view.",
+    ),
+    "go_to": (
+        GoTo,
+        "Travel to a spot given as direction and distance from where you stand, finding a route "
+        "AROUND obstacles: LiDAR hits are remembered in a map, inflated by your 80 cm body, a "
+        "route is planned (A*), and it is re-planned from fresh LiDAR after every leg. Any "
+        "distance up to 25 m; it will wind through furniture by itself. Your main way to travel. "
+        "Returns the final view, the route map, and whether you arrived or what stopped you.",
+    ),
+    "approach": (
+        Approach,
+        "Go to something you can see: give its position in the latest picture and the robot "
+        "drives an obstacle-avoiding route to stand in front of it (LiDAR gives its real "
+        "position). Fails on glass or things beyond ~5 m: use go_to to get closer first.",
     ),
     "path": (
         Path,
@@ -128,6 +156,7 @@ class EmbodiedTools:
                 "work, timed and blind; keep them short."
             )
             return [self.text(dict(extra or {}, senses=note))]
+        self.navigator.remember(sense)  # Every look feeds the obstacle memory used by go_to.
         state = dict(extra or {}, **sense.summary(), moves_so_far=self.moves)
         if not sense.fresh:
             state["warning"] = "View is stale; the phone may have paused streaming."
@@ -167,6 +196,37 @@ class EmbodiedTools:
         self.moves += 1
         return self.observation(self.navigator.settle_and_sense(before), dict(forward=result))
 
+    def _travel(self, target, note):
+        before = self.senses.read(render=False)
+        result = self.navigator.go_to(target)
+        self.moves += max(1, len(result["legs"]))
+        route = result.pop("route")
+        sense = self.navigator.settle_and_sense(before)
+        items = self.observation(sense, dict(go_to=result, **note))
+        if sense and self.navigator.grid is not None:
+            picture = draw_route(self.navigator.grid, sense.position, sense.heading_deg, route)
+            items.append(data_url(picture, "png"))  # Remembered obstacles and the route taken.
+        return items
+
+    def _go_to(self, args):
+        sense = self.senses.read(render=False)
+        if sense is None or not sense.fresh:
+            return self.observation(sense, dict(go_to="needs a live phone view; use path instead"))
+        heading = math.radians(sense.heading_deg + args.bearing_deg)
+        target = (
+            sense.position[0] - math.sin(heading) * args.distance_m,
+            sense.position[1] - math.cos(heading) * args.distance_m,
+        )
+        return self._travel(target, {})
+
+    def _approach(self, args):
+        sense = self.senses.read(render=False)
+        found = sense.world_point(args.x, args.y) if sense and sense.fresh else None
+        if found is None:
+            hint = "No LiDAR depth at that spot (glass, too far, or no live view). Use go_to."
+            return self.observation(sense, dict(approach=hint))
+        return self._travel(found[:2], dict(target_range_m=round(found[2], 2)))
+
     def _path(self, args):
         before = self.senses.read(render=False)
         done, halted = [], None
@@ -194,6 +254,7 @@ class EmbodiedTools:
         step, items, views = 360.0 / args.views, [], []
         for index in range(args.views):
             sense = self.senses.read(render=False)
+            self.navigator.remember(sense)
             if sense:
                 views.append(
                     dict(

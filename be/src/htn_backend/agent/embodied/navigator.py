@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ..motion.link import RobotLink
 from ..motion.skills import Motion
+from . import planner
 from .perception import Sense, Senses, wait_fresh
 
 TURN_LEVEL, DRIVE_LEVEL = 0.3, 0.3
@@ -22,7 +23,9 @@ DEFAULT_RATES = {"turn": 48.0, "forward": 0.35}  # deg/s, m/s
 RATE_LIMITS = {"turn": (15.0, 150.0), "forward": (0.08, 1.2)}
 RATES_FILE = Path(__file__).resolve().parents[5] / "robot/scripts/rates.json"
 DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
-STOP_MARGIN_M = 0.45
+STOP_MARGIN_M = 0.65  # From the phone at the centre: leaves ~0.25 m between hull and obstacle.
+LEG_M = 2.0  # Re-sense and re-plan at least this often while following a route.
+ARRIVE_M = 0.35
 POLL_S = 0.3
 MAX_TURN_DEG, MAX_FORWARD_M = 180.0, 3.0
 
@@ -34,6 +37,8 @@ def wrap(degrees: float) -> float:
 class Navigator:
     def __init__(self, link: RobotLink, senses: Senses):
         self.link, self.senses, self.motion = link, senses, Motion(link)
+        self.grid: planner.Grid | None = None
+        self.last_position = None
         self.rates = dict(DEFAULT_RATES)
         if RATES_FILE.exists():
             self.rates.update(json.loads(RATES_FILE.read_text()))
@@ -152,6 +157,75 @@ class Navigator:
         low, high = RATE_LIMITS[kind]
         self.rates[kind] = 0.5 * self.rates[kind] + 0.5 * max(low, min(high, rate))
         RATES_FILE.write_text(json.dumps(self.rates, indent=2) + "\n")
+
+    def remember(self, sense: Sense | None) -> None:
+        """Fold a LiDAR frame into the world grid; restart it if tracking jumped."""
+        if sense is None or not sense.fresh or sense.obstacles_world is None:
+            return
+        jumped = self.last_position and math.dist(self.last_position, sense.position) > 4.0
+        if self.grid is None or jumped or not self.grid.inside(*self.grid.index(*sense.position)):
+            self.grid = planner.Grid(sense.position)
+        self.last_position = sense.position
+        self.grid.integrate(sense.floor_world, sense.obstacles_world)
+
+    def go_to(self, target: tuple[float, float], on_leg=None) -> dict:
+        """Drive to a world point around obstacles: plan, drive one leg, look, re-plan."""
+        legs, travelled, reason, waypoints = [], 0.0, None, []
+        sense = self.senses.read(render=False)
+        for _ in range(40):
+            if sense is None or not sense.fresh:
+                reason = "the phone's view is not live, so the route cannot be followed safely"
+                break
+            self.remember(sense)
+            remaining = math.dist(sense.position, target)
+            if remaining <= ARRIVE_M:
+                break
+            waypoints, reason = planner.plan(self.grid, sense.position, target)
+            if waypoints is None or len(waypoints) < 2:
+                break
+            if math.dist(waypoints[-1], sense.position) <= ARRIVE_M:
+                reason = None  # As close as the obstacle around the goal allows.
+                break
+            nxt = waypoints[1]
+            dx, dz = nxt[0] - sense.position[0], nxt[1] - sense.position[1]
+            bearing = math.degrees(math.atan2(-dx, -dz))
+            swing = wrap(bearing - sense.heading_deg)
+            if abs(swing) > 6:
+                turned = self.turn(swing)
+                if not turned.get("moved"):
+                    reason = turned.get("stopped_by")
+                    break
+                sense = self.senses.read(render=False)  # LiDAR now faces the leg: check it.
+                self.remember(sense)
+                check, _ = planner.plan(self.grid, sense.position, target) if sense else (None, 0)
+                if check is None or len(check) < 2 or math.dist(check[1], nxt) > 0.5:
+                    continue  # The turn revealed something: plan again before driving.
+            leg = min(math.hypot(dx, dz), LEG_M)
+            moved = self.forward(leg, sense)
+            legs.append(dict(turn=round(swing), forward=moved.get("measured") or round(leg, 2)))
+            travelled += moved.get("measured") or 0.0
+            if on_leg:
+                on_leg(len(legs))
+            if not moved.get("moved") and not moved.get("stopped_by"):
+                reason = "could not move"
+                break
+            if moved.get("stopped_by") and "obstacle" not in str(moved["stopped_by"]):
+                reason = moved["stopped_by"]  # Human took over, E-STOP, link lost.
+                break
+            time.sleep(0.5)
+            sense = self.senses.read(render=False)
+        else:
+            reason = "still not there after 40 legs"
+        final = self.senses.read(render=False)
+        left = math.dist(final.position, target) if final else None
+        return dict(
+            arrived=reason is None and left is not None and left <= 1.2,
+            distance_left_m=None if left is None else round(left, 2),
+            travelled_m=round(travelled, 2),
+            legs=legs[-8:],
+            stopped_by=reason,
+            route=waypoints or [],
+        )
 
     def settle_and_sense(self, before: Sense | None) -> Sense | None:
         return wait_fresh(self.senses, before.sequence if before else 0)

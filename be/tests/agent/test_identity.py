@@ -14,5 +14,6 @@ def test_both_prompts_share_name_character_and_language():
 
 
 def test_agent_prompt_only_names_tools_that_exist():
-    for name in ("path", "scan", "room_map", "recall", "stop", "look", "turn", "forward"):
+    names = ("go_to", "approach", "path", "scan", "room_map", "recall", "stop", "look", "turn")
+    for name in (*names, "forward"):
         assert name in TOOLS and name in INSTRUCTIONS

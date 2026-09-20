@@ -20,7 +20,7 @@ from ...capture.codec import decode
 
 CELL_M = 0.05
 RANGE_M = 4.0
-HALF_WIDTH_M = 0.33  # Robot is 0.45 m wide; corridor adds a margin per side.
+HALF_WIDTH_M = 0.52  # The base is 0.80 m across with the phone at its centre, plus margin.
 FRESH_S = 2.5
 
 
@@ -36,6 +36,28 @@ class Sense:
     clear_right_m: float | None
     rgb_jpeg: bytes
     map_png: bytes
+    floor_world: np.ndarray | None = None  # (N, 2) world x, z of seen floor
+    obstacles_world: np.ndarray | None = None  # (N, 2) world x, z of LiDAR obstacles
+    depth: np.ndarray | None = None
+    header: object | None = None
+
+    def world_point(self, x: float, y: float) -> tuple[float, float, float] | None:
+        """World (x, z) and range of the surface at a picture position (0..1 from top-left)."""
+        if self.depth is None or self.header is None:
+            return None
+        h = self.header
+        u, v = x * (h.depth_width - 1), y * (h.depth_height - 1)
+        r0, c0 = max(0, int(v) - 3), max(0, int(u) - 3)
+        patch = self.depth[r0 : int(v) + 4, c0 : int(u) + 4]
+        valid = patch[(patch > 0.15) & np.isfinite(patch)]
+        if valid.size < 4:
+            return None  # Glass, sky, or beyond LiDAR range (~5 m).
+        d = float(np.median(valid))
+        sign = -1.0 if h.camera_convention == "arkit" else 1.0
+        camera = np.array([(u - h.cx) / h.fx * d, sign * (v - h.cy) / h.fy * d, sign * d, 1.0])
+        pose = np.array(h.camera_to_world, dtype=np.float64).reshape(4, 4).T
+        world = pose @ camera
+        return float(world[0]), float(world[2]), d
 
     @property
     def fresh(self) -> bool:
@@ -78,7 +100,9 @@ def _points(frame) -> tuple[np.ndarray, np.ndarray]:
     flat /= np.linalg.norm(flat) or 1.0
     right = np.cross(flat, np.array([0.0, 1.0, 0.0]))
     points = np.stack([world @ right, world[:, 1], world @ flat], axis=1)
-    return points, pose
+    origin = pose[:3, 3]
+    ground_plane = np.stack([world[:, 0] + origin[0], world[:, 2] + origin[2]], axis=1)
+    return points, pose, ground_plane
 
 
 def _clearance(obstacles: np.ndarray, centre: float) -> float | None:
@@ -158,17 +182,20 @@ class Senses:
         if raw.status_code != 200:
             return None
         frame = decode(raw.content)
-        points, pose = _points(frame)
+        points, pose, ground_plane = _points(frame)
         forward = pose[:3, :3] @ np.array(
             [0.0, 0.0, -1.0 if frame.header.camera_convention == "arkit" else 1.0]
         )
         heading = math.degrees(math.atan2(-forward[0], -forward[2]))
         ahead = left = right = None
         floor = obstacles = np.zeros((0, 3))
+        floor_world = obstacles_world = np.zeros((0, 2))
         if len(points) > 500:
             ground = float(np.percentile(points[:, 1], 4))
-            floor = points[points[:, 1] < ground + 0.06]
-            obstacles = points[(points[:, 1] > ground + 0.12) & (points[:, 1] < ground + 1.7)]
+            low = points[:, 1] < ground + 0.06
+            tall = (points[:, 1] > ground + 0.12) & (points[:, 1] < ground + 1.7)
+            floor, obstacles = points[low], points[tall]
+            floor_world, obstacles_world = ground_plane[low], ground_plane[tall]
             ahead = _clearance(obstacles, 0.0)
             left, right = _clearance(obstacles, -0.7), _clearance(obstacles, 0.7)
         return Sense(
@@ -182,6 +209,10 @@ class Senses:
             clear_right_m=right,
             rgb_jpeg=frame.rgb_jpeg,
             map_png=_draw(floor, obstacles) if render else b"",
+            floor_world=floor_world,
+            obstacles_world=obstacles_world,
+            depth=frame.depth,
+            header=frame.header,
         )
 
 
