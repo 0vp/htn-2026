@@ -8,7 +8,9 @@
 struct Settings {
   String ssid;
   String password;
-  /** Shared secret the agent must present: ws://<badge-ip>:81/?token=... */
+  /** Where drive.py listens, e.g. ws://192.168.1.20:8793/ (no token in the URL needed). */
+  String url;
+  /** Shared secret drive.py was started with (--token); appended to `url` when dialling. */
   String token;
   bool invertLcd = true;
   /** Rotates the landscape screen 180 degrees. */
@@ -23,8 +25,8 @@ void load();
 void save();
 
 /**
- * USB serial console. Commands: help, status, wifi, token, lcd, datapin, map, polarity,
- * buttons, reboot. Returns true when the Wi-Fi or token settings changed.
+ * USB serial console. Commands: help, status, wifi, url, token, lcd, datapin, map, polarity,
+ * buttons, reboot. Returns true when the Wi-Fi, URL or token settings changed.
  */
 bool pollConsole();
 

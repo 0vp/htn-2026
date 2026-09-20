@@ -4,7 +4,7 @@
 #include <WiFi.h>
 
 #include "../board.h"
-#include "server.h"
+#include "client.h"
 
 namespace {
 
@@ -37,11 +37,12 @@ void printStatus() {
   const ButtonMap &m = current.buttons;
   Serial.printf("wifi ssid: %s (%s)\n", current.ssid.length() ? current.ssid.c_str() : "<unset>",
                 current.password.length() ? "password set" : "open");
-  Serial.printf("agent token: %s\n", current.token.length() ? "set" : "<unset>");
-  Serial.printf("control url: ws://%s:81/?token=...\n", robotserver::localIp().c_str());
+  Serial.printf("drive.py url: %s\n", current.url.length() ? current.url.c_str() : "<unset>");
+  Serial.printf("token: %s\n", current.token.length() ? "set" : "<unset>");
   Serial.printf("wifi status code: %d\n", WiFi.status());
-  Serial.printf("link: %s, ip %s, clients %u\n", robotserver::statusText(),
-                robotserver::localIp().c_str(), robotserver::clientCount());
+  Serial.printf("link: %s, badge ip %s, telemetry %lu ms ago\n", robotlink::statusText(),
+                robotlink::localIp().c_str(),
+                static_cast<unsigned long>(robotlink::telemetrySilenceMs()));
   Serial.printf("lcd invert: %d, flip: %d\n", current.invertLcd, current.flipLcd);
   Serial.printf("buttons: data GPIO%d, active %s, map", m.dataPin, m.activeHigh ? "high" : "low");
   for (uint8_t i = 0; i < 8; i++) Serial.printf(" %s=%u", buttonName(static_cast<Button>(i)), m.bitOf[i]);
@@ -54,7 +55,8 @@ void printHelp() {
       "  status                      show settings and link state\n"
       "  wifi <ssid> [password]      join a network (quote SSIDs with spaces)\n"
       "  scan                        list 2.4 GHz networks the badge can see\n"
-      "  token <secret>              shared secret the agent must present to drive\n"
+      "  url ws://<ip>:8793/         where drive.py listens (--host 0.0.0.0)\n"
+      "  token <secret>              the secret drive.py was started with (--token)\n"
       "  lcd invert <0|1>            fix inverted colours (applies after reboot)\n"
       "  lcd flip                    rotate the screen 180 degrees (applies after reboot)\n"
       "  buttons                     toggle printing raw shift-register bytes\n"
@@ -87,6 +89,11 @@ bool handle(String cmdLine) {
                     WiFi.encryptionType(i) == WIFI_AUTH_WPA2_ENTERPRISE ? "enterprise" : "");
     }
     Serial.printf("%d networks\n", n);
+  } else if (cmd == "url") {
+    current.url = nextToken(cmdLine);
+    settings::save();
+    Serial.printf("saved url '%s'\n", current.url.c_str());
+    return true;
   } else if (cmd == "token") {
     current.token = nextToken(cmdLine);
     settings::save();
@@ -164,6 +171,7 @@ void load() {
   prefs.begin(NS, true);
   current.ssid = prefs.getString("ssid", "");
   current.password = prefs.getString("pass", "");
+  current.url = prefs.getString("url", "");
   current.token = prefs.getString("token", "");
   current.invertLcd = prefs.getBool("invert", true);
   current.flipLcd = prefs.getBool("flip", false);
@@ -178,6 +186,7 @@ void save() {
   prefs.begin(NS, false);
   prefs.putString("ssid", current.ssid);
   prefs.putString("pass", current.password);
+  prefs.putString("url", current.url);
   prefs.putString("token", current.token);
   prefs.putBool("invert", current.invertLcd);
   prefs.putBool("flip", current.flipLcd);

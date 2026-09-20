@@ -7,7 +7,8 @@ namespace {
 const char *const MODE_NAMES[] = {"DRIVE", "AUTO"};
 const float SPEED_STEPS[] = {0.25f, 0.5f, 0.75f, 1.0f};
 
-// Gradual acceleration; the motor output ramps again at 0.5 duty/s before the wheel sees it.
+// Gradual acceleration. drive.py fakes this on the laptop by holding the last arrow for 0.6 s;
+// the badge has real press and release events, so it ramps the stick instead.
 constexpr float STICK_RISE_PER_S = 2.5f;
 constexpr float STICK_FALL_PER_S = 6.0f;
 
@@ -38,14 +39,26 @@ void Controller::update(const ButtonState &in, float dt) {
   // While the agent drives, any new button edge (START, HOME and the slide included) stops it.
   // Holding START from arming isn't an edge, so it doesn't trip this.
   if (supervising() && (in.pressed || in.released & (1u << static_cast<uint8_t>(Button::Aux1)))) {
-    state_.estop = true;
     disarm();
     startConsumed_ = true;
     return;
   }
+
+  // B is drive.py's space bar: stop and disarm. Held, it escalates to the latching E-STOP,
+  // which the base firmware keeps until the board is power-cycled.
   if (in.wasPressed(Button::B)) {
-    state_.estop = true;
     disarm();
+    stopConsumed_ = false;
+  }
+  if (in.isHeld(Button::B) && !stopConsumed_) {
+    stopHold_ += dt;
+    if (stopHold_ >= STOP_HOLD_S) {
+      state_.estop = true;
+      disarm();
+      stopConsumed_ = true;
+    }
+  } else {
+    stopHold_ = 0;
   }
 
   // START: a tap disarms; a one-second hold arms and clears the E-STOP.
@@ -90,12 +103,13 @@ void Controller::driveInput(const ButtonState &in, float dt) {
   state_.stickY = ramp(state_.stickY, live ? axis(in, Button::Down, Button::Up) : 0, dt);
 }
 
-float Controller::duty() const {
+float Controller::linear() const {
   if (!driving()) return 0;
-  return clampf(state_.stickY) * state_.speedLimit * MAX_DUTY;
+  return clampf(state_.stickY) * state_.speedLimit * MAX_LEVEL;
 }
 
-float Controller::steering() const {
-  if (mode_ != Mode::Drive) return 0;
-  return clampf(state_.stickX) * MAX_STEERING_DEG;
+float Controller::angular() const {
+  if (!driving()) return 0;
+  // drive.py turns left on + angular, so the right half of the D-pad is negative here.
+  return -clampf(state_.stickX) * state_.speedLimit * MAX_LEVEL;
 }
