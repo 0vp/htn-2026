@@ -4,6 +4,7 @@ The server keeps speech, the room model and the tool APIs; the laptop runs Codex
 there) next to the motor link, so reasoning is visible on the robot and motion stays local.
 
   worker:  POST /v1/agent/jobs/claim   (long poll)  -> {"job_id", "room_id", "prompt"} | 204
+           POST /v1/agent/jobs/{id}/progress {"result": str}   spoken update while working
            POST /v1/agent/jobs/{id}/result {"result": str}
 Both need `Authorization: Bearer $HTN_ROBOT_TOKEN`. While a worker has polled recently, voice
 turns go to it; otherwise they run on the server's own Codex when one is installed.
@@ -27,20 +28,32 @@ class Hub:
     def __init__(self):
         self.queue: asyncio.Queue = asyncio.Queue()
         self.waiting: dict[str, asyncio.Future] = {}
+        self.listeners: dict = {}  # job_id -> async callback(text) for spoken progress
         self.seen = 0.0
 
     def present(self) -> bool:
         return time.monotonic() - self.seen <= PRESENT_S
 
-    async def execute(self, room_id: str, prompt: str) -> str:
+    async def execute(self, room_id: str, prompt: str, progress=None) -> str:
         job_id = uuid.uuid4().hex
         future = asyncio.get_running_loop().create_future()
         self.waiting[job_id] = future
+        if progress:
+            self.listeners[job_id] = progress
         await self.queue.put(dict(job_id=job_id, room_id=room_id, prompt=prompt))
         try:
             return await asyncio.wait_for(future, JOB_TIMEOUT_S)
         finally:
             self.waiting.pop(job_id, None)
+            self.listeners.pop(job_id, None)
+
+    async def progress(self, job_id: str, text: str) -> bool:
+        self.seen = time.monotonic()
+        listener = self.listeners.get(job_id)
+        if listener is None:
+            return False
+        await listener(text)
+        return True
 
     async def claim(self) -> dict | None:
         self.seen = time.monotonic()
@@ -68,10 +81,10 @@ class Hub:
 hub = Hub()
 
 
-async def execute(room_id: str, prompt: str) -> str:
+async def execute(room_id: str, prompt: str, progress=None) -> str:
     """Run one agent turn on the laptop worker when present, else on the server's Codex."""
     if hub.present():
-        return await hub.execute(room_id, prompt)
+        return await hub.execute(room_id, prompt, progress)
     from ..voice.bridge import codex_binary
     from .motion.shared import server_motion
     from .run import run
@@ -99,6 +112,11 @@ def router() -> APIRouter:
         authorize(authorization)
         job = await hub.claim()
         return job if job else Response(status_code=204)
+
+    @routes.post("/jobs/{job_id}/progress")
+    async def progress(job_id: str, body: Result, authorization: str | None = Header(default=None)):
+        authorize(authorization)
+        return {"delivered": await hub.progress(job_id, body.result[:400])}
 
     @routes.post("/jobs/{job_id}/result")
     async def result(job_id: str, body: Result, authorization: str | None = Header(default=None)):

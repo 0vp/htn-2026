@@ -28,7 +28,7 @@ def test_final_only_execution_and_no_replay(tmp_path, monkeypatch):
         journal.finalize("one", 2, 3, "the blue bottle")
         calls = []
 
-        async def run(room, text, base=None, binary=None, motion=None):
+        async def run(room, text, base=None, binary=None, motion=None, progress=None):
             calls.append(text)
             return "confirmed result"
 
@@ -79,7 +79,7 @@ def test_cancelled_command_is_not_replayed(tmp_path, monkeypatch):
         journal.finalize("one", 0, 0, "a complete command")
         started = asyncio.Event()
 
-        async def run(*args):
+        async def run(*args, **kwargs):
             started.set()
             await asyncio.Event().wait()
 

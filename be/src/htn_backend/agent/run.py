@@ -56,6 +56,8 @@ async def run_turn(
                     raise RuntimeError(
                         "Requested Astra model was rerouted; refusing silent substitution"
                     )
+                if method == "item/started" and params["item"]["type"] == "dynamicToolCall":
+                    emit(f"[tool: {params['item']['tool']} — started]")
                 if method == "item/completed":
                     item = params["item"]
                     if item["type"] == "agentMessage":
@@ -80,7 +82,7 @@ async def run_turn(
             await asyncio.gather(monitor, return_exceptions=True)
 
 
-async def run(room_id, prompt, backend, binary, motion=None, embodied=False):
+async def run(room_id, prompt, backend, binary, motion=None, embodied=False, emit=print):
     # Empty workspace avoids inheriting repository instructions or editing source files.
     with tempfile.TemporaryDirectory(prefix="room-agent-") as workspace:
         with httpx.Client(base_url=backend, timeout=15, follow_redirects=False) as client:
@@ -114,6 +116,7 @@ async def run(room_id, prompt, backend, binary, motion=None, embodied=False):
                     server,
                     thread["thread"]["id"],
                     prompt,
+                    emit=emit,
                     feedback_backend=backend,
                     prefix=tools.prefix,
                 )

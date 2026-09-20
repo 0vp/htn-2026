@@ -28,6 +28,41 @@ def stamp(text: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {text}", flush=True)
 
 
+SPOKEN_TOOLS = {
+    "scan": "Scanning around me.",
+    "forward": "Driving.",
+    "room_map": "Checking the room map.",
+}
+MIN_GAP_S = 5.0
+
+
+class Narrator:
+    """Prints everything Codex does; sends its own words and key actions to be spoken."""
+
+    def __init__(self, client: httpx.AsyncClient, job_id: str):
+        self.client, self.job_id, self.last, self.tasks = client, job_id, 0.0, set()
+
+    def __call__(self, text: str) -> None:
+        stamp(text)
+        if text.startswith("[tool: "):
+            name, _, state = text[7:-1].partition(" — ")
+            spoken = SPOKEN_TOOLS.get(name) if state == "started" else None
+            if not spoken or time.monotonic() - self.last < MIN_GAP_S:
+                return
+        else:
+            spoken = text
+        self.last = time.monotonic()
+        task = asyncio.ensure_future(self.send(spoken))
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
+
+    async def send(self, text: str) -> None:
+        try:
+            await self.client.post(f"/v1/agent/jobs/{self.job_id}/progress", json={"result": text})
+        except httpx.HTTPError:
+            pass
+
+
 async def serve(backend: str, token: str, binary: str, motion: Motion | None) -> None:
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(base_url=backend, headers=headers, timeout=40) as client:
@@ -44,9 +79,16 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
                 continue
             job = response.json()
             stamp(f"▶ {job['prompt']}")
+            narrator = Narrator(client, job["job_id"])
             try:
                 result = await run(
-                    job["room_id"], job["prompt"], backend, binary, motion, embodied=True
+                    job["room_id"],
+                    job["prompt"],
+                    backend,
+                    binary,
+                    motion,
+                    embodied=True,
+                    emit=narrator,
                 )
             except Exception as error:  # The phone must always get an answer.
                 result = f"Codex could not complete the request ({type(error).__name__})."

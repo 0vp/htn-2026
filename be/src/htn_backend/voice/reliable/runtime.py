@@ -11,9 +11,9 @@ from ...agent import remote
 from .transcribe import Utterance, transcribe
 
 
-async def run(room_id, prompt, backend=None, binary=None, motion=None):
+async def run(room_id, prompt, backend=None, binary=None, motion=None, progress=None):
     """Laptop worker when one is polling, else the server's own Codex (see agent/remote.py)."""
-    return await remote.execute(room_id, prompt)
+    return await remote.execute(room_id, prompt, progress)
 
 
 class Runtime:
@@ -36,6 +36,23 @@ class Runtime:
         self.ending = False
         self.failed = False
         self.upstream = None
+
+    async def say(self, text):
+        """Progress from the working agent: shown on the phone and spoken by the live voice."""
+        await self.emit({"type": "status", "text": text[:200]})
+        if self.upstream:
+            try:
+                await self.upstream.send(
+                    json.dumps(
+                        {
+                            "type": "session.commentary.append",
+                            "delegation_id": None,
+                            "content": text[:400],
+                        }
+                    )
+                )
+            except Exception:
+                pass
 
     async def emit(self, event):
         async with self.send_lock:
@@ -91,9 +108,13 @@ class Runtime:
                         "session": {
                             "model": "gpt-live-1",
                             "delegation": {"type": "client"},
-                            "instructions": "Be concise. You are a room assistant. "
-                            "A separate reliable transcription worker handles Codex requests. "
-                            "Do not claim to execute actions or confirm their completion yourself.",
+                            "instructions": "You are the voice of a mobile robot. Be brief and "
+                            "warm. You do not act yourself: a robot agent (Codex) hears every "
+                            "request, drives the robot and sends you commentary. When the user "
+                            "asks for something, say in a few words that you are on it. When "
+                            "commentary arrives, say it aloud naturally in one short sentence: "
+                            "that is how the user hears progress and results. Never say you "
+                            "cannot move or see; never invent results that were not in commentary.",
                             "audio": {
                                 "format": {"type": "audio/pcm", "rate": 24000},
                                 "output": {"voice": "marin"},
@@ -240,7 +261,9 @@ class Runtime:
                 if not await asyncio.to_thread(self.journal.claim, self.ident, first):
                     continue
                 try:
-                    result = await run(self.room, "Finalized user speech:\n" + command)
+                    result = await run(
+                        self.room, "Finalized user speech:\n" + command, progress=self.say
+                    )
                     await asyncio.to_thread(self.journal.result, self.ident, first, result)
                     if self.upstream:
                         try:

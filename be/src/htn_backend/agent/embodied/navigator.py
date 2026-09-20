@@ -50,7 +50,7 @@ class Navigator:
         sign = 1.0 if degrees > 0 else -1.0
         result = self._turn_once(degrees)
         error = result.pop("needs", 0.0)  # Degrees still missing (+) or overshot (-).
-        if abs(error) > 8:  # One corrective turn; the rate model has just been updated.
+        if abs(error) > 15:  # One corrective turn; the rate model has just been updated.
             fix = self._turn_once(sign * error, corrected=True)
             if fix.get("measured") is not None:
                 result["measured"] = round(
