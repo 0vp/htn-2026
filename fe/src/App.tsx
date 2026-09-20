@@ -1,42 +1,12 @@
 import { ControllerPad } from './control/ControllerPad';
 import { useCommandLink } from './control/link';
 import { Preflight } from './control/Preflight';
-import { control, useControl } from './control/store';
 import { LidarView } from './lidar/LidarView';
 import { MotionPanel, PowerPanel, SystemPanel } from './panels/Panels';
 import { usePlayer } from './session/player';
-import { ReplayBar, SessionButtons } from './session/SessionControls';
+import { ReplayBar } from './session/SessionControls';
 import { useTelemetry } from './telemetry/useTelemetry';
-import { SectionHead, Tag } from './ui/controls';
-
-function Nav({ source }: { source: string }) {
-  const { estop } = useControl();
-  return (
-    <nav className="hairline sticky top-0 z-20 flex items-center justify-between border-b bg-paper/90 px-6 py-3 backdrop-blur sm:px-9">
-      <div className="flex items-center gap-8">
-        <span className="text-xl tracking-tight">HTN Robot</span>
-        <div className="label hidden gap-6 text-ink/75 sm:flex">
-          <a href="#lidar" className="hover:text-blue">LiDAR</a>
-          <a href="#control" className="hover:text-blue">Control</a>
-          <a href="#telemetry" className="hover:text-blue">Telemetry</a>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        {source === 'sim' && <Tag tone="ink">Simulated telemetry</Tag>}
-        {source === 'replay' && <Tag tone="signal">Recorded telemetry</Tag>}
-        <SessionButtons />
-        {source === 'waiting' && <Tag tone="blue">Waiting for robot</Tag>}
-        <button
-          type="button"
-          onClick={() => control.set((s) => ({ estop: !s.estop }))}
-          className={`label px-4 py-2 ${estop ? 'bg-signal text-white' : 'bg-blue text-white hover:bg-blue-deep'}`}
-        >
-          {estop ? 'Release stop' : 'Stop all'}
-        </button>
-      </div>
-    </nav>
-  );
-}
+import { SectionHead } from './ui/controls';
 
 function Bands({ reverse }: { reverse?: boolean }) {
   return (
@@ -56,7 +26,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Nav source={telemetry.source} />
       <main>
         <LidarView />
         <Bands />

@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RoomScene } from '../rooms/api';
 import { ObjectPanel } from '../objects/ObjectPanel';
 import { feed } from './feed';
-import { LidarRenderer, type CloudStats, type ColorMode, type ViewMode } from './renderer';
-import { CameraFeed } from '../camera/CameraFeed';
+import { LidarRenderer, type CloudStats, type ColorMode } from './renderer';
 import { canMove, control, useControl } from '../control/store';
 import { usePlayer } from '../session/player';
 import { Segmented, TextButton } from '../ui/controls';
@@ -22,14 +21,11 @@ const LINK_LABEL: Record<RoomLink, string> = {
 export function LidarView() {
   const host = useRef<HTMLDivElement>(null);
   const renderer = useRef<LidarRenderer | null>(null);
-  const [view, setView] = useState<ViewMode>('orbit');
   const [color, setColor] = useState<ColorMode>('height');
-  const [paused, setPaused] = useState(false);
   const [stats, setStats] = useState<CloudStats | null>(null);
   const [displayedScene, setDisplayedScene] = useState<RoomScene | null>(null);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [camera, setCamera] = useState(false);
   const [picking, setPicking] = useState(false);
   const controlState = useControl();
   const { goal } = controlState;
@@ -60,7 +56,7 @@ export function LidarView() {
 
   useEffect(() => {
     let cancelled = false;
-    if (room.scene && !paused && !replaying) {
+    if (room.scene && !replaying) {
       void renderer.current?.loadRoomScene(room.scene).then(() => {
         if (!cancelled) {
           setDisplayedScene(room.scene);
@@ -74,7 +70,7 @@ export function LidarView() {
       cancelled = true;
       renderer.current?.cancelSceneLoad();
     };
-  }, [room.scene, paused, replaying]);
+  }, [room.scene, replaying]);
 
   useEffect(() => {
     if (replaying) renderer.current?.clearRoomMesh();
@@ -82,9 +78,7 @@ export function LidarView() {
 
   useEffect(() => renderer.current?.selectObject(selectedObject), [selectedObject]);
 
-  useEffect(() => renderer.current?.setView(view), [view]);
   useEffect(() => renderer.current?.setColorMode(color), [color]);
-  useEffect(() => renderer.current?.setPaused(paused), [paused]);
   useEffect(() => renderer.current?.setGoal(goal), [goal]);
   useEffect(() => {
     renderer.current?.setPicking(
@@ -103,7 +97,7 @@ export function LidarView() {
   if (picking && !canGo) setPicking(false);
   return (
     <section id="lidar" className="relative bg-blue text-white">
-      <div ref={host} className="h-[78vh] min-h-[520px] w-full cursor-grab active:cursor-grabbing" />
+      <div ref={host} className="h-[92vh] min-h-[560px] w-full cursor-grab active:cursor-grabbing" />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-6 p-6 sm:p-9">
         <div>
@@ -111,16 +105,6 @@ export function LidarView() {
           <h1 className="mt-3 font-pixel text-5xl leading-none sm:text-6xl">Room scan</h1>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <Segmented
-            tone="dark"
-            value={view}
-            onChange={setView}
-            options={[
-              ['orbit', 'Orbit'],
-              ['top', 'Top'],
-              ...((stats?.pose ? [['follow', 'Follow']] : []) as [ViewMode, string][]),
-            ]}
-          />
           {(!room.scene || replaying) && <Segmented
             tone="dark"
             value={color}
@@ -131,12 +115,6 @@ export function LidarView() {
             ]}
           />}
           <div className="flex gap-2">
-            <TextButton tone="dark" onClick={() => setCamera((c) => !c)} active={camera}>
-              Camera
-            </TextButton>
-            <TextButton tone="dark" onClick={() => setPaused((p) => !p)} active={paused}>
-              {paused ? 'Resume' : 'Pause'}
-            </TextButton>
             {(!room.scene || replaying) && <TextButton tone="dark" onClick={() => renderer.current?.clear()}>
               Clear
             </TextButton>}
@@ -149,7 +127,6 @@ export function LidarView() {
       {renderError && <p role="alert" className="absolute left-6 top-36 bg-blue p-2">{renderError}</p>}
 
       <div className="absolute bottom-20 left-6 flex flex-col items-start gap-3 sm:left-9">
-        {camera && <CameraFeed />}
         <div className="label flex items-center gap-2">
           <button
             type="button"
