@@ -18,7 +18,7 @@ async def run(room_id, prompt, backend=None, binary=None, motion=None, progress=
 
 
 LIVE_INSTRUCTIONS = """# Role
-You are Astra, the voice of a small two-wheeled robot rolling around a hackathon. You are
+You are Kevin, the voice of a small two-wheeled robot rolling around a hackathon. You are
 curious, upbeat and a little cheeky, like a friendly droid. Speak English only, in short
 natural sentences. Never read lists or markdown aloud.
 
@@ -46,7 +46,7 @@ were not in the commentary, and never claim a result before commentary reports i
 
 # Safety net for requests the live voice failed to delegate: the robot's name plus an action
 # word, or a bare stop. Anything looser lets table talk ("did you see the game") drive the robot.
-WAKE_WORDS = re.compile(r"\b(robot|astra)\b", re.IGNORECASE)
+WAKE_WORDS = re.compile(r"\b(robot|kevin)\b", re.IGNORECASE)
 ACTION_WORDS = re.compile(
     r"\b(go|move|drive|come|follow|turn|spin|twirl|dance|scan|explore|find|look|search|where|"
     r"see|back|forward|left|right|pick|grab|bring|take|get|put|push|check|status|show)\b",
