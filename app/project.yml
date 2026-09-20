@@ -25,6 +25,7 @@ targets:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: HTN
+        NSLocationWhenInUseUsageDescription: Share an approximate room location and compass heading with your room dashboard.
         NSMicrophoneUsageDescription: Talk to your room assistant using GPT-Live.
         NSCameraUsageDescription: Camera and LiDAR stream to your shared room. The camera also scans room QR codes.
         UILaunchScreen: {}
