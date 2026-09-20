@@ -70,18 +70,34 @@ camera: yaw from horizontal image shift, forward/back from image scale change. I
 direction, minimum moving duty, left/right trim and spin rate in deg/s. It does **not** yield
 metric speed; measure distance with a tape if that is needed.
 
-## Codex agent (cloud by default)
+## Agent architecture (Codex runs on this laptop)
 
-`sh drive.sh` dials out to the cloud backend's relay
-(`wss://…/v1/rooms/A0000001/robot/base?token=…`), so agent runs started on the server (voice
-commands from the iOS app) drive the base through this laptop. The shared secret lives in
-`scripts/.robot_token` (gitignored) and in `/etc/htn/robot.env` on the VM, alongside
-`HTN_ROBOT_URL=ws://127.0.0.1:8790/v1/rooms/A0000001/robot/controller`. `--no-cloud` disables it.
+Three layers, following the usual split in robot stacks (slow "deliberative" planner on top,
+fast reflexes at the bottom, as in three-layer architectures, ROS 2 nav/control, SayCan and
+Code-as-Policies style skill APIs): the planner may be slow or remote, but it only ever calls
+short, bounded skills, and everything safety-critical lives next to the motors.
+
+| Layer | Runs on | Does |
+|---|---|---|
+| World + speech | Cloud VM | Phone streams, map/scene, speech-to-text, room tool APIs, turn queue |
+| Agent (Codex) | This laptop | Reasoning with your `codex login`; calls cloud room tools over HTTPS and motion skills locally |
+| Skills | This laptop (`drive.py`) | `drive_base` ≤ 2 s bounded moves, calibration, keyboard override, command lease |
+| Reflexes | ESP32 firmware | 300 ms watchdog, ramp, reversal pause, E-STOP latch |
+
+Flow: phone speech → cloud transcribes and queues the finalized turn → the laptop worker
+(`be/src/htn_backend/agent/worker.py`) long-polls `POST /v1/agent/jobs/claim`, runs Codex
+locally, drives through `ws://127.0.0.1:8793`, and posts the answer to
+`/v1/agent/jobs/{id}/result` → the phone speaks it. Motion never crosses the internet, so
+network jitter cannot stutter or strand a move. Auth is the shared secret in
+`scripts/.robot_token` (gitignored) / `/etc/htn/robot.env` on the VM.
+
+`sh drive.sh` starts all of it and opens a Terminal window showing Codex's live log
+(`robot/agent.log`). If no worker is polling, the server falls back to its own Codex
+(`be/deploy/codex/install.sh`) and drives through the cloud relay that `drive.py` dials.
 
 `drive_base(linear, angular, seconds)` takes levels up to 0.5 for at most 2 s. The agent is
 blocked while a human holds an arrow key (`owner: human`), after an E-STOP, or if `drive.py`
-is not running. Arm and winch tools report `hardware_capability_unavailable`. A laptop-local
-agent can still use `HTN_ROBOT_URL=ws://127.0.0.1:8793`.
+is not running. Arm and winch tools report `hardware_capability_unavailable`.
 
 ## Calibration status (2026-09-19)
 
