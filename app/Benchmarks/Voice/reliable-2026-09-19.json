@@ -16,14 +16,41 @@
       "skipped_physical_microphone": 1
     },
     "simulator_live_transcription": "2 of 2 complete sentences",
-    "signed_device_test_build": "passed; physical runtime unavailable"
+    "signed_device_test_build": "passed, including final speakerphone/recovery changes",
+    "physical_live_transcription": {
+      "complete_sentences": 2,
+      "expected_sentences": 2,
+      "word_error_rate": 0,
+      "input": "generated PCM through the real phone-to-production queue; not human microphone speech"
+    },
+    "physical_microphone_and_playback": {
+      "status": "passed on intermediate recovery build",
+      "wall_seconds": 20.107927833334543,
+      "captured_seconds": 19.893,
+      "input_callbacks": 199,
+      "output_callbacks": 199,
+      "output_meter_peak": 0.13878632627474938,
+      "output_route": "Speaker",
+      "method": "Continuous real microphone capture, two generated 0.5-second speaker tones; verified mixer output, not acoustic loudness. Restart both engine and player after hardware configuration changes."
+    },
+    "final_simulator_unit_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "final_60_second_device_check": "blocked: phone locked, then became unavailable; final playback retention and route reassertion changes still require physical rerun"
   },
   "limitations": [
-    "Phone disconnected before new microphone/playback engine could be exercised on device.",
+    "Final playback retention and speaker route reassertion were added after the passing 20-second physical test; compiled successfully but longer final device run blocked by phone disconnect.",
     "Live GPT-Live audio forwarding has no provider per-chunk acknowledgments. Durable full-utterance file transcription is authoritative for Codex.",
     "Transcription remains probabilistic; byte-exact ingestion does not guarantee every recognized word.",
     "Five-minute local pending-audio limit stops recording visibly instead of evicting old chunks.",
     "Long uninterrupted speech is transcribed in 30-second fragments; Codex waits for a pause or end of call.",
-    "Pending external action with unknown completion is not automatically re-executed."
+    "Pending external action with unknown completion is not automatically re-executed.",
+    "No sustained simultaneous camera upload and human speech recognition test was completed in this device session."
+  ],
+  "audio_engine_findings": [
+    "Initial physical engine could stop after a hardware format change without a thrown start error.",
+    "Restarting the engine alone captured microphone audio but left playback silent; resetting the player before restarting restored measured playback.",
+    "Final build explicitly selects built-in speaker and microphone and retains uncompleted playback across graph resets. A partially played chunk may repeat after a reset."
   ]
 }

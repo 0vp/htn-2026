@@ -1,3 +1,5 @@
+import AVFoundation
+import UIKit
 import XCTest
 @testable import HTNApp
 
@@ -76,18 +78,48 @@ final class ReliableVoiceTests: XCTestCase {
         final class Count: @unchecked Sendable {
             let lock = NSLock()
             var bytes = 0
+            var outputPeak = 0.0
+            var outputWindows = Set<Int>()
         }
+        let idle = UIApplication.shared.isIdleTimerDisabled
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = idle }
+        let permission = await AVAudioApplication.requestRecordPermission()
+        XCTAssertTrue(permission)
+        print("RELIABLE_MIC_STATE foreground=\(UIApplication.shared.applicationState.rawValue) permission=\(AVAudioApplication.shared.recordPermission.rawValue)")
         let count = Count(), audio = BufferedAudioDevice()
         audio.captured = { pcm, _ in count.lock.withLock { count.bytes += pcm.count } }
         audio.failed = { message in XCTFail(message) }
+        audio.outputLevel = { level in
+            count.lock.withLock {
+                count.outputPeak = max(count.outputPeak, level)
+                if level > 0.01 {
+                    count.outputWindows.insert(Int(ProcessInfo.processInfo.systemUptime / 2))
+                }
+            }
+        }
         try audio.start()
         let begin = ProcessInfo.processInfo.systemUptime
-        try await Task.sleep(for: .seconds(4))
+        // Exercise the real output graph while input continues through voice processing.
+        var tone = [Int16](repeating: 0, count: 12000)
+        for index in tone.indices { tone[index] = Int16(sin(Double(index) * 2 * .pi * 440 / 24000) * 1300) }
+        tone.withUnsafeBytes { audio.play(Data($0)) }
+        try await Task.sleep(for: .seconds(2))
+        print("RELIABLE_INITIAL_OUTPUT peak=\(count.lock.withLock { count.outputPeak })")
+        tone.withUnsafeBytes { audio.play(Data($0)) }
+        for _ in 0..<29 {
+            try await Task.sleep(for: .seconds(2))
+            tone.withUnsafeBytes { audio.play(Data($0)) }
+        }
+        print("RELIABLE_ENGINE \(audio.diagnostics)")
         await audio.stop()
         let duration = ProcessInfo.processInfo.systemUptime - begin
         let captured = count.lock.withLock { Double(count.bytes) / 48000 }
         print("RELIABLE_MIC_RESULT wall=\(duration) captured=\(captured)")
-        XCTAssertGreaterThan(captured,3.5)
+        XCTAssertGreaterThan(captured,59.5)
+        XCTAssertEqual(AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType), [.builtInSpeaker])
+        XCTAssertGreaterThan(count.lock.withLock { count.outputPeak },0.01)
+        XCTAssertGreaterThanOrEqual(count.lock.withLock { count.outputWindows.count },25)
         XCTAssertLessThan(abs(captured-duration),0.5)
         #endif
     }
