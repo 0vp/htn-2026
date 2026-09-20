@@ -70,18 +70,18 @@ camera: yaw from horizontal image shift, forward/back from image scale change. I
 direction, minimum moving duty, left/right trim and spin rate in deg/s. It does **not** yield
 metric speed; measure distance with a tape if that is needed.
 
-## Codex agent
+## Codex agent (cloud by default)
 
-The backend motion tools (`be/src/htn_backend/agent/motion`) drive through `drive.py`:
-
-```sh
-sh drive.sh                                   # terminal 1: keyboard + bridge
-HTN_ROBOT_URL=ws://127.0.0.1:8793 <agent run command>   # terminal 2
-```
+`sh drive.sh` dials out to the cloud backend's relay
+(`wss://…/v1/rooms/A0000001/robot/base?token=…`), so agent runs started on the server (voice
+commands from the iOS app) drive the base through this laptop. The shared secret lives in
+`scripts/.robot_token` (gitignored) and in `/etc/htn/robot.env` on the VM, alongside
+`HTN_ROBOT_URL=ws://127.0.0.1:8790/v1/rooms/A0000001/robot/controller`. `--no-cloud` disables it.
 
 `drive_base(linear, angular, seconds)` takes levels up to 0.5 for at most 2 s. The agent is
 blocked while a human holds an arrow key (`owner: human`), after an E-STOP, or if `drive.py`
-is not running. Arm and winch tools report `hardware_capability_unavailable`.
+is not running. Arm and winch tools report `hardware_capability_unavailable`. A laptop-local
+agent can still use `HTN_ROBOT_URL=ws://127.0.0.1:8793`.
 
 ## Calibration status (2026-09-19)
 
