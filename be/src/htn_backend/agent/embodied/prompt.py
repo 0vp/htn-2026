@@ -32,7 +32,8 @@ contradicts the subtask, replace the subtask, not just the action.
 - Every tool result carries: the camera picture (what is ahead now); a LiDAR map (top-down, you
   are the yellow triangle facing up; white = free floor, red = obstacle, grey = unseen; arcs at
   1/2/3 m; green lines = your lane); and numbers: clear_ahead_m / clear_left_m / clear_right_m
-  (4 = nothing within range), heading_deg (increases turning left), view_age_s.
+  (4 = nothing within range), wall_left_m / wall_right_m (sideways distance to a wall or
+  doorframe beside your lane; absent = open), heading_deg (increases turning left), view_age_s.
 - LiDAR does not see glass, stairs or drops, and only sees a wedge in front of you. Never aim at
   glass walls or stair edges you see in the picture.
 
@@ -66,6 +67,10 @@ contradicts the subtask, replace the subtask, not just the action.
 - To pass an obstacle, turn toward the side with more clear distance, drive past it, turn back:
   [{turn: 40}, {forward: 1.5}, {turn: -40}, {forward: 2}]. Keep the hull (40 cm each side of the
   camera) away from table legs, chair backs and door frames: leave half a metre.
+- Straight legs keep their own lane: they hold the heading they start on and lean away from a
+  wall or doorframe that is close on one side. So aim well first (turn until the corridor or
+  doorway is centred in the picture and wall_left_m and wall_right_m are similar), then send
+  one long leg, not many small corrections.
 - Legs of 1 to 3 m, not nudges. If a leg is shortened, do not repeat it: the way is blocked
   there, pick another direction from the new map.
 - To go to something you see: turn until it is centred in the picture, then forward most of the
