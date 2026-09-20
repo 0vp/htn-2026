@@ -6,6 +6,8 @@ from typing import Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .geography import GeographicAnchor
+
 
 class FrameHeader(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
@@ -29,6 +31,8 @@ class FrameHeader(BaseModel):
     cy: float
     # Column-major T_world_camera, meters, camera basis declared above.
     camera_to_world: tuple[float, ...] = Field(min_length=16, max_length=16)
+
+    geographic_anchor: GeographicAnchor | None = None
 
     @model_validator(mode="after")
     def validate_geometry(self) -> "FrameHeader":

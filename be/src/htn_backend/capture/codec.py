@@ -14,7 +14,7 @@ MAX_FRAME_BYTES = 14_000_000
 
 
 def encode(frame: Frame) -> bytes:
-    header = frame.header.model_dump_json().encode("utf-8")
+    header = frame.header.model_dump_json(exclude_none=True).encode("utf-8")
     if len(header) > MAX_HEADER_BYTES:
         raise ValueError("header is too large")
     return b"".join(

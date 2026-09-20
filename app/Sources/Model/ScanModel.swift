@@ -12,6 +12,7 @@ final class ScanModel: ObservableObject {
     @Published var error: String?
     let uploads: UploadQueue
     private let stream: FrameStream
+    private let geographicContextAvailable: Bool
     private var observation: AnyCancellable?
     private var permissionPending = false
     private var finished = false
@@ -27,6 +28,7 @@ final class ScanModel: ObservableObject {
             }
         },
         onStatus: { [weak self] status in Task { @MainActor in self?.tracking = status } },
+        geographicContextAvailable: geographicContextAvailable,
         onFrame: { [weak self] data, header in
             Task { @MainActor in
                 guard let self, !self.finished else { return }
@@ -44,6 +46,7 @@ final class ScanModel: ObservableObject {
     init(room: Room, device: String) {
         let stream = FrameStream(room: room.id, device: device)
         self.stream = stream
+        geographicContextAvailable = room.geography?.schema_version == 1
         uploads = UploadQueue { data, header in try await stream.send(data, header: header) }
         uploads.released = { [weak self] bytes in self?.capture.uploadCompleted(bytes: bytes) }
         uploads.acknowledged = { [weak self] in
