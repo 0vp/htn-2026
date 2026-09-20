@@ -22,16 +22,32 @@ class Empty(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+SAY = "One short sentence spoken aloud the moment this starts, while the robot moves."
+
+
 class Turn(Empty):
     degrees: float = Field(ge=-180, le=180, description="+ left (counter-clockwise), - right")
+    say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
 class Forward(Empty):
-    meters: float = Field(ge=-1.0, le=2.0, description="+ ahead, - reverse (reverse is blind)")
+    meters: float = Field(ge=-1.0, le=3.0, description="+ ahead, - reverse (reverse is blind)")
+    say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
 class Scan(Empty):
     views: int = Field(default=6, ge=4, le=8, description="Pictures around the full circle")
+    say: str | None = Field(default=None, max_length=160, description=SAY)
+
+
+class Step(Empty):
+    turn: float | None = Field(default=None, ge=-180, le=180, description="Degrees, + left")
+    forward: float | None = Field(default=None, ge=-1.0, le=3.0, description="Metres, + ahead")
+
+
+class Path(Empty):
+    steps: list[Step] = Field(min_length=1, max_length=8)
+    say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
 class Recall(Empty):
@@ -48,6 +64,13 @@ TOOLS = {
         Forward,
         "Drive straight by a distance, measured by the phone. Shortens itself before LiDAR "
         "obstacles and stops if the lane closes. Returns the new view.",
+    ),
+    "path": (
+        Path,
+        "Chain several turns and straight legs into one fluid move with no pauses to think, e.g. "
+        "[{turn: 40}, {forward: 2}, {turn: -90}, {forward: 1.5}]. Use it whenever the route is "
+        "clear from the last picture/map: it is several times faster than separate calls. Stops "
+        "at the first leg LiDAR shortens or blocks and reports which; returns the final view.",
     ),
     "scan": (
         Scan,
@@ -85,6 +108,7 @@ class EmbodiedTools:
         self.senses = Senses(client, self.prefix)
         self.navigator = Navigator(link, self.senses)
         self.moves = 0
+        self.speak = None  # Set by the host: callable(text) that voices a line immediately.
 
     @staticmethod
     def text(value) -> dict:
@@ -109,6 +133,9 @@ class EmbodiedTools:
     def call(self, name: str, arguments: dict) -> dict:
         try:
             args = TOOLS[name][0].model_validate(arguments or {})
+            line = getattr(args, "say", None)
+            if line and self.speak:
+                self.speak(line)  # Talk while moving, not before or after.
             return {"success": True, "contentItems": getattr(self, f"_{name}")(args)}
         except Exception as error:  # Tell the model what to do next instead of dying.
             self.navigator.stop()
@@ -132,6 +159,29 @@ class EmbodiedTools:
         result = self.navigator.forward(args.meters, before)
         self.moves += 1
         return self.observation(self.navigator.settle_and_sense(before), dict(forward=result))
+
+    def _path(self, args):
+        before = self.senses.read(render=False)
+        done, halted = [], None
+        for index, step in enumerate(args.steps):
+            if step.turn:
+                result = self.navigator.turn(step.turn)
+            elif step.forward:
+                result = self.navigator.forward(step.forward, self.senses.read(render=False))
+            else:
+                continue
+            self.moves += 1
+            done.append(dict(step=index, **result))
+            if (
+                not result.get("moved")
+                or result.get("stopped_by")
+                or result.get("shortened_because")
+            ):
+                halted = f"stopped at step {index}; remaining steps were not run. Look and re-plan."
+                break
+        return self.observation(
+            self.navigator.settle_and_sense(before), dict(path=done, halted=halted)
+        )
 
     def _scan(self, args):
         step, items, views = 360.0 / args.views, [], []

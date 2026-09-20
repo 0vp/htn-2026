@@ -142,11 +142,19 @@ class Senses:
         )
 
     def read(self, render: bool = True) -> Sense | None:
-        latest = self.client.get(self.prefix + "/observations/latest")
+        try:
+            return self._read(render)
+        except (httpx.HTTPError, ValueError):
+            return None  # Network hiccup or a frame that would not decode: treat as no view.
+
+    def _read(self, render: bool) -> Sense | None:
+        latest = self.client.get(self.prefix + "/observations/latest", timeout=4)
         if latest.status_code != 200:
             return None
         info = latest.json()
-        raw = self.client.get(f"{self.prefix}/frames/{info['sequence']}")
+        if float(info.get("receipt_age_s") or 0) > 30:
+            return None  # The phone stopped streaming; do not download a stale frame.
+        raw = self.client.get(f"{self.prefix}/frames/{info['sequence']}", timeout=5)
         if raw.status_code != 200:
             return None
         frame = decode(raw.content)
@@ -181,7 +189,12 @@ def wait_fresh(senses: Senses, after_sequence: int, timeout_s: float = 3.0) -> S
     """A frame captured after the robot stopped, so the picture matches where it now stands."""
     deadline, sense = time.monotonic() + timeout_s, None
     while time.monotonic() < deadline:
-        sense = senses.read()
+        try:
+            sense = senses.read()
+        except httpx.HTTPError:
+            return None
+        if sense is None:
+            return None  # No live stream: waiting will not produce a newer picture.
         if sense and sense.sequence > after_sequence and sense.age_s < 1.5:
             return sense
         time.sleep(0.25)

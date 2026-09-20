@@ -24,7 +24,7 @@ RATES_FILE = Path(__file__).resolve().parents[5] / "robot/scripts/rates.json"
 DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
 STOP_MARGIN_M = 0.45
 POLL_S = 0.3
-MAX_TURN_DEG, MAX_FORWARD_M = 180.0, 2.0
+MAX_TURN_DEG, MAX_FORWARD_M = 180.0, 3.0
 
 
 def wrap(degrees: float) -> float:
@@ -127,7 +127,7 @@ class Navigator:
         ran = time.monotonic() - started
         measured = None
         if tracked:
-            time.sleep(0.8)  # Let the base settle and a post-move frame arrive.
+            time.sleep(0.6)  # Let the base settle and a post-move frame arrive.
             final = self.senses.pose_only()
             if final and final[2] < 2.5:
                 measured = measure(origin, final[:2])

@@ -33,6 +33,7 @@ def test_final_only_execution_and_no_replay(tmp_path, monkeypatch):
             return "confirmed result"
 
         monkeypatch.setattr(runtime, "run", run)
+        monkeypatch.setattr(runtime, "DELEGATION_WAIT_S", 0)
         service = SimpleNamespace(key=lambda: "test", client=None)
         for _ in range(2):
             worker = runtime.Runtime(service, journal, "one")
@@ -76,7 +77,7 @@ def test_cancelled_command_is_not_replayed(tmp_path, monkeypatch):
     async def scenario():
         journal = Journal(tmp_path / "cancel.sqlite")
         journal.create("one", "room", "phone", "request", True)
-        journal.finalize("one", 0, 0, "a complete command")
+        journal.finalize("one", 0, 0, "go to the door")
         started = asyncio.Event()
 
         async def run(*args, **kwargs):
@@ -84,6 +85,7 @@ def test_cancelled_command_is_not_replayed(tmp_path, monkeypatch):
             await asyncio.Event().wait()
 
         monkeypatch.setattr(runtime, "run", run)
+        monkeypatch.setattr(runtime, "DELEGATION_WAIT_S", 0)
         worker = runtime.Runtime(SimpleNamespace(key=lambda: "test", client=None), journal, "one")
         task = asyncio.create_task(worker.actions())
         await asyncio.wait_for(started.wait(), 2)
@@ -92,5 +94,29 @@ def test_cancelled_command_is_not_replayed(tmp_path, monkeypatch):
         assert journal.snapshot("one")[0]["action"] == "unknown"
         assert not journal.claim("one", 0)
         journal.close()
+
+    asyncio.run(scenario())
+
+
+def test_chatter_is_ignored_but_delegated_speech_runs(tmp_path, monkeypatch):
+    async def scenario():
+        journal = Journal(tmp_path / "gate.sqlite")
+        journal.create("one", "room", "phone", "request", True)
+        journal.finalize("one", 0, 0, "Okay, I'm on it.")  # The robot hearing its own voice.
+        journal.finalize("one", 1, 1, "Is he an elite hitter?")  # Live voice delegated this one.
+        calls = []
+
+        async def run(room, text, **_):
+            calls.append(text)
+            return "done"
+
+        monkeypatch.setattr(runtime, "run", run)
+        monkeypatch.setattr(runtime, "DELEGATION_WAIT_S", 0)
+        worker = runtime.Runtime(SimpleNamespace(key=lambda: "test", client=None), journal, "one")
+        task = asyncio.create_task(worker.actions())
+        await asyncio.sleep(0.3)
+        assert calls == [] and journal.snapshot("one")[0]["action"] == "ignored"
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
     asyncio.run(scenario())

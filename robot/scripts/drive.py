@@ -70,6 +70,7 @@ class App:
         self.speed = args.speed
         self.key_motion, self.key_at = (0, 0), 0.0
         self.commands = {}  # source -> (wheels, received_at)
+        self.retry_at = 0.0
         self.connected, self.source, self.done = False, "idle", False
         self.cloud = "connecting" if args.cloud_token else "off (no token)"
 
@@ -184,6 +185,12 @@ class App:
 
     def tick(self):
         now = time.monotonic()
+        if self.base.lost:
+            self.source = "serial lost"
+            if now - self.retry_at > 2:
+                self.retry_at = now
+                self.base.reconnect()
+            return
         if now - self.key_at <= KEY_HOLD_S and self.key_motion != (0, 0):
             self.source, motion = "keyboard", self.key_motion
         elif live := [m for m, at in self.commands.values() if now - at <= APP_LEASE_S]:

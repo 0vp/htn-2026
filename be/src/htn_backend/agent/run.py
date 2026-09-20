@@ -24,7 +24,14 @@ TURN_TIMEOUT_S = 600  # Exploration takes minutes; the embodied agent is meant t
 
 
 async def run_turn(
-    server, thread_id, text, emit=print, feedback_backend=None, prefix=None, final_only=False
+    server,
+    thread_id,
+    text,
+    emit=print,
+    feedback_backend=None,
+    prefix=None,
+    final_only=False,
+    last_only=False,
 ):
     turn = await server.request(
         "turn/start",
@@ -70,7 +77,7 @@ async def run_turn(
                 if method == "turn/completed" and params["turn"]["id"] == turn_id:
                     if params["turn"]["status"] != "completed":
                         raise RuntimeError(f"Codex turn {params['turn']['status']}")
-                    return "\n".join(final)
+                    return final[-1] if last_only and final else "\n".join(final)
     except BaseException:
         try:
             await server.request("turn/interrupt", {"threadId": thread_id, "turnId": turn_id})
@@ -90,12 +97,12 @@ class AgentSession:
     after MAX_TURNS or an error, because pictures accumulate in its context.
     """
 
-    MAX_TURNS = 12
+    MAX_TURNS = 40
 
     def __init__(self, room_id, backend, binary, motion=None, embodied=False):
         self.room_id, self.backend, self.binary = room_id, backend, binary
         self.motion, self.embodied = motion, embodied
-        self.stack = self.server = self.thread_id = self.prefix = None
+        self.stack = self.server = self.thread_id = self.prefix = self.tools = None
         self.turns = 0
 
     async def start(self):
@@ -110,7 +117,7 @@ class AgentSession:
             tools = EmbodiedTools(client, self.room_id, self.motion.link)
         else:
             tools = RobotTools(client, self.room_id, self.motion)
-        self.prefix = tools.prefix
+        self.prefix, self.tools = tools.prefix, tools
         self.server = AppServer(server_command(self.binary), tools)
         await self.server.start()
         inherited = await self.server.request(
@@ -144,7 +151,10 @@ class AgentSession:
                 emit=emit,
                 feedback_backend=self.backend,
                 prefix=self.prefix,
+                last_only=self.embodied,
             )
+        except asyncio.CancelledError:
+            raise  # Interrupted by a newer request: the turn was stopped, the agent lives on.
         except BaseException:
             await self.close()  # Next request starts a clean agent.
             raise

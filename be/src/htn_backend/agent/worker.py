@@ -28,33 +28,22 @@ def stamp(text: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {text}", flush=True)
 
 
-SPOKEN_TOOLS = {
-    "scan": "Scanning around me.",
-    "forward": "Driving.",
-    "room_map": "Checking the room map.",
-}
-MIN_GAP_S = 5.0
+STOP_WORDS = ("stop", "halt", "freeze", "don't move", "do not move")
 
 
 class Narrator:
-    """Prints everything Codex does; sends its own words and key actions to be spoken."""
+    """Prints everything Codex does; voices the `say` lines its tools carry, as they start."""
 
-    def __init__(self, client: httpx.AsyncClient, job_id: str):
-        self.client, self.job_id, self.last, self.tasks = client, job_id, 0.0, set()
+    def __init__(self, client: httpx.AsyncClient, job_id: str, loop):
+        self.client, self.job_id, self.loop = client, job_id, loop
 
     def __call__(self, text: str) -> None:
         stamp(text)
-        if text.startswith("[tool: "):
-            name, _, state = text[7:-1].partition(" — ")
-            spoken = SPOKEN_TOOLS.get(name) if state == "started" else None
-            if not spoken or time.monotonic() - self.last < MIN_GAP_S:
-                return
-        else:
-            spoken = text
-        self.last = time.monotonic()
-        task = asyncio.ensure_future(self.send(spoken))
-        self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+
+    def say(self, text: str) -> None:
+        """Called from the tool thread the moment a move begins."""
+        stamp(f"🔊 {text}")
+        asyncio.run_coroutine_threadsafe(self.send(text), self.loop)
 
     async def send(self, text: str) -> None:
         try:
@@ -63,9 +52,33 @@ class Narrator:
             pass
 
 
+async def work(client, session, job, motion) -> None:
+    narrator = Narrator(client, job["job_id"], asyncio.get_running_loop())
+    try:
+        stamp("Continuing the running Codex agent" if session.server else "Starting Codex")
+        if session.server is None:
+            await session.start()
+        session.tools.speak = narrator.say
+        result = await session.turn(job["prompt"], emit=narrator)
+    except asyncio.CancelledError:
+        if motion:
+            motion.link.release()
+        result = ""  # A newer request took over; it will do the talking.
+        stamp("⏹ interrupted by a newer request")
+    except Exception as error:  # The phone must always get an answer.
+        result = f"Something went wrong on my side ({type(error).__name__}). Ask me again."
+    else:
+        stamp(f"◀ {result}")
+    try:
+        await client.post(f"/v1/agent/jobs/{job['job_id']}/result", json={"result": result})
+    except httpx.HTTPError:
+        stamp("Could not deliver the result")
+
+
 async def serve(backend: str, token: str, binary: str, motion: Motion | None) -> None:
     headers = {"Authorization": f"Bearer {token}"}
     sessions: dict[str, AgentSession] = {}  # One long-lived Codex agent per room.
+    running: asyncio.Task | None = None
     async with httpx.AsyncClient(base_url=backend, headers=headers, timeout=40) as client:
         stamp(f"Codex worker ready · {backend} · motion {'on' if motion else 'off'}")
         while True:
@@ -80,21 +93,23 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
                 continue
             job = response.json()
             stamp(f"▶ {job['prompt']}")
-            narrator = Narrator(client, job["job_id"])
-            try:
-                session = sessions.get(job["room_id"])
-                if session is None:
-                    session = AgentSession(job["room_id"], backend, binary, motion, embodied=True)
-                    sessions[job["room_id"]] = session
-                stamp("Continuing the running Codex agent" if session.server else "Starting Codex")
-                result = await session.turn(job["prompt"], emit=narrator)
-            except Exception as error:  # The phone must always get an answer.
-                result = f"Codex could not complete the request ({type(error).__name__})."
-            stamp(f"◀ {result}")
-            try:
-                await client.post(f"/v1/agent/jobs/{job['job_id']}/result", json={"result": result})
-            except httpx.HTTPError:
-                stamp("Could not deliver the result")
+            spoken = job["prompt"].lower()
+            if motion and any(word in spoken for word in STOP_WORDS):
+                motion.link.release()  # Wheels first, reasoning second.
+            if running and not running.done():
+                # The newest request wins, like talking to a person: stop and listen.
+                running.cancel()
+                await asyncio.gather(running, return_exceptions=True)
+                job["prompt"] = (
+                    "(You were interrupted mid-task by this new request. Wheels are stopped. "
+                    "Decide whether it replaces, changes or cancels what you were doing.)\n"
+                    + job["prompt"]
+                )
+            session = sessions.get(job["room_id"])
+            if session is None:
+                session = AgentSession(job["room_id"], backend, binary, motion, embodied=True)
+                sessions[job["room_id"]] = session
+            running = asyncio.create_task(work(client, session, job, motion))
 
 
 def main() -> None:

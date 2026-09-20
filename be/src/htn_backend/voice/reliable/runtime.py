@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import json
+import re
 import time
 
 from websockets.asyncio.client import connect
@@ -14,6 +15,44 @@ from .transcribe import Utterance, transcribe
 async def run(room_id, prompt, backend=None, binary=None, motion=None, progress=None):
     """Laptop worker when one is polling, else the server's own Codex (see agent/remote.py)."""
     return await remote.execute(room_id, prompt, progress)
+
+
+LIVE_INSTRUCTIONS = """# Role
+You are Astra, the voice of a small two-wheeled robot rolling around a hackathon. You are
+curious, upbeat and a little cheeky, like a friendly droid. Speak English only, in short
+natural sentences. Never read lists or markdown aloud.
+
+# Backend
+A backend agent is your body and eyes: it sees through the robot's camera and LiDAR, drives,
+turns, explores, finds things, dances, and remembers the room. You cannot see or move without it.
+
+# Delegate to the backend when
+- The user asks you to move, go, come, follow, turn, spin, dance, stop, explore, or find anything.
+- The user asks what you see, where something is, or anything about the room or the robot.
+- The user follows up on, corrects or cancels a task in progress.
+Delegate before answering anything that depends on the backend. Never guess what it will find.
+When you delegate, acknowledge in three to six playful words ("On it, rolling out!").
+
+# Do not delegate when
+- It is small talk, jokes, or questions about you: answer yourself, in character.
+- The speech is not addressed to you: nearby conversations, people talking to each other, other
+  languages in the background, music, or your own voice echoing. Stay silent and keep listening.
+
+# Commentary
+Progress and results arrive as commentary while the backend works. Say each one aloud right
+away in your own lively words, one short sentence, keeping every fact. Never add facts that
+were not in the commentary, and never claim a result before commentary reports it.
+"""
+
+# Speech that must reach the agent even if the live voice did not delegate it.
+COMMAND_WORDS = re.compile(
+    r"\b(robot|astra|stop|halt|go|move|drive|come|follow|turn|spin|twirl|dance|scan|explore|"
+    r"find|look|search|where|see|back|forward|left|right|pick|grab|bring|take|get|put|push|"
+    r"check|status|show|tell)\b",
+    re.IGNORECASE,
+)
+DELEGATION_FRESH_S = 25.0
+DELEGATION_WAIT_S = 3.0
 
 
 class Runtime:
@@ -36,6 +75,9 @@ class Runtime:
         self.ending = False
         self.failed = False
         self.upstream = None
+        self.delegations = []  # [id, received_at] not yet matched to a finalized utterance
+        self.delegation = None  # The one the running agent turn answers.
+        self.jobs = set()
 
     async def say(self, text):
         """Progress from the working agent: shown on the phone and spoken by the live voice."""
@@ -46,7 +88,7 @@ class Runtime:
                     json.dumps(
                         {
                             "type": "session.commentary.append",
-                            "delegation_id": None,
+                            "delegation_id": self.delegation,
                             "content": text[:400],
                         }
                     )
@@ -108,13 +150,7 @@ class Runtime:
                         "session": {
                             "model": "gpt-live-1",
                             "delegation": {"type": "client"},
-                            "instructions": "You are the voice of a mobile robot. Be brief and "
-                            "warm. You do not act yourself: a robot agent (Codex) hears every "
-                            "request, drives the robot and sends you commentary. When the user "
-                            "asks for something, say in a few words that you are on it. When "
-                            "commentary arrives, say it aloud naturally in one short sentence: "
-                            "that is how the user hears progress and results. Never say you "
-                            "cannot move or see; never invent results that were not in commentary.",
+                            "instructions": LIVE_INSTRUCTIONS,
                             "audio": {
                                 "format": {"type": "audio/pcm", "rate": 24000},
                                 "output": {"voice": "marin"},
@@ -160,15 +196,8 @@ class Runtime:
                     if kind in {"session.output_audio.delta", "session.output_transcript.delta"}:
                         await self.emit(event)
                     elif kind == "session.delegation.created":
-                        await upstream.send(
-                            json.dumps(
-                                {
-                                    "type": "session.commentary.append",
-                                    "delegation_id": event["delegation"]["id"],
-                                    "content": "Wait for finalized speech before executing.",
-                                }
-                            )
-                        )
+                        # The live voice decided someone asked the robot for something.
+                        self.delegations.append([event["delegation"]["id"], time.monotonic()])
                     elif kind in {"error", "session.error"}:
                         raise RuntimeError("Voice provider error")
             finally:
@@ -245,7 +274,31 @@ class Runtime:
                 await asyncio.sleep(min(2**attempt, 15))
         raise RuntimeError("Transcription unavailable; retained audio requires retry")
 
+    async def addressed(self, command):
+        """Delegation id (or None) when this utterance is a request to the robot, else False.
+
+        The live voice hears tone and turn-taking, so its decision to delegate is the main
+        signal; command words are the safety net for requests it failed to delegate.
+        """
+        deadline = time.monotonic() + DELEGATION_WAIT_S
+        while True:
+            now = time.monotonic()
+            self.delegations = [d for d in self.delegations if now - d[1] <= DELEGATION_FRESH_S]
+            if self.delegations:
+                return self.delegations.pop(0)[0]
+            if now >= deadline:
+                return None if COMMAND_WORDS.search(command) else False
+            await asyncio.sleep(0.1)
+
     async def actions(self):
+        try:
+            await self.dispatch()
+        finally:
+            for job in tuple(self.jobs):
+                job.cancel()
+            await asyncio.gather(*self.jobs, return_exceptions=True)
+
+    async def dispatch(self):
         while time.monotonic() < self.deadline:
             turns = await asyncio.to_thread(self.journal.snapshot, self.ident)
             fragments = []
@@ -260,55 +313,56 @@ class Runtime:
                 first = int(turn["id"])
                 if not await asyncio.to_thread(self.journal.claim, self.ident, first):
                     continue
-                try:
-                    result = await run(
-                        self.room, "Finalized user speech:\n" + command, progress=self.say
-                    )
-                    await asyncio.to_thread(self.journal.result, self.ident, first, result)
-                    if self.upstream:
-                        try:
-                            await self.upstream.send(
-                                json.dumps(
-                                    {
-                                        "type": "session.commentary.append",
-                                        "delegation_id": None,
-                                        "content": (
-                                            result or "Task finished without a confirmed result."
-                                        )[:1200],
-                                    }
-                                )
-                            )
-                        except Exception:
-                            pass  # Stored result still appears in the final transcript snapshot.
-                except asyncio.CancelledError:
-                    await asyncio.to_thread(
-                        self.journal.result,
-                        self.ident,
-                        first,
-                        "Execution interrupted; outcome unconfirmed.",
-                        "unknown",
-                    )
-                    raise
-                except Exception:
-                    await asyncio.to_thread(
-                        self.journal.result,
-                        self.ident,
-                        first,
-                        "Execution outcome unconfirmed; not automatically retried.",
-                        "unknown",
-                    )
-                await self.emit(
-                    {
-                        "type": "final",
-                        "turns": await asyncio.to_thread(self.journal.snapshot, self.ident),
-                    }
-                )
+                delegation = await self.addressed(command)
+                if delegation is False:
+                    # Chatter, echo of our own voice, or talk between people: not for the robot.
+                    await asyncio.to_thread(self.journal.result, self.ident, first, "", "ignored")
+                    continue
+                # Run in the background so a newer request can interrupt this one: the worker
+                # stops the older turn when the next arrives, like a person being spoken to.
+                job = asyncio.create_task(self.execute(first, command, delegation))
+                self.jobs.add(job)
+                job.add_done_callback(self.jobs.discard)
             if self.ending and self.tasks[1].done():
+                await asyncio.gather(*self.jobs, return_exceptions=True)
                 return
             await asyncio.sleep(0.1)
 
+    async def execute(self, first, command, delegation):
+        async def progress(text):
+            self.delegation = delegation
+            await self.say(text)
+
+        try:
+            result = await run(self.room, "Finalized user speech:\n" + command, progress=progress)
+            await asyncio.to_thread(self.journal.result, self.ident, first, result)
+            if result:  # Empty: a newer request took over and will answer instead.
+                await progress(result[:1200])
+        except asyncio.CancelledError:
+            await asyncio.to_thread(
+                self.journal.result,
+                self.ident,
+                first,
+                "Execution interrupted; outcome unconfirmed.",
+                "unknown",
+            )
+            raise
+        except Exception:
+            await asyncio.to_thread(
+                self.journal.result,
+                self.ident,
+                first,
+                "Execution outcome unconfirmed; not automatically retried.",
+                "unknown",
+            )
+        await self.emit(
+            {"type": "final", "turns": await asyncio.to_thread(self.journal.snapshot, self.ident)}
+        )
+
     async def close(self):
         self.ending = True
+        for job in tuple(self.jobs):
+            job.cancel()
         # Ingestion is closed first; finishing includes the final short utterance.
         if self.tasks:
             self.tasks[0].cancel()
