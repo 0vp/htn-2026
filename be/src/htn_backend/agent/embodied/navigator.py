@@ -29,7 +29,7 @@ DEAD_TIME_S = 0.25  # Ramp-up before the base is really moving.
 COAST = {"turn": 11.0, "forward": 0.05}
 # Lane keeping. Pose is ~0.5 s old, so the heading gain is kept low enough not to oscillate:
 # a 10 degree error asks for ~10 deg/s of correction.
-HEADING_GAIN = 0.006  # drive level per degree of heading error
+HEADING_GAIN = 0.005  # drive level per degree of heading error
 MAX_STEER = 0.12
 OPEN_SIDE_M = 1.3  # Beyond this a side counts as open and does not pull the robot.
 CENTRE_GAIN = 14.0  # Degrees of lean per metre of left/right imbalance
@@ -145,8 +145,13 @@ class Navigator:
             return dict(moved=False, measured=0.0, stopped_by="; ".join(reasons))
         origin = self.senses.pose_only()
         tracked = bool(origin and origin[2] < 2.5 and origin[3] != "unavailable")
-        duration = DEAD_TIME_S + max(target - COAST[kind], 0.0) / self.rates[kind]
-        duration = max(duration, 0.3)
+        aim = target
+        if kind == "turn" and target < 90:
+            # Measured on the floor: short turns land ~30% long (12 -> 16, 20 -> 28, 27 -> 35)
+            # because most of a short turn is the fast part of the ramp. Blend to 1.0 by 90 deg.
+            aim = target * (0.76 + 0.24 * target / 90.0)
+        duration = DEAD_TIME_S + max(aim - COAST[kind], 0.0) / self.rates[kind]
+        duration = max(duration, 0.22)
         started, stopped_by = time.monotonic(), None
         reversing = command["drive"]["linear"] < 0
         # LiDAR is watched from a second thread: a frame download takes ~0.5 s, and doing it in
@@ -224,7 +229,10 @@ class Navigator:
                     if min(left, right) < OPEN_SIDE_M:
                         lean = max(-MAX_LEAN_DEG, min(MAX_LEAN_DEG, CENTRE_GAIN * (left - right)))
                     error = wrap(hold_deg + lean - pose.heading_deg)
-                    steer[0] = max(-MAX_STEER, min(MAX_STEER, HEADING_GAIN * error))
+                    wanted = max(-MAX_STEER, min(MAX_STEER, HEADING_GAIN * error))
+                    steer[0] = (
+                        0.6 * steer[0] + 0.4 * wanted
+                    )  # Smoothed: measured weave was +-4 deg.
             time.sleep(0.05)
 
     def _settled_pose(self):

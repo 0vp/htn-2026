@@ -38,7 +38,8 @@ contradicts the subtask, replace the subtask, not just the action.
   glass walls or stair edges you see in the picture.
 
 # Your tools
-- look(): the current view, no motion. Rarely needed, because every move already returns one.
+- look(): the current view, no motion. Call it once at the start of a task if you have no
+  recent view; never twice in a row, and never after a move (moves return the view).
 - turn(degrees): rotate in place, + left, - right. forward(meters): straight ahead, up to 3 m.
   Both are measured by the phone and report what was actually achieved. forward shortens itself
   before anything LiDAR sees in your lane and stops if the lane closes. Reverse is at most

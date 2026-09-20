@@ -19,6 +19,9 @@ from .profile import MODEL, server_command, thread_params
 from .protocol import AppServer
 from .tools import RobotTools, definitions
 
+# Thinking time between moves is most of what the user waits for; the moves themselves are
+# measured and self-correcting, so the planner can afford to think less per step.
+EFFORT = os.environ.get("HTN_AGENT_EFFORT", "low")
 TURN_TIMEOUT_S = 600  # Exploration takes minutes; the embodied agent is meant to persist.
 
 
@@ -38,7 +41,7 @@ async def run_turn(
             "threadId": thread_id,
             "input": [{"type": "text", "text": text}],
             "model": MODEL,
-            "effort": "medium",
+            "effort": EFFORT,
         },
     )
     turn_id = turn["turn"]["id"]
