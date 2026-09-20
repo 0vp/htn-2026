@@ -17,7 +17,9 @@ from .protocol import AppServer
 from .tools import RobotTools, definitions
 
 
-async def run_turn(server, thread_id, text, emit=print, feedback_backend=None, prefix=None):
+async def run_turn(
+    server, thread_id, text, emit=print, feedback_backend=None, prefix=None, final_only=False
+):
     turn = await server.request(
         "turn/start",
         {
@@ -43,6 +45,8 @@ async def run_turn(server, thread_id, text, emit=print, feedback_backend=None, p
                     raise RuntimeError("Codex connection closed before task completed")
                 if params.get("threadId", thread_id) != thread_id:
                     continue
+                if params.get("turnId", turn_id) != turn_id:
+                    continue
                 if method == "model/rerouted":
                     raise RuntimeError(
                         "Requested Astra model was rerouted; refusing silent substitution"
@@ -51,7 +55,8 @@ async def run_turn(server, thread_id, text, emit=print, feedback_backend=None, p
                     item = params["item"]
                     if item["type"] == "agentMessage":
                         emit(item["text"])
-                        final.append(item["text"])
+                        if not final_only or item.get("phase") != "commentary":
+                            final.append(item["text"])
                     elif item["type"] == "dynamicToolCall":
                         emit(f"[tool: {item['tool']} — {item['status']}]")
                 if method == "turn/completed" and params["turn"]["id"] == turn_id:
