@@ -1,15 +1,25 @@
 {
   "left_sign": -1,
   "right_sign": 1,
-  "left_gain": 1.0,
+  "left_gain": 0.711,
   "right_gain": 1.0,
-  "left_min": 0.2,
-  "right_min": 0.3,
+  "left_min": 0.14,
+  "right_min": 0.11,
   "swap": true,
   "measured": {
-    "date": "2026-09-19",
-    "signs": "Driving test on the floor: + duty is forward on the left driver and backward on the right, so right_sign is -1 (the first camera run also found this).",
-    "mins": "Floor pulses: left turned the robot at 0.20-0.23 raw duty; right needed roughly 0.3 (rear casters were dragging).",
-    "gains": "NOT measured. Camera yaw during straight runs was dominated by a translation artifact (~-13 deg regardless of gain). Tune live with [ and ] in drive.py."
+    "date": "2026-09-19 23:39",
+    "level": 0.3,
+    "pulse_s": 0.6,
+    "drift_history_deg": [
+      3.04,
+      2.05,
+      4.14,
+      0.89,
+      2.25,
+      0.78
+    ],
+    "spin_ccw_deg_per_s": 52.8,
+    "spin_cw_deg_per_s": -56.9,
+    "note": "Yaw from camera with assumed 54 deg HFOV; includes ramp time. No metric speed."
   }
 }

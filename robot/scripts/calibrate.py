@@ -93,11 +93,15 @@ def main():
                 print(f"  drift {drift:+.2f} deg  gains L{cal['left_gain']:.3f} R{cal['right_gain']:.3f}")
                 if abs(drift) < 0.7:
                     break
-                ratio = cal["right_gain"] / cal["left_gain"] * (1 - 0.025 * max(-8, min(8, drift)))
-                ratio = max(0.5, min(2.0, ratio))
-                cal["left_gain"], cal["right_gain"] = (
-                    (round(1 / ratio, 3), 1.0) if ratio > 1 else (1.0, round(ratio, 3))
+                left_key, right_key = (
+                    ("right_gain", "left_gain") if cal["swap"] else ("left_gain", "right_gain")
                 )
+                ratio = cal[right_key] / cal[left_key] * (1 - 0.025 * max(-8, min(8, drift)))
+                ratio = max(0.5, min(2.0, ratio))
+                slow, fast = (round(1 / ratio, 3), 1.0) if ratio > 1 else (1.0, round(ratio, 3))
+                # Gains are stored per driver; with swap the logical left is the "right" driver.
+                keys = ("right_gain", "left_gain") if cal["swap"] else ("left_gain", "right_gain")
+                cal[keys[0]], cal[keys[1]] = slow, fast
 
             print("3/3 spin rate")
             ccw, _ = pulse(base, gyro, -args.level, args.level, args.seconds, undo=False)

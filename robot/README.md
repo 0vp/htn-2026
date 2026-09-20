@@ -75,14 +75,18 @@ metric speed; measure distance with a tape if that is needed.
 Front = the big drive-wheel end. The drivers were labelled from the other end, so
 `calibration.json` has `swap: true` with signs left -1 / right +1 (floor driving test).
 
-Provisional, in `scripts/calibration.json`: both signs +1 (lifted-wheel check), minimum duty
-left 0.20 / right 0.30 (floor pulses; right side was slipping and the rear casters dragged).
-Left/right trim is **not** measured: camera yaw during straight runs was swamped by a
-translation artifact (about -13 deg regardless of gain), so `calibrate.py` step 2 is not
-trustworthy yet. Tune trim by eye with `[` `]` in `drive.py`, or rerun after fixing the casters.
+Measured on the floor by `calibrate.py --camera-faces front` after the rear casters were fixed
+(2026-09-19 23:40), in `scripts/calibration.json`:
+
+- Signs/swap: confirmed by both the camera run and the arrow-key driving test.
+- Minimum duty: wheel-end-left driver 0.14, other 0.11 (first duty that turned the robot, minus 0.03).
+- Trim: the "left" driver (physically the right wheel, from the front) runs at gain ~0.71;
+  straight-run drift went from +3.0 to +0.8 deg per 0.6 s pulse. Readings are noisy (+-1.5 deg);
+  fine-tune by eye with `[` `]` in `drive.py`.
+- Spin at level 0.3: about +53 / -57 deg/s (camera yaw, assumed 54 deg HFOV, includes ramp).
+- Not measured: metric speed.
 
 ## Measured vs assumed
 
 - Measured: firmware identity, telemetry and IR reads over TTL after flashing (2026-09-19).
-- Assumed until `calibrate.py` runs: which driver is physically left, forward polarity, that the
-  laptop camera faces the rear (wheel end), camera HFOV ≈ 54°.
+- Assumed: camera HFOV ≈ 54° (scales the deg/s figures only).
