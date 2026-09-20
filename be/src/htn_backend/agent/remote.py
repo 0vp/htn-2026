@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 PRESENT_S = 40.0
 POLL_S = 25.0
-JOB_TIMEOUT_S = 200.0
+JOB_TIMEOUT_S = 660.0
 
 
 class Hub:

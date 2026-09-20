@@ -45,7 +45,9 @@ async def serve(backend: str, token: str, binary: str, motion: Motion | None) ->
             job = response.json()
             stamp(f"▶ {job['prompt']}")
             try:
-                result = await run(job["room_id"], job["prompt"], backend, binary, motion)
+                result = await run(
+                    job["room_id"], job["prompt"], backend, binary, motion, embodied=True
+                )
             except Exception as error:  # The phone must always get an answer.
                 result = f"Codex could not complete the request ({type(error).__name__})."
             stamp(f"◀ {result}")

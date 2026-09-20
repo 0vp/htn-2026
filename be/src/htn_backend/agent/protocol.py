@@ -52,7 +52,7 @@ class AppServer:
             try:
                 result = await asyncio.wait_for(
                     asyncio.to_thread(self.tools.call, params["tool"], params["arguments"]),
-                    timeout=25,
+                    timeout=120,  # A full scan is many measured turns.
                 )
             except Exception:
                 result = {

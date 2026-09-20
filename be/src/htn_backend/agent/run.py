@@ -8,6 +8,9 @@ import tempfile
 
 import httpx
 
+from .embodied.prompt import INSTRUCTIONS as EMBODIED_INSTRUCTIONS
+from .embodied.tools import EmbodiedTools
+from .embodied.tools import definitions as embodied_definitions
 from .feedback.stream import stream
 from .motion.link import RobotLink
 from .motion.skills import Motion
@@ -15,6 +18,8 @@ from .motion.tools import INSTRUCTIONS as MOTION_INSTRUCTIONS
 from .profile import MODEL, server_command, thread_params
 from .protocol import AppServer
 from .tools import RobotTools, definitions
+
+TURN_TIMEOUT_S = 600  # Exploration takes minutes; the embodied agent is meant to persist.
 
 
 async def run_turn(
@@ -37,7 +42,7 @@ async def run_turn(
         else None
     )
     try:
-        async with asyncio.timeout(180):
+        async with asyncio.timeout(TURN_TIMEOUT_S):
             while True:
                 event = await server.events.get()
                 method, params = event["method"], event.get("params", {})
@@ -75,22 +80,33 @@ async def run_turn(
             await asyncio.gather(monitor, return_exceptions=True)
 
 
-async def run(room_id, prompt, backend, binary, motion=None):
+async def run(room_id, prompt, backend, binary, motion=None, embodied=False):
     # Empty workspace avoids inheriting repository instructions or editing source files.
     with tempfile.TemporaryDirectory(prefix="room-agent-") as workspace:
         with httpx.Client(base_url=backend, timeout=15, follow_redirects=False) as client:
-            tools = RobotTools(client, room_id, motion)
+            if embodied and motion:
+                # The robot's own loop: six sense-returning verbs and an explorer's prompt.
+                tools = EmbodiedTools(client, room_id, motion.link)
+            else:
+                tools = RobotTools(client, room_id, motion)
             server = AppServer(server_command(binary), tools)
             try:
                 await server.start()
                 inherited = await server.request(
                     "config/read", {"cwd": workspace, "includeLayers": False}
                 )
-                params = thread_params(
-                    workspace, definitions(motion=motion is not None), inherited["config"]
-                )
-                if motion:
-                    params["developerInstructions"] += MOTION_INSTRUCTIONS
+                if isinstance(tools, EmbodiedTools):
+                    params = thread_params(workspace, embodied_definitions(), inherited["config"])
+                    params["baseInstructions"] = EMBODIED_INSTRUCTIONS
+                    params["developerInstructions"] = (
+                        "Act through your tools until the task is done."
+                    )
+                else:
+                    params = thread_params(
+                        workspace, definitions(motion=motion is not None), inherited["config"]
+                    )
+                    if motion:
+                        params["developerInstructions"] += MOTION_INSTRUCTIONS
                 thread = await server.request("thread/start", params)
                 if thread.get("model", MODEL) != MODEL:
                     raise RuntimeError("App-server did not select the requested Astra model")

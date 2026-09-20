@@ -69,7 +69,7 @@ class App:
         self.base, self.args = base, args
         self.speed = args.speed
         self.key_motion, self.key_at = (0, 0), 0.0
-        self.app_motion, self.app_at = None, 0.0
+        self.commands = {}  # source -> (wheels, received_at)
         self.connected, self.source, self.done = False, "idle", False
         self.cloud = "connecting" if args.cloud_token else "off (no token)"
 
@@ -88,25 +88,30 @@ class App:
         feed = asyncio.create_task(self.feed(ws))
         try:
             async for message in ws:
-                if not self.accept(message):
+                if not self.accept(message, "local"):
                     await ws.close(code=1008, reason="Invalid command")
                     break
         except websockets.ConnectionClosed:
             pass
         finally:
             feed.cancel()
-            self.app_motion, self.connected = None, False
+            self.commands.pop("local", None)
+            self.connected = False
 
-    def accept(self, message) -> bool:
+    def accept(self, message, source) -> bool:
+        """Each connection keeps its own command: one side's idle packets never cancel another's."""
         try:
             target = wheels(message, self.args.limit)
         except (ValueError, TypeError, AttributeError):
-            self.app_motion = None
+            self.commands.pop(source, None)
             return False
         if target == "estop":
             self.base.estop()
             target = None
-        self.app_motion, self.app_at = target, time.monotonic()
+        if target:
+            self.commands[source] = (target, time.monotonic())
+        else:
+            self.commands.pop(source, None)
         return True
 
     async def cloud_link(self):
@@ -120,12 +125,12 @@ class App:
                     feed = asyncio.create_task(self.feed(ws))
                     try:
                         async for message in ws:
-                            self.accept(message)
+                            self.accept(message, "cloud")
                     finally:
                         feed.cancel()
             except (OSError, TimeoutError, websockets.WebSocketException) as error:
                 self.cloud = f"retrying ({type(error).__name__})"
-            self.app_motion = None
+            self.commands.pop("cloud", None)
             await asyncio.sleep(2)
 
     def report(self):
@@ -168,7 +173,8 @@ class App:
         if key in (ord("q"), 27):
             self.done = True
         elif key == ord(" "):
-            self.key_motion, self.app_motion = (0, 0), None
+            self.key_motion = (0, 0)
+            self.commands.clear()
         elif key in KEYS:
             self.key_motion, self.key_at = tuple(v * self.speed for v in KEYS[key]), now
         elif key in (ord("["), ord("]")):
@@ -180,8 +186,8 @@ class App:
         now = time.monotonic()
         if now - self.key_at <= KEY_HOLD_S and self.key_motion != (0, 0):
             self.source, motion = "keyboard", self.key_motion
-        elif self.app_motion and now - self.app_at <= APP_LEASE_S:
-            self.source, motion = "app", self.app_motion
+        elif live := [m for m, at in self.commands.values() if now - at <= APP_LEASE_S]:
+            self.source, motion = "app", live[0]
         else:
             self.source, motion = "idle", None
         if motion:
