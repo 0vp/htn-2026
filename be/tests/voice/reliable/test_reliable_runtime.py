@@ -28,7 +28,7 @@ def test_final_only_execution_and_no_replay(tmp_path, monkeypatch):
         journal.finalize("one", 2, 3, "the blue bottle")
         calls = []
 
-        async def run(room, text, base, binary):
+        async def run(room, text, base, binary, motion=None):
             calls.append(text)
             return "confirmed result"
 
