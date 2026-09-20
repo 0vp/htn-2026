@@ -16,8 +16,12 @@ if [ "$AGENT" = 1 ]; then
   (cd "$ROOT/be" && exec .venv/bin/python -m htn_backend.agent.worker >> "$LOG" 2>&1) &
   WORKER=$!
   trap 'kill $WORKER 2>/dev/null' EXIT INT TERM
-  osascript -e "tell application \"Terminal\" to do script \"clear; echo 'Codex agent (local)'; tail -f '$LOG'\"" >/dev/null 2>&1 \
-    || echo "Codex log: tail -f $LOG"
+  # Show Codex live in its own window: Ghostty when installed, else Terminal.
+  if [ -d /Applications/Ghostty.app ]; then
+    open -na Ghostty --args --title="Codex agent" -e sh -c "echo 'Codex agent (local)'; tail -f '$LOG'" >/dev/null 2>&1
+  else
+    osascript -e "tell application \"Terminal\" to do script \"clear; echo 'Codex agent (local)'; tail -f '$LOG'\"" >/dev/null 2>&1
+  fi || echo "Codex log: tail -f $LOG"
 fi
 
 echo "Using $PORT"
