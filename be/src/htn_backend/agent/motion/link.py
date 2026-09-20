@@ -89,7 +89,7 @@ class RobotLink:
             "t": int(time.time() * 1000),
             "estop": False,
             "armed": command is not None,
-            "drive": {"duty": 0.0, "steering_deg": 0.0},
+            "drive": {"linear": 0.0, "angular": 0.0},
             "winch": [0, 0, 0],
             "goal": None,
         }

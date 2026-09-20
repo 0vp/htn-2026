@@ -70,6 +70,19 @@ camera: yaw from horizontal image shift, forward/back from image scale change. I
 direction, minimum moving duty, left/right trim and spin rate in deg/s. It does **not** yield
 metric speed; measure distance with a tape if that is needed.
 
+## Codex agent
+
+The backend motion tools (`be/src/htn_backend/agent/motion`) drive through `drive.py`:
+
+```sh
+sh drive.sh                                   # terminal 1: keyboard + bridge
+HTN_ROBOT_URL=ws://127.0.0.1:8793 <agent run command>   # terminal 2
+```
+
+`drive_base(linear, angular, seconds)` takes levels up to 0.5 for at most 2 s. The agent is
+blocked while a human holds an arrow key (`owner: human`), after an E-STOP, or if `drive.py`
+is not running. Arm and winch tools report `hardware_capability_unavailable`.
+
 ## Calibration status (2026-09-19)
 
 Front = the big drive-wheel end. The drivers were labelled from the other end, so

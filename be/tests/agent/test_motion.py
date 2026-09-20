@@ -48,7 +48,7 @@ class FakeRobot:
                 self.packets.append(packet)
                 allowed = packet["armed"] and self.supervised and not self.estop
                 self.owner = "agent" if allowed else "none"
-                self.duty = packet["drive"]["duty"] if allowed else 0.0
+                self.duty = packet["drive"]["linear"] if allowed else 0.0
         finally:
             sender.cancel()
 
@@ -59,7 +59,7 @@ class FakeRobot:
                 "type": "telemetry",
                 "control": control,
                 "motor_duty": self.duty,
-                "drivetrain": "single_steer_v1",
+                "drivetrain": "bts7960_diff_v2",
                 "encoder_ticks": 0,
                 "capabilities": {"drive_base": True},
             }
@@ -125,7 +125,7 @@ def test_supervised_drive_runs_then_releases(robot):
         "not measured" in result["measurement"].lower() or "not calibrated" in result["measurement"]
     )
     armed = [p for p in fake.packets if p["armed"]]
-    assert armed and all(p["drive"] == {"duty": 0.3, "steering_deg": 0} for p in armed)
+    assert armed and all(p["drive"] == {"linear": 0.3, "angular": 0} for p in armed)
     assert released(fake)
 
 
@@ -134,7 +134,7 @@ def test_losing_supervision_interrupts_the_move(robot):
     supervise(fake, motion)
     threading.Timer(0.4, lambda: setattr(fake, "supervised", False)).start()
     started = time.monotonic()
-    result = motion.drive_base(0.2, 10, 2)
+    result = motion.drive_base(0.2, 0.1, 2)
     assert result["state"] == "interrupted"
     assert result["stopped_by"].startswith("supervision_lost")
     assert time.monotonic() - started < 2
@@ -145,21 +145,21 @@ def test_estop_interrupts_and_blocks_retry(robot):
     fake, motion = robot
     supervise(fake, motion)
     threading.Timer(0.4, lambda: setattr(fake, "estop", True)).start()
-    assert motion.drive_base(0.1, 15, 2)["stopped_by"].startswith("estop")
-    assert motion.drive_base(0.1, 10, 1)["state"] == "blocked"
+    assert motion.drive_base(0.1, 0.15, 2)["stopped_by"].startswith("estop")
+    assert motion.drive_base(0.1, 0.1, 1)["state"] == "blocked"
 
 
 def test_tool_bounds_reject_unsafe_arguments(robot):
     fake, motion = robot
     supervise(fake, motion)
     tools = RobotTools(None, "ABCDEF12", motion)
-    assert not tools.call("drive_base", {"duty": 5, "steering_deg": 0, "seconds": 1})["success"]
-    assert not tools.call("drive_base", {"duty": 0.1, "steering_deg": 90, "seconds": 1})["success"]
+    assert not tools.call("drive_base", {"linear": 5, "angular": 0, "seconds": 1})["success"]
+    assert not tools.call("drive_base", {"linear": 0.1, "angular": 9, "seconds": 1})["success"]
     assert not tools.call("run_winch", {"winch": 1, "direction": "in", "seconds": 10})["success"]
     assert not tools.call("set_arm", {})["success"]
-    assert not tools.call(
-        "drive_base", {"duty": 0.1, "steering_deg": 0, "seconds": 1, "shell": "rm"}
-    )["success"]
+    assert not tools.call("drive_base", {"linear": 0.1, "angular": 0, "seconds": 1, "shell": "rm"})[
+        "success"
+    ]
     long_move = motion.drive_base(0.1, 0, 10)
     assert long_move["state"] == "rejected"
     assert not any(p["armed"] for p in fake.packets)
@@ -175,7 +175,7 @@ def test_motion_tools_are_only_offered_with_a_robot_link():
 def test_background_heartbeat_cannot_keep_an_unrenewed_command_armed(robot):
     fake, motion = robot
     supervise(fake, motion)
-    motion.link.set_command({"drive": {"duty": 0.1, "steering_deg": 0}})
+    motion.link.set_command({"drive": {"linear": 0.1, "angular": 0}})
     time.sleep(0.12)
     assert any(p["armed"] for p in fake.packets)
     time.sleep(0.3)

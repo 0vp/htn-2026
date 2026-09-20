@@ -15,9 +15,11 @@ MAX_SECONDS = 12.0
 TELEMETRY_STALE_S = 1.0
 GRANT_TIMEOUT_S = 0.8
 POLL_S = 0.05
+DRIVETRAIN = "bts7960_diff_v2"
+MAX_LEVEL = 0.5  # Share of the calibrated wheel range; see robot/README.md
 
 NOT_MEASURED = (
-    "Only motor duty and servo pulse were commanded; wheel encoders are not calibrated, "
+    "Only calibrated wheel levels were commanded; distance and yaw are not measured (no encoders), "
     "so the robot may have moved less (load, slip) or been stopped by an obstacle."
 )
 
@@ -59,8 +61,8 @@ class Motion:
             return ["robot_silent: no recent telemetry"]
         control = telemetry.get("control", {})
         reasons = []
-        if telemetry.get("drivetrain") != "single_steer_v1":
-            reasons.append("drivetrain_mismatch: expected fixed drive wheel and steering servo")
+        if telemetry.get("drivetrain") != DRIVETRAIN:
+            reasons.append(f"drivetrain_mismatch: expected {DRIVETRAIN} via robot/scripts/drive.py")
         if control.get("estop", True):
             reasons.append("estop_latched: a human must inspect and reset the controller")
         if not control.get("supervised", False):
@@ -69,19 +71,22 @@ class Motion:
             reasons.append("human_in_control: someone is driving manually")
         return reasons
 
-    def drive_base(self, duty: float, steering_deg: float, seconds: float) -> dict:
+    def drive_base(self, linear: float, angular: float, seconds: float) -> dict:
         if (
-            not all(math.isfinite(v) for v in (duty, steering_deg, seconds))
-            or abs(duty) > 0.3
-            or abs(steering_deg) > 20
+            not all(math.isfinite(v) for v in (linear, angular, seconds))
+            or abs(linear) > MAX_LEVEL
+            or abs(angular) > MAX_LEVEL
             or not 0 < seconds <= 2
         ):
             return dict(state="rejected", dispatched=False, reason="invalid_bounded_base_command")
         return self._run(
-            {"drive": {"duty": duty, "steering_deg": steering_deg}},
+            {"drive": {"linear": linear, "angular": angular}},
             seconds,
-            dict(skill="drive_base", duty=duty, steering_deg=steering_deg, seconds=seconds),
-            estimate={"note": "Motor duty and steering pulse only; no calibrated distance or yaw"},
+            dict(skill="drive_base", linear=linear, angular=angular, seconds=seconds),
+            estimate={
+                "note": "Open loop. Floor calibration at level 0.3 measured roughly 55 deg/s "
+                "turn in place (includes ramp-up); linear speed is not measured."
+            },
         )
 
     def set_arm(self, target: dict[str, float]) -> dict:

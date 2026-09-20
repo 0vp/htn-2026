@@ -12,11 +12,11 @@ class Empty(BaseModel):
 
 
 class DriveBase(Empty):
-    duty: float = Field(ge=-0.3, le=0.3, description="Signed wheel duty; forward positive")
-    steering_deg: float = Field(
-        ge=-20,
-        le=20,
-        description="Servo offset: positive lowers servo angle from 90 degrees; not measured yaw",
+    linear: float = Field(
+        ge=-0.5, le=0.5, description="Forward level (toward the big wheels); negative reverses"
+    )
+    angular: float = Field(
+        ge=-0.5, le=0.5, description="Turn level; positive turns left (counter-clockwise)"
     )
     seconds: float = Field(gt=0, le=2)
 
@@ -43,12 +43,13 @@ INSTRUCTIONS = """
 
 Motion tools (drive_base, set_arm, run_winch, stop) move the real robot base, arm and winches.
 They only work while a human explicitly supervises the connected controller.
-The large drive wheel stays fixed and the separate small wheel steers. Never request
-differential-wheel motion or a turn in place. Check reported hardware capabilities.
+The base is a two-wheel differential drive: linear moves it, angular turns it, and angular
+alone turns in place. Levels are shares of the calibrated wheel range, not speeds; 0.2-0.3 is
+a gentle pace. Only drive_base has hardware right now; check reported capabilities.
 Call robot_status first; if can_move is false, explain the blockers and ask the user.
 Move in short steps, then observe or read robot_status before the next step.
-The robot has no obstacle sensing: if you are unsure what is in front of it, do not drive.
-Drive duty and steering servo offsets are commanded, not measured distance or yaw.
+Obstacle sensing is unverified (raw IR bits only): if unsure what is around it, do not drive.
+Levels are commanded, not measured distance or yaw. A human at the laptop keyboard overrides you.
 A completed result means the command ran for its duration, not that a place was reached.
 An emergency stop stays latched until a human resets the controller. Never retry around a stop.
 Call stop whenever something looks wrong.
@@ -62,9 +63,9 @@ MOTION_TOOLS = {
     ),
     "drive_base": (
         DriveBase,
-        "Command the single fixed drive wheel and steering servo for at most 2 seconds, "
-        "then stop. Steering is NOT a chassis rotation angle; no turn-in-place skill exists. "
-        "Requires supervised single_steer_v1 firmware. No calibrated distance is promised.",
+        "Drive the differential base for at most 2 seconds, then stop. linear>0 is forward, "
+        "angular>0 turns left; angular alone turns in place (about 55 deg/s at 0.3). "
+        "Requires robot/scripts/drive.py running. No calibrated distance is promised.",
     ),
     "set_arm": (
         SetArm,
@@ -88,7 +89,7 @@ def call(motion: Motion, name: str, arguments: dict) -> dict:
     if name == "robot_status":
         return motion.status()
     if name == "drive_base":
-        return motion.drive_base(args.duty, args.steering_deg, args.seconds)
+        return motion.drive_base(args.linear, args.angular, args.seconds)
     if name == "set_arm":
         return motion.set_arm(args.model_dump(exclude_none=True))
     if name == "run_winch":

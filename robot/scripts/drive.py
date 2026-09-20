@@ -76,7 +76,9 @@ class App:
 
     async def client(self, ws):
         if not self.allowed(ws) or self.connected:
-            await ws.close(code=1008, reason="Token required or controller already connected")
+            await ws.close(
+                code=1008, reason="Token required or controller already connected"
+            )
             return
         self.connected = True
         feed = asyncio.create_task(self.feed(ws))
@@ -97,9 +99,27 @@ class App:
             feed.cancel()
             self.app_motion, self.connected = None, False
 
+    def report(self):
+        """Firmware telemetry plus the fields the backend motion skills gate on."""
+        state = dict(
+            self.base.telemetry or {}, source=self.source, calibration=self.base.cal
+        )
+        owner = dict(keyboard="human", app="agent").get(self.source, "none")
+        # Running this app is the act of supervising: a person is at the keyboard with space/q.
+        state["control"] = dict(
+            owner=owner,
+            supervised=bool(state.get("supervised")),
+            estop=state.get("estop", True),
+        )
+        state["motor_duty"] = max(
+            (abs(v) for v in (state.get("motors") or {}).values()), default=None
+        )
+        state["capabilities"] = dict(drive_base=True)
+        return state
+
     async def feed(self, ws):
         while True:
-            state = dict(self.base.telemetry or {}, source=self.source, calibration=self.base.cal)
+            state = self.report()
             await ws.send(json.dumps(state))
             await asyncio.sleep(0.05)
 
@@ -127,7 +147,9 @@ class App:
         elif key in (ord("["), ord("]")):
             self.trim(0.02 if key == ord("]") else -0.02)  # ] = steer more to the right
         elif key in (ord("-"), ord("=")):
-            self.speed = max(0.1, min(1.0, self.speed + (0.05 if key == ord("=") else -0.05)))
+            self.speed = max(
+                0.1, min(1.0, self.speed + (0.05 if key == ord("=") else -0.05))
+            )
 
     def tick(self):
         now = time.monotonic()
@@ -159,7 +181,9 @@ class App:
     async def run(self, screen):
         curses.curs_set(0)
         screen.nodelay(True)
-        async with websockets.serve(self.client, self.args.host, self.args.ws_port, max_size=2048):
+        async with websockets.serve(
+            self.client, self.args.host, self.args.ws_port, max_size=2048
+        ):
             while not self.done:
                 self.keys(screen)
                 self.tick()
@@ -174,7 +198,9 @@ def main():
     parser.add_argument("--ws-port", type=int, default=8793)
     parser.add_argument("--token", help="Required from app clients as ?token=...")
     parser.add_argument("--speed", type=float, default=0.2, help="Keyboard level, 0..1")
-    parser.add_argument("--limit", type=float, default=0.6, help="Cap on app wheel commands")
+    parser.add_argument(
+        "--limit", type=float, default=0.6, help="Cap on app wheel commands"
+    )
     args = parser.parse_args()
     if args.host != "127.0.0.1" and not args.token:
         parser.error("--token is required when listening beyond loopback")
