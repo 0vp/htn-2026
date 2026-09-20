@@ -37,7 +37,6 @@ targets:
           - CFBundleURLName: com.htn2026.room
             CFBundleURLSchemes: [htnroom]
         UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
     settings:

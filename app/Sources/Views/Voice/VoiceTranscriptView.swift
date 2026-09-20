@@ -3,6 +3,9 @@ import SwiftUI
 /// Independent captions preserve overlapping speech from the full-duplex call.
 struct VoiceTranscriptView: View {
     @ObservedObject var voice: VoiceModel
+    var captionHeight: CGFloat = 52
+    /// Landscape side column: drop the audio diagnostics so both captions fit.
+    var compact = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -15,7 +18,7 @@ struct VoiceTranscriptView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }.font(.subheadline).accessibilityIdentifier("voiceStatus")
-            if voice.phase == .listening {
+            if voice.phase == .listening && !compact {
                 Text(voice.audioDiagnostic).font(.caption).foregroundStyle(.secondary)
                     .accessibilityIdentifier("voiceDiagnostic")
                 Text("Audio packets · sent \(voice.packetsSent) · received \(voice.packetsReceived)")
@@ -48,7 +51,7 @@ struct VoiceTranscriptView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     Color.clear.frame(height: 1).id("latest")
                 }
-                .frame(maxHeight: 52)
+                .frame(maxHeight: captionHeight)
                 .onChange(of: text) { _, _ in reader.scrollTo("latest", anchor: .bottom) }
             }
         }

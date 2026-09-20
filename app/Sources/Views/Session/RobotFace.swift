@@ -25,7 +25,8 @@ struct RobotFace: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let size = min(geometry.size.width * 0.42, geometry.size.height * 0.75, 180)
+            // Three monospaced glyphs are about 1.8x the font size wide; fill the space given.
+            let size = min(geometry.size.width / 1.9, geometry.size.height * 0.85, 420)
             let (left, lips, right) = parts
             // "o" and "O" sit mid-line while "_" rests on the baseline, so round mouths are
             // dropped to keep the mouth low on the face instead of jumping up when speaking.

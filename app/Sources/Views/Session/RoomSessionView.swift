@@ -9,6 +9,8 @@ struct RoomSessionView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var sync = false
     @State private var confirmLeave = false
+    @Environment(\.verticalSizeClass) private var verticalSize
+    private var wide: Bool { verticalSize == .compact }
     let leave: () -> Void
 
     init(room: Room, device: String, api: RoomAPI, leave: @escaping () -> Void) {
@@ -19,52 +21,28 @@ struct RoomSessionView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(session.room.name).font(.headline).lineLimit(1)
-                    Text(session.isLeader ? "Room leader" : "Contributor")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button { confirmLeave = true } label: {
-                    Image(systemName: "ellipsis").frame(width: 44, height: 44)
-                }.accessibilityLabel("Room actions")
-            }.padding(.horizontal, 24)
-            if session.isLeader {
-                RobotFace(mouth: voice.mouth, voicePhase: voice.phase)
-                VoiceTranscriptView(voice: voice).padding(.horizontal, 24)
+        Group {
+            if wide && session.isLeader {
+                // Landscape: the face owns the screen; everything else sits in a side column.
+                HStack(spacing: 16) {
+                    RobotFace(mouth: voice.mouth, voicePhase: voice.phase)
+                    VStack(spacing: 12) {
+                        header
+                        VoiceTranscriptView(voice: voice, captionHeight: 48, compact: true)
+                        Spacer(minLength: 0)
+                        controls
+                    }.frame(width: 320)
+                }.padding(.horizontal, 24).padding(.bottom, 12)
             } else {
-                VStack(spacing: 20) {
-                    Image(systemName: "viewfinder").font(.system(size: 64, weight: .light)).foregroundStyle(.tint)
-                    Text("Another view.\nOne shared room.").font(.largeTitle.weight(.semibold)).multilineTextAlignment(.center)
-                    Text("This phone contributes camera and LiDAR data. Keep the app open while scanning.")
-                        .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 340)
-                }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityIdentifier("contributorView")
-            }
-            VStack(spacing: 12) {
-                Label(status, systemImage: statusIcon)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).accessibilityIdentifier("sessionStatus")
-                if ScanModel.supported, let message = scan.error {
-                    Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    Button("Retry camera") { Task { await scan.start() } }.disabled(session.room.closed)
+                VStack(spacing: 16) {
+                    header.padding(.horizontal, 24)
+                    if session.isLeader {
+                        RobotFace(mouth: voice.mouth, voicePhase: voice.phase)
+                        VoiceTranscriptView(voice: voice).padding(.horizontal, 24)
+                    } else { contributor }
+                    controls.padding(.horizontal, 24).padding(.bottom, 16)
                 }
-                if session.isLeader {
-                    HStack(spacing: 12) {
-                        Button {
-                            if voice.active { Task { await voice.end() } } else { voice.start() }
-                        } label: {
-                            Label(voice.active ? "End" : "Talk", systemImage: voice.active ? "stop.fill" : "mic")
-                        }.buttonStyle(.bordered).controlSize(.large).accessibilityIdentifier("voiceControls").disabled(voice.phase == .ending || session.room.closed)
-                        Button { voiceSettings = true } label: {
-                            Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
-                        }.accessibilityLabel("Voice settings").accessibilityIdentifier("voiceSettings")
-                        syncButton
-                    }
-                } else { syncButton }
-            }.padding(.horizontal, 24).padding(.bottom, 16)
+            }
         }
         .padding(.top, 12)
         .background {
@@ -102,6 +80,56 @@ struct RoomSessionView: View {
         }
         .onChange(of: session.room.closed) { _, closed in if closed { scan.pause(); Task { await voice.end() } } }
         .onDisappear { scan.finish(); Task { await voice.end() }; UIApplication.shared.isIdleTimerDisabled = false }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.room.name).font(.headline).lineLimit(1)
+                Text(session.isLeader ? "Room leader" : "Contributor")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button { confirmLeave = true } label: {
+                Image(systemName: "ellipsis").frame(width: 44, height: 44)
+            }.accessibilityLabel("Room actions")
+        }
+    }
+
+    private var contributor: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "viewfinder").font(.system(size: 64, weight: .light)).foregroundStyle(.tint)
+            Text("Another view.\nOne shared room.").font(.largeTitle.weight(.semibold)).multilineTextAlignment(.center)
+                .minimumScaleFactor(0.6)
+            Text("This phone contributes camera and LiDAR data. Keep the app open while scanning.")
+                .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 340)
+        }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("contributorView")
+    }
+
+    private var controls: some View {
+        VStack(spacing: 12) {
+            Label(status, systemImage: statusIcon)
+                .font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).accessibilityIdentifier("sessionStatus")
+            if ScanModel.supported, let message = scan.error {
+                Text(message).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Button("Retry camera") { Task { await scan.start() } }.disabled(session.room.closed)
+            }
+            if session.isLeader {
+                HStack(spacing: 12) {
+                    Button {
+                        if voice.active { Task { await voice.end() } } else { voice.start() }
+                    } label: {
+                        Label(voice.active ? "End" : "Talk", systemImage: voice.active ? "stop.fill" : "mic")
+                    }.buttonStyle(.bordered).controlSize(.large).accessibilityIdentifier("voiceControls").disabled(voice.phase == .ending || session.room.closed)
+                    Button { voiceSettings = true } label: {
+                        Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
+                    }.accessibilityLabel("Voice settings").accessibilityIdentifier("voiceSettings")
+                    syncButton
+                }
+            } else { syncButton }
+        }
     }
 
     private var status: String {
