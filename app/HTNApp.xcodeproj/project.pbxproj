@@ -51,7 +51,6 @@
 		CFFA882CEBC374DAD92F08BE /* SpeechAccuracy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E93FFE93825850286E1295E /* SpeechAccuracy.swift */; };
 		D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E21FD7A85332B934F46E8DB /* RoomAPI.swift */; };
 		D1D7AF9B811DA82E6FB2511A /* VoiceContentionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E214203EAF8E9528D65ABCC /* VoiceContentionTests.swift */; };
-		D73B8705C58C512CA31EA0CE /* RoomQRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */; };
 		DBC7FD24031FC0869B0AABE7 /* MediaUploadBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C74613E718B1A1296A3F4B /* MediaUploadBudget.swift */; };
 		DDA331CAD7055D1260332844 /* RoomSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F6459AA12B44B8D02E19C32 /* RoomSessionView.swift */; };
 		E3C0CE56FB3CB5910D2576A6 /* BackendIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */; };
@@ -60,7 +59,6 @@
 		F59EE11256A463B49AB22026 /* HTNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EF0760CAC94289EDAAFC5 /* HTNApp.swift */; };
 		F7E840C6D422C8BE71D55B0B /* MediaUploadBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74D3FCA16D4BD939EECDC57 /* MediaUploadBudgetTests.swift */; };
 		FCF54B05F537B20B629FDF7C /* CameraBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8B4486967A38EDD90B22819 /* CameraBackground.swift */; };
-		FD4C501D7B83530268D2814E /* RoomEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -99,7 +97,6 @@
 		3493723541F08FFC2E6BCEAC /* FixtureAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureAudioDevice.swift; sourceTree = "<group>"; };
 		35235E54BEB20EC3D650040C /* RoomSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomSessionModel.swift; sourceTree = "<group>"; };
 		368192FAAAA942306A2A881B /* BufferedAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BufferedAudioDevice.swift; sourceTree = "<group>"; };
-		3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomQRScanner.swift; sourceTree = "<group>"; };
 		39C74613E718B1A1296A3F4B /* MediaUploadBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaUploadBudget.swift; sourceTree = "<group>"; };
 		3A46E36969B6686A59C20181 /* TransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportTests.swift; sourceTree = "<group>"; };
 		3E9D8F359AC8352F941E8C52 /* AudioSpool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSpool.swift; sourceTree = "<group>"; };
@@ -111,7 +108,6 @@
 		606790FD5359A8C541B42B2D /* HTNApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HTNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		634773CF4FE695AE0AE64DE7 /* BackendIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendIntegrationTests.swift; sourceTree = "<group>"; };
 		6A5D818A67A5C7020A15A014 /* SyncSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSheet.swift; sourceTree = "<group>"; };
-		6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomEntrySheet.swift; sourceTree = "<group>"; };
 		70C6E85000595CB47AE02D21 /* ReliableVoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReliableVoiceTests.swift; sourceTree = "<group>"; };
 		777B111EC0599DA5BC7CEA1A /* RoomLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomLinkTests.swift; sourceTree = "<group>"; };
 		7E21FD7A85332B934F46E8DB /* RoomAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomAPI.swift; sourceTree = "<group>"; };
@@ -265,7 +261,6 @@
 		68F9E63B31C60B4FD3018793 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B41C3F2BBD5CC00EF1A6B920 /* Rooms */,
 				E07AE404933E2808A8B92F92 /* Session */,
 				EBE7A4EF7BD4365F70CC4946 /* Voice */,
 			);
@@ -298,15 +293,6 @@
 				85AEB36F73ECCDF8E84E3B20 /* VoiceTrace.swift */,
 			);
 			path = Diagnostics;
-			sourceTree = "<group>";
-		};
-		B41C3F2BBD5CC00EF1A6B920 /* Rooms */ = {
-			isa = PBXGroup;
-			children = (
-				6C9D8B7D508E2AF0CD782B27 /* RoomEntrySheet.swift */,
-				3941BA043EB32097CBA59BE4 /* RoomQRScanner.swift */,
-			);
-			path = Rooms;
 			sourceTree = "<group>";
 		};
 		C0CC510C4F6A5DC0D5834756 /* Transport */ = {
@@ -491,9 +477,7 @@
 				410A1D786F4851C5FE6754F2 /* ReliableVoicePeer.swift in Sources */,
 				6A05460ECD7E7A56A4EE5AB4 /* RobotFace.swift in Sources */,
 				D15F2A3105D99F5EDDA0DEA8 /* RoomAPI.swift in Sources */,
-				FD4C501D7B83530268D2814E /* RoomEntrySheet.swift in Sources */,
 				73B93F00F973E89771F334D1 /* RoomLink.swift in Sources */,
-				D73B8705C58C512CA31EA0CE /* RoomQRScanner.swift in Sources */,
 				2F4CE16761EAD95DA832CC41 /* RoomSessionModel.swift in Sources */,
 				DDA331CAD7055D1260332844 /* RoomSessionView.swift in Sources */,
 				C60A65757DA7620E81608FEE /* RoomsModel.swift in Sources */,

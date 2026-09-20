@@ -11,6 +11,8 @@ final class RoomsModel: ObservableObject {
     let api: RoomAPI
     private var restored = false
     private let rememberedKey = "activeRoomCode"
+    /// The deployment has exactly one always-open room (backend HTN_ROOM_ID).
+    static let worldCode = "A0000001"
 
     init(api: RoomAPI = RoomAPI()) {
         self.api = api
@@ -27,18 +29,12 @@ final class RoomsModel: ObservableObject {
     func restore() async {
         guard !restored else { return }
         restored = true
-        if let code = UserDefaults.standard.string(forKey: rememberedKey) {
-            await enter(code: code)
-        }
-        let restoreError = error
-        await refresh()
-        if selected == nil, let restoreError { error = restoreError }
+        await enterWorld()
     }
 
-    func leave() {
-        UserDefaults.standard.removeObject(forKey: rememberedKey)
-        selected = nil
-    }
+    func enterWorld() async { await enter(code: Self.worldCode) }
+
+    func leave() { selected = nil }
 
     func refresh() async {
         guard !busy else { return }

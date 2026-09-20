@@ -11,7 +11,7 @@ from pathlib import Path
 
 from ..capture.codec import encode
 from ..capture.frame import Frame
-from . import geography
+from . import geography, single_room
 from .counters import initialize
 
 MAX_ROOMS = 128
@@ -81,6 +81,10 @@ class Store:
                 "ON frames(received_at,sequence) WHERE archived=1 AND length(payload)>0"
             )
 
+        self.single_room = single_room.configured()
+        if self.single_room:
+            single_room.ensure(self.db, self.single_room)
+
     def close(self) -> None:
         with self.lock:
             self.db.close()
@@ -118,6 +122,16 @@ class Store:
             return [self.room(row[0]) for row in ids]
 
     def create(self, name: str, device_id: str | None = None) -> dict:
+        if self.single_room:
+            if device_id is None:
+                return self.room(self.single_room)
+            self.join(self.single_room, device_id, "iPhone")
+            with self.lock, self.db:  # Creating is how a device claims leadership of the world.
+                self.db.execute(
+                    "UPDATE rooms SET leader_device_id=? WHERE room_id=?",
+                    (device_id, self.single_room),
+                )
+            return self.room(self.single_room)
         with self.lock, self.db:
             if self.db.execute("SELECT COUNT(*) FROM rooms").fetchone()[0] >= MAX_ROOMS:
                 raise StoreError(409, "Room limit reached")
@@ -152,6 +166,12 @@ class Store:
                 "DO UPDATE SET name=excluded.name",
                 (room_id, device_id, name, time.time()),
             )
+            if room_id == self.single_room:  # First device into the shared room leads it.
+                self.db.execute(
+                    "UPDATE rooms SET leader_device_id=? WHERE room_id=? "
+                    "AND leader_device_id IS NULL",
+                    (device_id, room_id),
+                )
         return self.room(room_id)
 
     def require_room(self, room_id: str) -> sqlite3.Row:
@@ -170,6 +190,8 @@ class Store:
                 raise StoreError(409, "Join the room before uploading")
 
     def close_room(self, room_id: str) -> dict:
+        if room_id == self.single_room:
+            return self.room(room_id)  # The single shared room never closes.
         with self.lock, self.db:
             self.require_room(room_id)
             self.db.execute("UPDATE rooms SET closed=1 WHERE room_id=?", (room_id,))
