@@ -1,64 +1,83 @@
-# badge — handheld robot controller
+# badge — handheld remote for the robot base
 
 Firmware that turns the Hack the North 2026 hacker badge (ESP32-C3, 2.0" ST7789, D-pad) into a
-wireless remote for the robot. It speaks the dashboard's protocol: JSON `command` packets at
-20 Hz over a WebSocket (`fe/src/control/store.ts` → `packet()`), so the robot firmware serves one
-control socket for both the dashboard and the badge.
+wireless remote for the differential base. It drives nothing itself: it dials the laptop running
+`robot/scripts/drive.py` over Wi-Fi and sends the same logical command the laptop's arrow keys
+produce, so the D-pad and the arrow keys reach the base through one code path.
+
+```text
+badge D-pad ──ws──> drive.py (laptop) ──usb serial──> ESP32-S3 ──> BTS7960 ×2 ──> wheels
+                       ^                                   arrow keys outrank the badge
+```
+
+## Run it
+
+Start `drive.py` on the laptop so it listens beyond loopback (it refuses a non-loopback host
+without a token):
+
+```sh
+sh drive.sh --host 0.0.0.0 --token SECRET
+```
+
+Then, on the badge's USB serial console at 115200 (`pio device monitor`):
+
+```text
+wifi <ssid> <password>
+url ws://<laptop-ip>:8793/
+token SECRET
+status
+```
+
+Settings live in NVS and survive reflashing. The token is appended to the URL as `?token=`, so a
+URL that already carries one is left alone. Only `ws://` works — TLS on the C3 is not worth it for
+a link that never leaves the LAN, and `drive.py` serves plain WebSocket.
 
 ## Controls
 
 | Input | Action |
 |---|---|
-| **B** | E-STOP — latches, disarms, zeroes all motion |
-| **START** (hold 1 s) | Arm and clear E-STOP; only while the robot link is up |
+| **START** (hold 1 s) | Arm, and clear the badge's own E-STOP |
 | **START** (tap while armed) | Disarm |
-| **HOME** | Next mode: DRIVE → ARM → WINCH → AUTO |
-| DRIVE | D-pad drives (arcade mix, ramped); **A** cycles speed limit 25/50/75/100 % |
-| ARM | Left/Right picks shoulder/elbow/wrist; Up/Down moves 45°/s within limits; **A** re-centres |
-| WINCH | Left/Right picks winch 1–3; Up reels in (-1), Down pays out (+1) while held |
-| AUTO | Hold START to let the agent drive (the badge only supervises); **any button** is an E-STOP |
+| **B** | Stop and disarm — the same soft stop as `drive.py`'s space bar |
+| **B** (hold 1 s) | Latching E-STOP. **The base firmware holds it until the board is reset.** |
+| **HOME** | Switch mode: DRIVE ⇄ AUTO |
+| DRIVE | D-pad drives while held (ramped, diagonals mix); **A** cycles the limit 25/50/75/100 % |
+| AUTO | Hold START to let the cloud agent drive; the badge only watches. Any button stops it. |
 
-LEDs: orange pulse = no link, blue = linked + safe, green = armed, red pulse = E-STOP.
-The badge disarms itself if the link drops. The robot must still stop on its own if
-packets stop arriving (the dashboard makes the same assumption).
+The screen shows the stick, the base's two wheel duties from telemetry, which controller
+`drive.py` is currently obeying, the live trim, and the link state.
 
-## Packet
+## Protocol
+
+The badge is an ordinary `drive.py` app client (`robot/scripts/drive.py` → `wheels()`), sending
+at 20 Hz because `drive.py` drops an app command after 500 ms:
 
 ```json
-{"type":"command","seq":42,"t":1789000000000,"estop":false,"armed":true,
- "drive":{"left":0.25,"right":0.5},"arm":{"shoulder":10,"elbow":-5,"wrist":0},
- "winch":[0,-1,0],"goal":null,"source":"badge"}
+{"type":"command","seq":42,"t":1789000000000,"armed":true,"estop":false,
+ "source":"badge","drive":{"linear":0.30,"angular":-0.15}}
 ```
 
-`t` is Unix ms once SNTP syncs, else badge uptime; use `seq` for ordering. Anything the robot
-sends back on the socket is merged as telemetry (`packVolts`, `rpm`, `winchPos`, `limits`,
-`rssi`, `pose`) and shown on screen; messages over 4 KB (LiDAR point batches) are ignored.
+`+ linear` is forward and `+ angular` turns left, matching `drive.py`, which mixes them into
+`(linear - angular, linear + angular)` and then applies `calibration.json`. Values are logical
+−1..1 *before* calibration; `MAX_LEVEL` is 0.6 to match `drive.py`'s `--limit`, so nothing is
+renormalised on the far side. Telemetry comes back on the same socket at 20 Hz and is shown on
+screen; frames over 2 KB are ignored.
 
-## Setup
+Three consequences worth knowing:
 
-Open a serial monitor at 115200 (`pio device monitor`) and type:
+- **The laptop's arrow keys always win.** `drive.py` prefers the keyboard over any app client, so
+  a hand on the laptop overrides the badge without disconnecting it.
+- **`drive.py` accepts one app client at a time**, so the badge and the iOS app/dashboard cannot
+  both be connected to `:8793`. The cloud relay is a separate socket, so the cloud agent still gets
+  through.
+- **AUTO goes silent on purpose.** The cloud agent's commands land in the same slot inside
+  `drive.py`, so a badge that kept sending `armed:false` would zero them 20 times a second. In AUTO
+  the badge transmits nothing until it intervenes, and a change of arm or E-STOP state is always
+  flushed so a stop still lands. A badge sitting in DRIVE while disarmed *does* hold the base
+  stopped — press HOME to hand the base to the agent.
 
-```
-wifi htn-robot <password>
-url ws://192.168.4.1:81/
-status
-```
-
-To supervise the agent on the USB steering robot (`robot/steering`), point the badge at the
-laptop's serial bridge instead: `url ws://<laptop-ip>:8794/?token=<HTN_BADGE_TOKEN>`, then
-hold START in AUTO. See `robot/steering/bench.md` → Badge supervision. There the badge only
-supervises and E-STOPs; a steering-firmware E-STOP latches until the board is reset.
-
-The robot (`robot/`) runs the `htn-robot` access point; its password is in the robot's git-ignored
-`src/secrets.h`. Any other network works too, as long as the badge can reach the robot over IPv4.
-
-Settings live in NVS and survive reflashing. `help` lists the other commands: `buttons` prints
-raw shift-register bytes, `lcd invert 0|1` fixes inverted colours, `mode drive|arm|winch` switches
-the screen, and `shot` dumps the frame. To save a screenshot (opening the port restarts the badge):
-
-```sh
-python badge/tools/badge_shot.py /dev/cu.usbmodem2101 screen.png
-```
+If the link drops, the badge stops transmitting and `drive.py`'s 500 ms lease plus the base
+firmware's 300 ms watchdog stop the motors.
 
 ## Build and flash
 
@@ -71,6 +90,14 @@ If upload can't connect, hold START while plugging in USB for download mode.
 A full backup of the stock badge firmware is kept off-repo (it contains the badge's credentials);
 restore it with `esptool.py write_flash 0x0 full_flash_4MB.bin`.
 
+Other console commands: `help` lists them all. `buttons` prints raw shift-register bytes,
+`lcd invert 0|1` fixes inverted colours, `mode drive|auto` switches the screen, and `shot` dumps
+the frame. To save a screenshot (opening the port restarts the badge):
+
+```sh
+python badge/tools/badge_shot.py /dev/cu.usbmodem2101 screen.png
+```
+
 ## Hardware map
 
 Read from the stock firmware (GPIO matrix over the built-in USB-JTAG, plus its `esp_lcd` config in
@@ -81,5 +108,7 @@ the disassembly), then confirmed on device:
 | LCD SCLK / MOSI / CS / DC / RESET | 1 / 10 / 2 / 0 / 4 (backlight always on) |
 | 74HC165 LOAD / CLK / QH | 20 / 21 / 7 (buttons pull low; bit order A, B, Home, Down, Left, Right, Up, Aux1) |
 | START (BOOT strap) | 9 |
-| WS2812B ×6 | 3 |
+| WS2812B ×6 | 3 (unused) |
 | I2C SDA / SCL (SC7A20H accelerometer, MFRC522 NFC — unused) | 5 / 6 |
+
+The badge drives no motors, so GPIO 3, 5 and 6 are free again.
