@@ -15,7 +15,10 @@ protocol VoiceServing {
     func capabilities() async throws -> VoiceCapabilities
     func create(sdp: String, codex: Bool, requestID: String) async throws -> VoiceSession
     func end(sessionID: String) async throws
+    @MainActor func transport() -> any VoiceTransport
 }
+
+extension VoiceServing { @MainActor func transport() -> any VoiceTransport { VoicePeer() } }
 
 /// Room-bound signaling only. The OpenAI key and delegation policy stay on the server.
 struct VoiceAPI: VoiceServing {
@@ -31,15 +34,21 @@ struct VoiceAPI: VoiceServing {
     }
 
     func create(sdp: String, codex: Bool, requestID: String) async throws -> VoiceSession {
-        var request = URLRequest(url: endpoint("sessions"))
+        let reliable = sdp.hasPrefix("reliable-audio-v1:")
+        var request = URLRequest(url: endpoint(reliable ? "reliable/sessions" : "sessions"))
         request.httpMethod = "POST"
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "device_id": device, "codex_enabled": codex, "sdp": sdp, "request_id": requestID
-        ])
+        var body: [String: Any] = ["device_id": device, "codex_enabled": codex,
+                                  "request_id": reliable ? String(sdp.dropFirst("reliable-audio-v1:".count)) : requestID]
+        if !reliable { body["sdp"] = sdp }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return try await perform(request)
     }
 
     func end(sessionID: String) async throws {
+        if sessionID.hasPrefix("buffered-") {
+            _ = try await finishReliable(sessionID, next: 0) // Idempotent after drain; also closes late empty creations.
+            return
+        }
         // Session IDs are opaque; never interpolate them into paths.
         var request = URLRequest(url: endpoint("end"))
         request.httpMethod = "POST"
@@ -47,13 +56,27 @@ struct VoiceAPI: VoiceServing {
         let _: EndReceipt = try await perform(request)
     }
 
+    @MainActor func transport() -> any VoiceTransport { ReliableVoicePeer(api: self) }
+    func finishReliable(_ ident: String, next: Int) async throws -> String {
+        var request = URLRequest(url: endpoint("reliable/end"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 150
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["device_id": device, "session_id": ident, "next_seq": next])
+        let receipt: ReliableEndReceipt = try await perform(request)
+        return receipt.turns.map(\.text).joined(separator: " ")
+    }
+    private struct ReliableEndReceipt: Decodable {
+        struct Turn: Decodable { let text: String }
+        let ended: Bool
+        let turns: [Turn]
+    }
     private struct EndReceipt: Decodable { let ended: Bool }
     private func endpoint(_ path: String) -> URL {
         base.appendingPathComponent("v1/rooms/\(room)/voice/\(path)")
     }
     private func perform<T: Decodable>(_ original: URLRequest) async throws -> T {
         var request = original
-        request.timeoutInterval = 25
+        if !request.url!.path.hasSuffix("reliable/end") { request.timeoutInterval = 25 }
         request.networkServiceType = .responsiveData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await session.data(for: request)

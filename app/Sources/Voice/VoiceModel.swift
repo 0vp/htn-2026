@@ -44,9 +44,9 @@ final class VoiceModel: ObservableObject {
     }
 
     init(api: any VoiceServing, preferences: UserDefaults = .standard,
-         makePeer: @escaping @MainActor () -> any VoiceTransport = { VoicePeer() },
+         makePeer: (@MainActor () -> any VoiceTransport)? = nil,
          permission: @escaping () async -> Bool = { await AVAudioApplication.requestRecordPermission() }) {
-        self.api = api; self.preferences = preferences; self.makePeer = makePeer; self.permission = permission
+        self.api = api; self.preferences = preferences; self.makePeer = makePeer ?? { api.transport() }; self.permission = permission
         codexEnabled = preferences.object(forKey: "voiceCodexEnabled") as? Bool ?? true
         interruption = NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
             .sink { [weak self] notification in
@@ -133,14 +133,23 @@ final class VoiceModel: ObservableObject {
         generation = UUID()
         startTask?.cancel(); startTask = nil
         watchdog?.cancel(); watchdog = nil
-        peer?.receive = nil; peer?.close(); peer = nil
+        let transport = peer; peer = nil
+        transport?.receive = nil
+        phase = .ending
+        do {
+            try await transport?.finish()
+            if let text = transport?.finalizedTranscript {
+                rawUser = String(text.suffix(2000)); userTranscript = Caption.spoken(rawUser)
+            }
+        }
+        catch { self.error = error.localizedDescription; transport?.close() }
         reconnecting = false
         mouth = 0; microphoneLevel = 0
         let id = sessionID; sessionID = nil
         phase = .ending
         if let id {
             do { try await Task { try await api.end(sessionID: id) }.value }
-            catch { self.error = "Audio stopped. Server hangup could not be confirmed." }
+            catch { if self.error == nil { self.error = "Audio stopped. Server hangup could not be confirmed." } }
         }
         phase = .idle
     }
@@ -170,6 +179,9 @@ final class VoiceModel: ObservableObject {
         case .inputLevel(let value):
             guard phase == .listening else { return }
             microphoneLevel = muted ? 0 : min(1, max(0, value))
+        case .finalTranscript(let text):
+            rawUser = String(text.suffix(2000)); userTranscript = Caption.spoken(rawUser)
+            if speaker != "Assistant" { speaker = "You"; caption = String(userTranscript.suffix(600)) }
         case .transcript(let role, let delta):
             if role == "You" {
                 rawUser = String((rawUser + delta).suffix(2000))

@@ -1,0 +1,29 @@
+{
+  "date": "2026-09-19",
+  "method": "Production GCP endpoint; generated 24 kHz mono PCM16, six repeated sentences. Deliberately ignored one storage acknowledgment, replayed its chunk, and disconnected for six seconds while capture time continued.",
+  "audio_chunks": 200,
+  "audio_bytes": 1917240,
+  "expected_sha256": "84e8dea55fafddbe164cc31846f7d232e034412f4213c6f84a1dac68ac777a26",
+  "server_sha256": "84e8dea55fafddbe164cc31846f7d232e034412f4213c6f84a1dac68ac777a26",
+  "complete_sentences": 6,
+  "total_sentences": 6,
+  "elapsed_seconds": 40.159391375025734,
+  "assistant_audio_events": 309,
+  "tests": {
+    "backend_voice": 28,
+    "swift_simulator": {
+      "passed": 11,
+      "skipped_physical_microphone": 1
+    },
+    "simulator_live_transcription": "2 of 2 complete sentences",
+    "signed_device_test_build": "passed; physical runtime unavailable"
+  },
+  "limitations": [
+    "Phone disconnected before new microphone/playback engine could be exercised on device.",
+    "Live GPT-Live audio forwarding has no provider per-chunk acknowledgments. Durable full-utterance file transcription is authoritative for Codex.",
+    "Transcription remains probabilistic; byte-exact ingestion does not guarantee every recognized word.",
+    "Five-minute local pending-audio limit stops recording visibly instead of evicting old chunks.",
+    "Long uninterrupted speech is transcribed in 30-second fragments; Codex waits for a pause or end of call.",
+    "Pending external action with unknown completion is not automatically re-executed."
+  ]
+}

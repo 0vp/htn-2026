@@ -8,6 +8,7 @@ enum VoiceEvent: Equatable {
     case diagnostic(String)
     case recovering(Bool)
     case transcript(String, String)
+    case finalTranscript(String)
     case failure(String)
 
     static func decode(_ data: Data) -> VoiceEvent? {
@@ -32,6 +33,13 @@ protocol VoiceTransport: AnyObject {
     func answer(_ sdp: String) async throws
     func mute(_ muted: Bool)
     func close()
+    func finish() async throws
+    var finalizedTranscript: String? { get }
+}
+
+extension VoiceTransport {
+    func finish() async throws { close() }
+    var finalizedTranscript: String? { nil }
 }
 
 /// Loudness of just the last polling slice, shaped for a mouth.
