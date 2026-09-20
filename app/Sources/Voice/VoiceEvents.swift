@@ -6,6 +6,7 @@ enum VoiceEvent: Equatable {
     case inputLevel(Double)
     case packets(Int, Int)
     case diagnostic(String)
+    case recovering(Bool)
     case transcript(String, String)
     case failure(String)
 

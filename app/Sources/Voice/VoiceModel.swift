@@ -7,6 +7,7 @@ final class VoiceModel: ObservableObject {
     enum Phase: Equatable { case idle, connecting, listening, ending, failed }
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var error: String?
+    @Published private(set) var reconnecting = false
     @Published private(set) var muted = false
     @Published private(set) var mouth: Double = 0
     @Published private(set) var caption = ""
@@ -38,7 +39,7 @@ final class VoiceModel: ObservableObject {
         case .connecting: return connectionDetail
         case .ending: return "Ending conversation…"
         case .failed: return "Voice unavailable"
-        case .listening: return muted ? "Microphone muted" : (mouth > 0.08 ? "Speaking" : "Listening")
+        case .listening: return reconnecting ? "Reconnecting voice…" : muted ? "Microphone muted" : (mouth > 0.08 ? "Speaking" : "Listening")
         }
     }
 
@@ -64,6 +65,7 @@ final class VoiceModel: ObservableObject {
     func start() {
         guard !active, phase != .ending else { return }
         let token = UUID(); generation = token
+        reconnecting = false
         phase = .connecting; error = nil; caption = ""; speaker = ""; mouth = 0; muted = false
         userTranscript = ""; assistantTranscript = ""; microphoneLevel = 0
         rawUser = ""; rawAssistant = ""; rawCaption = ""
@@ -132,6 +134,7 @@ final class VoiceModel: ObservableObject {
         startTask?.cancel(); startTask = nil
         watchdog?.cancel(); watchdog = nil
         peer?.receive = nil; peer?.close(); peer = nil
+        reconnecting = false
         mouth = 0; microphoneLevel = 0
         let id = sessionID; sessionID = nil
         phase = .ending
@@ -154,6 +157,10 @@ final class VoiceModel: ObservableObject {
         case .level(let value):
             guard phase == .listening else { return }
             mouth = min(1, max(0, value))
+        case .recovering(let value):
+            guard active else { return }
+            reconnecting = value
+            if value { mouth = 0 }
         case .diagnostic(let text):
             guard phase == .listening else { return }
             audioDiagnostic = text

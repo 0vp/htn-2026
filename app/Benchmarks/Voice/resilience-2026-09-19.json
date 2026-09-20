@@ -1,0 +1,46 @@
+{
+  "date": "2026-09-19",
+  "method": "Native iOS simulator WebRTC to the production GPT-Live endpoint via a local SRTP forwarding relay. Identical generated 48 kHz PCM sentence, real-time pacing, one utterance per session. Relay never decrypts audio.",
+  "negotiation": {
+    "opus_inband_fec": true,
+    "transport_cc": true,
+    "red_accepted_when_preferred": false,
+    "audio_nack_advertised": false
+  },
+  "runs": [
+    {
+      "profile": "clean",
+      "rtp_packets": 416,
+      "intentionally_dropped": 0,
+      "word_error_rate": 0.0
+    },
+    {
+      "profile": "isolated: every tenth RTP packet starting at packet 80",
+      "rtp_packets": 416,
+      "intentionally_dropped": 34,
+      "word_error_rate": 0.0
+    },
+    {
+      "profile": "burst: packets 80 through 91",
+      "rtp_packets": 415,
+      "intentionally_dropped": 12,
+      "word_error_rate": 0.06666666666666667,
+      "missing_word": "wooden"
+    }
+  ],
+  "limitations": [
+    "One sentence and one measured run per condition: not a statistical quality benchmark.",
+    "The existing Opus path was measured; no claim that the new disconnect grace improves word accuracy.",
+    "Codec recovery cannot be inferred from transcript accuracy alone; decoder concealment and model context can also help.",
+    "An initial loopback-candidate proxy failure was excluded; successful runs assert more than 250 audio RTP packets traversed the relay."
+  ],
+  "implemented": "Temporary ICE disconnection gets a bounded five-second recovery window instead of immediate call teardown. Recovery does not restore missing audio.",
+  "next_candidate": "Benchmark authenticated TURN over TLS/TCP for the phone-to-relay hop, retaining WebRTC voice processing. Relay-to-provider UDP can still lose packets, and TCP retransmission can add head-of-line delay. Do not replace the default before comparing latency and word accuracy.",
+  "sources": [
+    "https://www.rfc-editor.org/rfc/rfc7587",
+    "https://www.rfc-editor.org/rfc/rfc8854.html",
+    "https://www.rfc-editor.org/rfc/rfc8656",
+    "https://www.w3.org/TR/webrtc/",
+    "https://developers.openai.com/api/docs/guides/voice-websockets?api=live"
+  ]
+}

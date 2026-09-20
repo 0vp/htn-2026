@@ -12,6 +12,7 @@ final class VoicePeer: NSObject, VoiceTransport {
         self.factory = factory ?? Self.sharedFactory
         super.init()
     }
+    private let recovery = VoiceConnectionRecovery()
     private var peer: RTCPeerConnection?
     private var channel: RTCDataChannel?
     private var microphone: RTCAudioTrack?
@@ -71,6 +72,10 @@ final class VoicePeer: NSObject, VoiceTransport {
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
+        let codecLines = sdp.components(separatedBy: .newlines).filter {
+            $0.hasPrefix("a=rtpmap:") || $0.hasPrefix("a=fmtp:") || $0.hasPrefix("a=rtcp-fb:")
+        }
+        trace?.write(["event": "negotiated_audio", "codecs": codecLines])
         prioritizeAudio()
     }
     private func prioritizeAudio() {
@@ -154,6 +159,7 @@ final class VoicePeer: NSObject, VoiceTransport {
         trace?.write(["event": "user_mute", "muted": muted])
     }
     func close() {
+        recovery.cancel()
         metering?.cancel(); metering = nil
         trace?.stop(); trace = nil
         microphone?.isEnabled = false
@@ -178,10 +184,24 @@ extension VoicePeer: RTCPeerConnectionDelegate, RTCDataChannelDelegate {
         Task { @MainActor [weak self] in if event == .ready { self?.startMetering() }; self?.receive?(event) }
     }
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        if newState == .failed || newState == .disconnected {
-            Task { @MainActor [weak self] in self?.receive?(.lost) }
+        Task { @MainActor [weak self] in
+            guard let self, self.peer === peerConnection else { return }
+            self.trace?.write(["event": "ice_state", "state": newState.rawValue])
+            switch newState {
+            case .disconnected:
+                self.receive?(.recovering(true))
+                self.recovery.begin { [weak self] in self?.receive?(.lost) }
+            case .connected, .completed:
+                self.recovery.cancel()
+                self.receive?(.recovering(false))
+            case .failed:
+                self.recovery.cancel()
+                self.receive?(.lost)
+            default: break
+            }
         }
     }
+
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}

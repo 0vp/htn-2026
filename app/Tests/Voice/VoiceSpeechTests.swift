@@ -53,6 +53,10 @@ final class VoiceSpeechTests: XCTestCase {
         defer { peer.receive = nil; peer.close() }
         let session = try await api.create(sdp: peer.offer(), codex: false, requestID: UUID().uuidString)
         do {
+            let audioLines = session.sdp.components(separatedBy: .newlines).filter {
+                $0.hasPrefix("a=rtpmap:") || $0.hasPrefix("a=fmtp:") || $0.hasPrefix("a=rtcp-fb:")
+            }
+            print("VOICE_NEGOTIATED " + audioLines.joined(separator: " | "))
             try await peer.answer(session.sdp)
             await fulfillment(of: [recognized, replied, audible], timeout: 35)
             let errorRate = SpeechAccuracy.errorRate(reference: reference, hypothesis: userText)
