@@ -17,6 +17,7 @@ from .capture.codec import MAX_FRAME_BYTES
 from .processing.state import ProcessingState
 from .robotics.relay import router as relay_router
 from .robotics.routes import router as robotics_router
+from .robotics.watch import router as watch_router
 from .storage.database import Store, StoreError
 from .storage.retention import RAW_HISTORY_SECONDS, RAW_TARGET_BYTES
 from .voice.routes import router as voice_router
@@ -80,6 +81,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     app.include_router(mapping_router(processing))
     app.include_router(robotics_router(processing))
     app.include_router(relay_router())
+    app.include_router(watch_router(processing))
     app.include_router(agent_router())
     app.include_router(rooms_router(store))
     app.include_router(uploads_router(store))

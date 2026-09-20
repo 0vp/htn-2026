@@ -58,6 +58,16 @@ is re-planned from fresh LiDAR after every leg. `approach(x, y)` is point-and-go
 names a pixel in the picture and LiDAR depth turns it into a world goal. There is no distance
 cap; a 25 m goal is just more legs.
 
+### 5c. A fast eye in the loop (dual-process, like Helix / GR00T N1 / Gemini Robotics)
+
+The slow planner (Codex, seconds per decision) sets a `watch_for` target on `scan` or `go_to`.
+While the robot moves, a small vision model (`gpt-5.4-mini`, about 1 s, run on the server where
+the frames already are) checks every new frame in a background thread. The first confident
+sighting ends the move early, turns the robot back to face it and returns its position in the
+picture, so the planner can confirm and `approach(x, y)`. The eye only proposes; the planner
+confirms up close. On a real frame it found the target and did not hallucinate a fire
+extinguisher that `gpt-4.1-mini` did.
+
 ### 6. Chained actions and talking while moving
 
 `path` runs several turns and straight legs as one continuous move with no thinking pauses in
@@ -115,6 +125,8 @@ Not yet exercised on the real robot:
 - `go_to` / `approach` route finding: passes a simulated room with a doorway detour and a sealed
   room (hull never touches a wall), but has not driven the real robot yet.
 - Interruption of a running task by a new request.
+- `watch_for` early stop: unit-tested with a fake eye; the live endpoint answers on real frames,
+  but no real search has been cut short by it yet.
 
 Known limits: linear speed is learned, not surveyed; the server's room map stops growing when a
 new phone tracking session cannot be aligned to the first one; LiDAR misses glass and stairs.

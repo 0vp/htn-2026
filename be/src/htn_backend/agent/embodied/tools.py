@@ -8,6 +8,7 @@ why it stopped) so the next step can adapt; errors are instructions, not dead en
 import io
 import json
 import math
+from concurrent.futures import wait
 
 import httpx
 from PIL import Image
@@ -15,9 +16,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..motion.link import RobotLink
 from .navigator import Navigator
-from .perception import Sense, Senses, data_url
 from .planner import draw as draw_route
-from .worldmap import render
+from .senses.perception import Sense, Senses, data_url
+from .senses.watcher import Watcher, first_sighting
+from .senses.worldmap import render
 
 
 class Empty(BaseModel):
@@ -25,16 +27,23 @@ class Empty(BaseModel):
 
 
 SAY = "One short sentence spoken aloud the moment this starts, while the robot moves."
+WATCH = (
+    "What you are searching for, described so it can be recognised in a picture ('red fire alarm "
+    "pull station on a wall'). A fast vision model checks every new frame while you move and "
+    "ends the move early the moment it appears, returning where it is in the picture."
+)
 
 
 class Scan(Empty):
     views: int = Field(default=6, ge=4, le=8, description="Pictures around the full circle")
+    watch_for: str | None = Field(default=None, max_length=200, description=WATCH)
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
 class GoTo(Empty):
     bearing_deg: float = Field(ge=-180, le=180, description="Direction of the goal, + left")
     distance_m: float = Field(gt=0.3, le=25, description="How far away the goal is")
+    watch_for: str | None = Field(default=None, max_length=200, description=WATCH)
     say: str | None = Field(default=None, max_length=160, description=SAY)
 
 
@@ -126,6 +135,7 @@ class EmbodiedTools:
         self.client = client
         self.senses = Senses(client, self.prefix)
         self.navigator = Navigator(link, self.senses)
+        self.watcher = Watcher(client, self.prefix)
         self.moves = 0
         self.speak = None  # Set by the host: callable(text) that voices a line immediately.
 
@@ -168,9 +178,44 @@ class EmbodiedTools:
     def _look(self, _):
         return self.observation(self.senses.read())
 
-    def _travel(self, target, note):
+    def _spotter(self, watch_for):
+        """(callback for the navigator, holder of the sighting) checking frames in parallel."""
+        pending, found = [], {}
+
+        def spotted(sense):
+            if not watch_for:
+                return False
+            pending.append(self.watcher.submit(watch_for, sense))
+            if sighting := first_sighting(pending):
+                found.update(sighting)
+            return bool(found)
+
+        def settle(timeout=2.5):
+            """Let checks still in flight finish: the target may be in the last frames."""
+            if pending and not found:
+                wait(pending, timeout=timeout)
+                spotted_now = first_sighting(pending)
+                while spotted_now is None and any(f.done() for f in pending):
+                    spotted_now = first_sighting(pending)
+                if spotted_now:
+                    found.update(spotted_now)
+
+        return spotted, found, settle
+
+    def _sighting(self, found):
+        """Face where the target was seen and describe it for the planner."""
+        self.navigator.face(found["heading_deg"])
+        keys = ("x", "y", "confidence", "note")
+        hint = "Seen by the fast eye; confirm in the picture, then approach(x, y)."
+        return dict(spotted={k: found.get(k) for k in keys}, next=hint)
+
+    def _travel(self, target, note, watch_for=None):
         before = self.senses.read(render=False)
-        result = self.navigator.go_to(target)
+        spotted, found, settle = self._spotter(watch_for)
+        result = self.navigator.go_to(target, spotted)
+        settle()
+        if found:
+            note = dict(note, **self._sighting(found))
         self.moves += max(1, len(result["legs"]))
         route = result.pop("route")
         sense = self.navigator.settle_and_sense(before)
@@ -189,7 +234,7 @@ class EmbodiedTools:
             sense.position[0] - math.sin(heading) * args.distance_m,
             sense.position[1] - math.cos(heading) * args.distance_m,
         )
-        return self._travel(target, {})
+        return self._travel(target, {}, args.watch_for)
 
     def _approach(self, args):
         sense = self.senses.read(render=False)
@@ -224,6 +269,7 @@ class EmbodiedTools:
 
     def _scan(self, args):
         step, items, views = 360.0 / args.views, [], []
+        spotted, found, settle = self._spotter(args.watch_for)
         for index in range(args.views):
             sense = self.senses.read(render=False)
             self.navigator.remember(sense)
@@ -236,17 +282,22 @@ class EmbodiedTools:
                     )
                 )
                 items.append(data_url(_small(sense.rgb_jpeg, 512), "jpeg"))
+                if spotted(sense):  # Checked while the previous turn was running.
+                    break
             result = self.navigator.turn(step)
             if not result["moved"]:
                 views.append(dict(aborted=result["stopped_by"]))
                 break
             self.navigator.settle_and_sense(sense)
         self.moves += 1
+        settle()
+        if found:
+            # Cut the sweep short: face the sighting and hand the planner one picture of it.
+            note = self._sighting(found)
+            return self.observation(self.senses.read(), dict(scan=views, **note))
         note = "Pictures follow in order. To face view k, turn(k * step_deg) left from here."
-        return [
-            self.text(dict(scan=views, step_deg=round(step), note=note, moves_so_far=self.moves)),
-            *items,
-        ]
+        summary = dict(scan=views, step_deg=round(step), note=note, moves_so_far=self.moves)
+        return [self.text(summary), *items]
 
     def _room_map(self, _):
         sense = self.senses.read(render=False)

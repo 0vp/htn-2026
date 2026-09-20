@@ -16,7 +16,7 @@ import httpx
 import numpy as np
 from PIL import Image, ImageDraw
 
-from ...capture.codec import decode
+from ....capture.codec import decode
 
 CELL_M = 0.05
 RANGE_M = 4.0

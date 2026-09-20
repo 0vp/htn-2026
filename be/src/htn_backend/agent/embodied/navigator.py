@@ -15,7 +15,7 @@ from pathlib import Path
 from ..motion.link import RobotLink
 from ..motion.skills import Motion
 from . import planner
-from .perception import Sense, Senses, wait_fresh
+from .senses.perception import Sense, Senses, wait_fresh
 
 TURN_LEVEL, DRIVE_LEVEL = 0.3, 0.3
 # Starting rates at these levels; every measured move refines them (robot/scripts/rates.json).
@@ -167,7 +167,7 @@ class Navigator:
         self.last_position = sense.position
         self.grid.integrate(sense.floor_world, sense.obstacles_world)
 
-    def go_to(self, target: tuple[float, float], on_leg=None) -> dict:
+    def go_to(self, target: tuple[float, float], spotted=None) -> dict:
         """Drive to a world point around obstacles: plan, drive one leg, look, re-plan."""
         legs, travelled, reason, waypoints = [], 0.0, None, []
         sense = self.senses.read(render=False)
@@ -176,6 +176,9 @@ class Navigator:
                 reason = "the phone's view is not live, so the route cannot be followed safely"
                 break
             self.remember(sense)
+            if spotted and spotted(sense):  # The fast eye saw the target: stop travelling.
+                reason = "target spotted on the way"
+                break
             remaining = math.dist(sense.position, target)
             if remaining <= ARRIVE_M:
                 break
@@ -203,8 +206,6 @@ class Navigator:
             moved = self.forward(leg, sense)
             legs.append(dict(turn=round(swing), forward=moved.get("measured") or round(leg, 2)))
             travelled += moved.get("measured") or 0.0
-            if on_leg:
-                on_leg(len(legs))
             if not moved.get("moved") and not moved.get("stopped_by"):
                 reason = "could not move"
                 break
@@ -225,6 +226,12 @@ class Navigator:
             stopped_by=reason,
             route=waypoints or [],
         )
+
+    def face(self, heading_deg: float) -> None:
+        """Turn back to a heading seen earlier (e.g. where the fast eye spotted the target)."""
+        pose = self.senses.pose_only()
+        if pose and abs(swing := wrap(heading_deg - pose[0])) > 8:
+            self.turn(swing)
 
     def settle_and_sense(self, before: Sense | None) -> Sense | None:
         return wait_fresh(self.senses, before.sequence if before else 0)

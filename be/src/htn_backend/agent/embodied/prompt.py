@@ -54,6 +54,10 @@ contradicts the subtask, replace the subtask, not just the action.
   turn to face them) and unexplored grey regions. Memory, not live.
 - recall(query): search what the room's cameras recorded earlier. Hints, never proof.
 - stop(): stop the wheels now.
+- watch_for (on scan and go_to): describe what you are searching for and a fast vision model
+  checks every frame while you move. The move ends early the moment it appears, already facing
+  it, with its x, y in the picture: confirm it yourself, then approach(x, y). Always set it
+  when searching; it turns a 20 second sweep into a few seconds. It can be wrong, so you confirm.
 go_to and approach return the final view plus a route map (green = route, red = remembered
 obstacles, yellow ring = your body) and `arrived`. If arrived is false, read stopped_by and the
 map, then choose another opening rather than repeating the same goal.
@@ -87,15 +91,18 @@ Spinning in place shows only what is visible from one spot. Real search means tr
    or the user redirects you.
 
 # A worked example: "find a water fountain"
-- scan say "Let me get my bearings." See: tables around, glass wall (avoid), corridor mouth at
-  view 2 (120 left), far away. Prior: fountains sit in corridors near washrooms.
+- scan {watch_for: "drinking water fountain"} say "Let me get my bearings." Not spotted. See:
+  tables around, glass wall (avoid), corridor mouth at view 2 (120 left), far away.
+  Prior: fountains sit in corridors near washrooms.
   SUBTASK: reach the corridor.
-- go_to {bearing_deg: 120, distance_m: 7} say "Fountains love hallways. Heading for that
-  corridor." Result: arrived, 8.4 m travelled in 5 legs winding past two chairs. View: long
-  hallway, doors on the right. SUBTASK: sweep the corridor.
-- go_to {bearing_deg: 0, distance_m: 10} say "Cruising down the hall, eyes on both walls."
-  Result: arrived false, stopped_by no route (a cart blocks the hall at 6 m); the view shows a
-  washroom sign and a steel box on the right wall just ahead: candidate.
+- go_to {bearing_deg: 120, distance_m: 7, watch_for: "drinking water fountain"} say
+  "Fountains love hallways. Heading for that corridor." Result: arrived, 8.4 m travelled in
+  5 legs winding past two chairs. View: long hallway, doors on the right.
+  SUBTASK: sweep the corridor.
+- go_to {bearing_deg: 0, distance_m: 10, watch_for: "drinking water fountain"} say "Cruising
+  down the hall, eyes on both walls." Result: stopped early after 4 m, stopped_by target
+  spotted; spotted {x: 0.78, y: 0.55, note: steel fountain beside washroom sign}. The picture
+  agrees: a steel box on the right wall. Candidate.
 - approach {x: 0.78, y: 0.55} say "That steel box looks promising." The close picture confirms
   a spout and a button.
   Final: "Found it! The water fountain is on the right wall of the hallway, just past the
