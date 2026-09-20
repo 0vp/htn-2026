@@ -45,13 +45,6 @@ body {
   background: var(--color-paper);
 }
 
-/* Dotted paper, as on the reference site. */
-.paper-dots {
-  background-color: var(--color-paper);
-  background-image: radial-gradient(rgb(23 24 24 / 0.13) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
 /* Uppercase, widely tracked mono label. */
 .label {
   font-family: var(--font-mono);
@@ -66,51 +59,6 @@ body {
 
 .hairline-light {
   border-color: rgb(255 255 255 / 0.28);
-}
-
-/* Stepped band between a blue block and paper. */
-.bands {
-  display: grid;
-  grid-template-rows: repeat(4, 12px);
-}
-.bands > :nth-child(1) { background: #4a53c9; }
-.bands > :nth-child(2) { background: #7b82d8; }
-.bands > :nth-child(3) { background: #aeb2e6; }
-.bands > :nth-child(4) { background: #d8d9ef; }
-.bands.reverse > :nth-child(1) { background: #d8d9ef; }
-.bands.reverse > :nth-child(2) { background: #aeb2e6; }
-.bands.reverse > :nth-child(3) { background: #7b82d8; }
-.bands.reverse > :nth-child(4) { background: #4a53c9; }
-
-input[type="range"].slider {
-  appearance: none;
-  width: 100%;
-  height: 20px;
-  background: transparent;
-  cursor: pointer;
-}
-input[type="range"].slider::-webkit-slider-runnable-track {
-  height: 1px;
-  background: rgb(23 24 24 / 0.35);
-}
-input[type="range"].slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  margin-top: -6px;
-  background: var(--color-blue);
-  border: 0;
-}
-input[type="range"].slider::-moz-range-track {
-  height: 1px;
-  background: rgb(23 24 24 / 0.35);
-}
-input[type="range"].slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border: 0;
-  border-radius: 0;
-  background: var(--color-blue);
 }
 
 :focus-visible {

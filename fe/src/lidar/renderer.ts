@@ -81,11 +81,6 @@ export class LidarRenderer {
   private frames: number[] = [];
   private lastBatchAt = 0;
   private resize: ResizeObserver;
-  private goal: { x: number; z: number } | null = null;
-  private goalMarker = new THREE.Group();
-  private goalLine: THREE.Line;
-  private pick: ((point: { x: number; z: number }) => void) | null = null;
-  private pressedAt: { x: number; y: number } | null = null;
   private roomMesh: THREE.Group | null = null;
   private meshVertices = 0;
   private groundGrid = new THREE.GridHelper(24, 24, 0xffffff, 0xffffff);
@@ -158,11 +153,6 @@ export class LidarRenderer {
     this.trail.frustumCulled = false;
     this.scene.add(this.trail);
 
-    this.goalLine = this.buildGoal();
-    const canvas = this.renderer.domElement;
-    canvas.addEventListener('pointerdown', this.onPointerDown);
-    canvas.addEventListener('pointerup', this.onPointerUp);
-
     this.resize = new ResizeObserver(() => this.fit());
     this.resize.observe(host);
     this.fit();
@@ -209,73 +199,6 @@ export class LidarRenderer {
 
   setNorth(radians: number): void {
     this.geoLayer.setNorth(radians);
-  }
-
-  private buildGoal(): THREE.Line {
-    const white = new THREE.LineBasicMaterial({ color: 0xffffff });
-    const ring = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.5, 0.5)), white);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.01;
-    const pole = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1.2, 0)]),
-      white,
-    );
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.14), new THREE.MeshBasicMaterial({ color: 0xeb1700, side: THREE.DoubleSide }));
-    flag.position.set(0.11, 1.13, 0);
-    this.goalMarker.add(ring, pole, flag);
-    this.goalMarker.visible = false;
-    this.scene.add(this.goalMarker);
-
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-      new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.7 }),
-    );
-    line.visible = false;
-    line.frustumCulled = false;
-    this.scene.add(line);
-    return line;
-  }
-
-  /** While set, a click (not a drag) on the floor calls back with the world point. */
-  setPicking(callback: ((point: { x: number; z: number }) => void) | null): void {
-    this.pick = callback;
-    this.renderer.domElement.style.cursor = callback ? 'crosshair' : '';
-  }
-
-  private onPointerDown = (event: PointerEvent) => {
-    this.pressedAt = { x: event.clientX, y: event.clientY };
-  };
-
-  private onPointerUp = (event: PointerEvent) => {
-    const start = this.pressedAt;
-    this.pressedAt = null;
-    if (!this.pick || !start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 5) return;
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(ndc, this.camera);
-    const hit = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-    if (hit) this.pick({ x: +hit.x.toFixed(3), z: +hit.z.toFixed(3) });
-  };
-
-  setGoal(goal: { x: number; z: number } | null): void {
-    this.goal = goal;
-    this.goalMarker.visible = !!goal;
-    if (goal) this.goalMarker.position.set(goal.x, 0, goal.z);
-  }
-
-  private updateGoalLine(): void {
-    const show = !!(this.goal && this.pose);
-    this.goalLine.visible = show;
-    if (!show || !this.goal || !this.pose) return;
-    const attribute = this.goalLine.geometry.getAttribute('position') as THREE.BufferAttribute;
-    attribute.setXYZ(0, this.pose.x, 0.02, this.pose.z);
-    attribute.setXYZ(1, this.goal.x, 0.02, this.goal.z);
-    attribute.needsUpdate = true;
-    this.goalLine.computeLineDistances();
   }
 
   private fit(): void {
@@ -482,7 +405,6 @@ export class LidarRenderer {
     // Without a robot pose the pin marks the scan origin, which is where the GPS fix was taken.
     this.marker.position.set(this.pose?.x ?? 0, this.pose?.y ?? this.groundGrid.position.y, this.pose?.z ?? 0);
     this.marker.scale.setScalar(THREE.MathUtils.clamp(this.camera.position.distanceTo(this.marker.position) / 14, 1, 40));
-    this.updateGoalLine();
     this.material.uniforms.now.value = this.clock.getElapsedTime();
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
@@ -493,8 +415,6 @@ export class LidarRenderer {
     this.geoLayer.dispose();
     this.renderer.setAnimationLoop(null);
     this.resize.disconnect();
-    this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
-    this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
     this.controls.dispose();
     this.geometry.dispose();
     this.material.dispose();

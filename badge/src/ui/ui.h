@@ -1,17 +1,19 @@
 #pragma once
 
 #include "../control/control.h"
+#include "../link/client.h"
 
 /** Everything the screen shows for one frame. */
 struct UiModel {
   const Controller *controller;
   const ButtonState *input;
   const char *linkText;
-  /** An agent client is connected and sending commands. */
-  bool agentConnected;
+  /** The WebSocket to drive.py is up. */
+  bool linked;
   bool configured;
   int wifiRssi;
-  uint32_t agentSilenceMs;
+  /** What drive.py last reported about the base; `valid` is false until a frame arrives. */
+  robotlink::Telemetry robot;
 };
 
 namespace ui {

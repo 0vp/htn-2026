@@ -2,8 +2,7 @@
 
 #include <Arduino.h>
 
-#include "../hal/motor.h"
-#include "../link/server.h"
+#include "../link/client.h"
 #include "draw.h"
 
 using namespace theme;
@@ -17,30 +16,8 @@ void nav(LGFX_Sprite &g, const UiModel &m) {
   g.setTextColor(INK);
   g.setTextDatum(middle_left);
   g.drawString("HTN Robot", 10, NAV_H / 2);
-
-  // Mode tabs, right-aligned; the active one is a solid blue block like the dashboard's button.
-  int x = 312;
-  for (int i = static_cast<int>(Mode::Count) - 1; i >= 0; i--) {
-    const char *name = modeName(static_cast<Mode>(i));
-    const int w = labelWidth(name) + 14;
-    x -= w;
-    const bool on = static_cast<Mode>(i) == m.controller->mode();
-    if (on) g.fillRect(x, 5, w, NAV_H - 10, BLUE);
-    label(g, name, x + 7, 10, on ? WHITE : INK_60);
-    x -= 4;
-  }
+  label(g, m.linked ? "REMOTE" : "OFFLINE", 312, 10, m.linked ? BLUE : INK_35, Align::Right);
   g.drawFastHLine(0, NAV_H - 1, 320, HAIRLINE);
-}
-
-const char *modeHint(Mode mode) {
-  switch (mode) {
-    case Mode::Drive:
-      return "D-PAD DRIVE  A SPEED";
-    case Mode::Auto:
-      return "AGENT DRIVES";
-    default:
-      return "D-PAD DRIVE  A SPEED";
-  }
 }
 
 void stateBlock(LGFX_Sprite &g, const UiModel &m) {
@@ -51,25 +28,22 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
   if (s.estop) {
     block = Block::Signal;
     word = "E-STOP";
-    detail = "HOLD START TO CLEAR";
-  } else if (m.controller->supervising()) {
-    block = Block::Ok;
-    word = "AUTO";
-    detail = "ANY BUTTON STOPS";
+    detail = "RESET THE BASE BOARD";
   } else if (s.armed) {
     block = Block::Ok;
     word = "ARMED";
-    detail = "B STOP  START DISARM";
+    detail = "B STOP  HOLD B E-STOP";
   }
   g.fillRect(0, BLOCK_Y, 320, BLOCK_H, blockColour(block));
   pixel(g, word, 12, BLOCK_Y + 14, 3, WHITE);
   label(g, detail, 310, BLOCK_Y + 14, WHITE, Align::Right);
-  label(g, m.configured ? modeHint(m.controller->mode()) : "SET UP OVER USB", 310, BLOCK_Y + 28, band(block, 4),
-        Align::Right);
+  label(g, m.configured ? "D-PAD DRIVE  A SPEED" : "SET UP OVER USB", 310, BLOCK_Y + 28,
+        band(block, 4), Align::Right);
 
-  // Arming progress runs along the bottom edge of the block while START is held.
-  const float hold = m.controller->armProgress();
-  if (hold > 0 && !s.armed) g.fillRect(0, BLOCK_Y + BLOCK_H - 4, static_cast<int>(320 * min(hold, 1.0f)), 4, WHITE);
+  // Hold progress runs along the bottom edge: START towards arming, B towards a latching E-STOP.
+  const float arming = s.armed ? 0.0f : m.controller->armProgress();
+  const float hold = max(arming, m.controller->estopProgress());
+  if (hold > 0) g.fillRect(0, BLOCK_Y + BLOCK_H - 4, static_cast<int>(320 * min(hold, 1.0f)), 4, WHITE);
   bands(g, block, BANDS_Y);
 }
 
@@ -79,26 +53,27 @@ void footer(LGFX_Sprite &g, const UiModel &m) {
   const int y = FOOTER_Y + 11;
   char text[40];
 
-  // What the wheel is being given right now, straight from the motor outputs.
-  snprintf(text, sizeof text, "DUTY %+.2f", motor::appliedDuty());
-  label(g, text, 10, y, motor::appliedDuty() == 0 ? INK_35 : INK);
-  snprintf(text, sizeof text, "STEER %+.0f", motor::appliedSteering());
-  label(g, text, 96, y, INK_60);
+  // What this badge is asking for, before drive.py applies calibration.json and its own limit.
+  const float linear = m.controller->linear(), angular = m.controller->angular();
+  snprintf(text, sizeof text, "CMD %+.2f %+.2f", linear, angular);
+  label(g, text, 10, y, linear == 0 && angular == 0 ? INK_35 : INK);
 
   // Link state, right-aligned with a square status light.
   uint8_t light = INK_35;
-  switch (robotserver::status()) {
-    case robotserver::Status::Ready:
-      light = m.agentConnected ? theme::OK : WARN;
-      snprintf(text, sizeof text, "%s %d", m.agentConnected ? "AGENT" : "READY", m.wifiRssi);
+  switch (robotlink::status()) {
+    case robotlink::Status::Linked:
+      light = theme::OK;
+      snprintf(text, sizeof text, "DRIVE.PY %d", m.wifiRssi);
       break;
-    case robotserver::Status::Unconfigured:
+    case robotlink::Status::Unconfigured:
       light = SIGNAL;
       snprintf(text, sizeof text, "%s", m.linkText);
       break;
     default:
+      // Joining Wi-Fi and dialling drive.py are one waiting state to the operator; the console's
+      // `status` still separates them when a link is actually being debugged.
       light = WARN;
-      snprintf(text, sizeof text, "%s", m.linkText);
+      snprintf(text, sizeof text, "CONNECTING");
       break;
   }
   label(g, text, 310, y, INK, Align::Right);
@@ -142,18 +117,8 @@ void render(const UiModel &m) {
   dots(g, 0, TOP - 6, 320, FOOTER_Y - TOP + 6);
   nav(g, m);
   stateBlock(g, m);
-  if (!m.configured) {
-    setupView(g, m);
-  } else {
-    switch (m.controller->mode()) {
-      case Mode::Auto:
-        autoView(g, m);
-        break;
-      default:
-        driveView(g, m);
-        break;
-    }
-  }
+  if (!m.configured) setupView(g, m);
+  else driveView(g, m);
   footer(g, m);
   display::present();
 }
