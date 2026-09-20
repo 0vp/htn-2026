@@ -65,14 +65,10 @@ void loop() {
   const ButtonState &input = buttons::poll();
   controller.update(input, dt);
   if (settings::monitoringButtons()) probeButtons(input);
-  const int mode = settings::takeModeRequest();
-  if (mode >= 0) controller.setMode(static_cast<Mode>(mode));
 
-  // AUTO goes silent so the cloud agent's own commands reach drive.py unchanged; the link still
-  // flushes a stop whenever arming or the E-STOP changes, so any button here reaches the base.
   const ControlState &state = controller.state();
-  robotlink::command(controller.driving(), state.estop, controller.linear(), controller.angular(),
-                     controller.supervising());
+  robotlink::command(controller.canMove(), state.estop, controller.linear(),
+                     controller.angular());
 
   if (now - lastFrame >= FRAME_MS) {
     lastFrame = now;

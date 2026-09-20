@@ -12,7 +12,7 @@ namespace {
 constexpr uint32_t COMMAND_MS = 50;  // 20 Hz; drive.py drops an app command after 500 ms.
 constexpr uint32_t WIFI_RETRY_MS = 5000;
 constexpr uint32_t REDIAL_MS = 2000;
-constexpr uint8_t FLUSH_PACKETS = 5;  // Repeats of an armed/estop/silent change, against loss.
+constexpr uint8_t FLUSH_PACKETS = 5;  // Repeats of an armed/estop change, against loss.
 
 WebSocketsClient socket;
 robotlink::Telemetry state;
@@ -21,7 +21,6 @@ portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
 struct Intent {
   bool armed = false;
   bool estop = false;
-  bool silent = true;
   float linear = 0;
   float angular = 0;
 };
@@ -107,19 +106,17 @@ void onEvent(WStype_t type, uint8_t *payload, size_t length) {
 void sendCommand() {
   portENTER_CRITICAL(&lock);
   const Intent now = intent;
-  const bool forced = flush > 0;
   if (flush) flush--;
   portEXIT_CRITICAL(&lock);
-  if (now.silent && !forced) return;
 
   JsonDocument doc;
   doc["type"] = "command";
   doc["seq"] = ++sequence;
   doc["t"] = millis();
   doc["source"] = "badge";
-  doc["armed"] = now.armed && !now.silent;
+  doc["armed"] = now.armed;
   doc["estop"] = now.estop;
-  if (now.armed && !now.silent) {
+  if (now.armed) {
     doc["drive"]["linear"] = now.linear;
     doc["drive"]["angular"] = now.angular;
   }
@@ -254,14 +251,11 @@ String localIp() { return WiFi.status() == WL_CONNECTED ? WiFi.localIP().toStrin
 int wifiRssi() { return WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0; }
 bool linked() { return connected; }
 
-void command(bool armed, bool estop, float linear, float angular, bool silent) {
+void command(bool armed, bool estop, float linear, float angular) {
   portENTER_CRITICAL(&lock);
-  if (armed != intent.armed || estop != intent.estop || silent != intent.silent) {
-    flush = FLUSH_PACKETS;
-  }
+  if (armed != intent.armed || estop != intent.estop) flush = FLUSH_PACKETS;
   intent.armed = armed;
   intent.estop = estop;
-  intent.silent = silent;
   intent.linear = linear;
   intent.angular = angular;
   portEXIT_CRITICAL(&lock);

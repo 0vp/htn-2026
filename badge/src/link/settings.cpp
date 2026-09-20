@@ -13,7 +13,6 @@ Preferences prefs;
 String line;
 bool monitor = false;
 bool shotRequested = false;
-int modeRequest = -1;
 
 constexpr const char *NS = "badgectl";
 
@@ -61,7 +60,6 @@ void printHelp() {
       "  lcd flip                    rotate the screen 180 degrees (applies after reboot)\n"
       "  buttons                     toggle printing raw shift-register bytes\n"
       "  shot                        dump the screen as hex (tools/badge_shot.py)\n"
-      "  mode <drive|auto>            switch the screen's mode\n"
       "  datapin <gpio>              74HC165 QH pin (7 or 8)\n"
       "  map <A B Home Down Left Right Up Aux1>   shift position of each button\n"
       "  polarity <low|high>         level of a pressed button\n"
@@ -111,14 +109,6 @@ bool handle(String cmdLine) {
     }
     settings::save();
     Serial.println("saved; reboot to apply");
-  } else if (cmd == "mode") {
-    const String which = nextToken(cmdLine);
-    const char *const names[] = {"drive", "auto"};
-    modeRequest = -1;
-    for (int i = 0; i < 2; i++) {
-      if (which == names[i]) modeRequest = i;
-    }
-    if (modeRequest < 0) Serial.println("mode drive|auto");
   } else if (cmd == "shot") {
     shotRequested = true;
   } else if (cmd == "buttons") {
@@ -214,12 +204,6 @@ bool pollConsole() {
 }
 
 bool monitoringButtons() { return monitor; }
-
-int takeModeRequest() {
-  const int requested = modeRequest;
-  modeRequest = -1;
-  return requested;
-}
 
 bool takeShotRequest() {
   const bool requested = shotRequested;

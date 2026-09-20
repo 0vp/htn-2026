@@ -4,7 +4,6 @@
 
 namespace {
 
-const char *const MODE_NAMES[] = {"DRIVE", "AUTO"};
 const float SPEED_STEPS[] = {0.25f, 0.5f, 0.75f, 1.0f};
 
 // Gradual acceleration. drive.py fakes this on the laptop by holding the last arrow for 0.6 s;
@@ -28,22 +27,12 @@ float axis(const ButtonState &in, Button negative, Button positive) {
 
 }  // namespace
 
-const char *modeName(Mode mode) { return MODE_NAMES[static_cast<uint8_t>(mode)]; }
-
 void Controller::disarm() {
   state_.armed = false;
   state_.stickX = state_.stickY = 0;
 }
 
 void Controller::update(const ButtonState &in, float dt) {
-  // While the agent drives, any new button edge (START, HOME and the slide included) stops it.
-  // Holding START from arming isn't an edge, so it doesn't trip this.
-  if (supervising() && (in.pressed || in.released & (1u << static_cast<uint8_t>(Button::Aux1)))) {
-    disarm();
-    startConsumed_ = true;
-    return;
-  }
-
   // B is drive.py's space bar: stop and disarm. Held, it escalates to the latching E-STOP,
   // which the base firmware keeps until the board is power-cycled.
   if (in.wasPressed(Button::B)) {
@@ -80,14 +69,7 @@ void Controller::update(const ButtonState &in, float dt) {
     armHold_ = 0;
   }
 
-  if (in.wasPressed(Button::Home)) {
-    mode_ = static_cast<Mode>((static_cast<uint8_t>(mode_) + 1) % static_cast<uint8_t>(Mode::Count));
-  }
-  if (mode_ != Mode::Drive) {
-    state_.stickX = state_.stickY = 0;
-  } else {
-    driveInput(in, dt);
-  }
+  driveInput(in, dt);
 }
 
 void Controller::driveInput(const ButtonState &in, float dt) {
@@ -104,12 +86,12 @@ void Controller::driveInput(const ButtonState &in, float dt) {
 }
 
 float Controller::linear() const {
-  if (!driving()) return 0;
+  if (!canMove()) return 0;
   return clampf(state_.stickY) * state_.speedLimit * MAX_LEVEL;
 }
 
 float Controller::angular() const {
-  if (!driving()) return 0;
+  if (!canMove()) return 0;
   // drive.py turns left on + angular, so the right half of the D-pad is negative here.
   return -clampf(state_.stickX) * state_.speedLimit * MAX_LEVEL;
 }

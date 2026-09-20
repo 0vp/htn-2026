@@ -16,28 +16,8 @@ void nav(LGFX_Sprite &g, const UiModel &m) {
   g.setTextColor(INK);
   g.setTextDatum(middle_left);
   g.drawString("HTN Robot", 10, NAV_H / 2);
-
-  // Mode tabs, right-aligned; the active one is a solid blue block like the dashboard's button.
-  int x = 312;
-  for (int i = static_cast<int>(Mode::Count) - 1; i >= 0; i--) {
-    const char *name = modeName(static_cast<Mode>(i));
-    const int w = labelWidth(name) + 14;
-    x -= w;
-    const bool on = static_cast<Mode>(i) == m.controller->mode();
-    if (on) g.fillRect(x, 5, w, NAV_H - 10, BLUE);
-    label(g, name, x + 7, 10, on ? WHITE : INK_60);
-    x -= 4;
-  }
+  label(g, m.linked ? "REMOTE" : "OFFLINE", 312, 10, m.linked ? BLUE : INK_35, Align::Right);
   g.drawFastHLine(0, NAV_H - 1, 320, HAIRLINE);
-}
-
-const char *modeHint(Mode mode) {
-  switch (mode) {
-    case Mode::Auto:
-      return "AGENT DRIVES";
-    default:
-      return "D-PAD DRIVE  A SPEED";
-  }
 }
 
 void stateBlock(LGFX_Sprite &g, const UiModel &m) {
@@ -49,10 +29,6 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
     block = Block::Signal;
     word = "E-STOP";
     detail = "RESET THE BASE BOARD";
-  } else if (m.controller->supervising()) {
-    block = Block::Ok;
-    word = "AUTO";
-    detail = "ANY BUTTON STOPS";
   } else if (s.armed) {
     block = Block::Ok;
     word = "ARMED";
@@ -61,8 +37,8 @@ void stateBlock(LGFX_Sprite &g, const UiModel &m) {
   g.fillRect(0, BLOCK_Y, 320, BLOCK_H, blockColour(block));
   pixel(g, word, 12, BLOCK_Y + 14, 3, WHITE);
   label(g, detail, 310, BLOCK_Y + 14, WHITE, Align::Right);
-  label(g, m.configured ? modeHint(m.controller->mode()) : "SET UP OVER USB", 310, BLOCK_Y + 28, band(block, 4),
-        Align::Right);
+  label(g, m.configured ? "D-PAD DRIVE  A SPEED" : "SET UP OVER USB", 310, BLOCK_Y + 28,
+        band(block, 4), Align::Right);
 
   // Hold progress runs along the bottom edge: START towards arming, B towards a latching E-STOP.
   const float arming = s.armed ? 0.0f : m.controller->armProgress();
@@ -94,8 +70,10 @@ void footer(LGFX_Sprite &g, const UiModel &m) {
       snprintf(text, sizeof text, "%s", m.linkText);
       break;
     default:
+      // Joining Wi-Fi and dialling drive.py are one waiting state to the operator; the console's
+      // `status` still separates them when a link is actually being debugged.
       light = WARN;
-      snprintf(text, sizeof text, "%s", m.linkText);
+      snprintf(text, sizeof text, "CONNECTING");
       break;
   }
   label(g, text, 310, y, INK, Align::Right);
@@ -139,18 +117,8 @@ void render(const UiModel &m) {
   dots(g, 0, TOP - 6, 320, FOOTER_Y - TOP + 6);
   nav(g, m);
   stateBlock(g, m);
-  if (!m.configured) {
-    setupView(g, m);
-  } else {
-    switch (m.controller->mode()) {
-      case Mode::Auto:
-        autoView(g, m);
-        break;
-      default:
-        driveView(g, m);
-        break;
-    }
-  }
+  if (!m.configured) setupView(g, m);
+  else driveView(g, m);
   footer(g, m);
   display::present();
 }

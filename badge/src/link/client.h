@@ -43,13 +43,11 @@ int wifiRssi();
 bool linked();
 
 /**
- * Publishes the operator's intent for the next packets. `silent` withholds them entirely, so a
- * badge supervising in AUTO never competes with the cloud agent: drive.py keeps one command per
- * connection and obeys the first that is still live, so an idle badge that kept transmitting
- * could win that race. A change of `armed`, `estop` or `silent` is still flushed, so a stop
- * always lands.
+ * Publishes the operator's intent for the next packets. drive.py keeps one command per
+ * connection, so a disarmed badge clears only its own and never cancels the cloud agent's.
+ * A change of `armed` or `estop` is repeated a few times, so a stop always lands.
  */
-void command(bool armed, bool estop, float linear, float angular, bool silent);
+void command(bool armed, bool estop, float linear, float angular);
 
 const Telemetry &telemetry();
 /** Milliseconds since the last telemetry frame, or UINT32_MAX if none has arrived. */

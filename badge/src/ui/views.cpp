@@ -100,21 +100,6 @@ void driveView(LGFX_Sprite &g, const UiModel &m) {
   label(g, "A", 276, TOP + 100, INK_35);
 }
 
-void autoView(LGFX_Sprite &g, const UiModel &m) {
-  const bool agent = m.robot.valid && strcmp(m.robot.owner, "agent") == 0;
-
-  panel(g, 10, TOP, 110, PANEL_H);
-  label(g, "AGENT", 18, TOP + 8, INK_60);
-  pixel(g, agent ? "DRIVING" : "IDLE", 18, TOP + 26, 1, agent ? BLUE : INK_35);
-  const bool supervising = m.controller->supervising();
-  g.fillRect(18, TOP + 50, 7, 7, supervising ? theme::OK : INK_35);
-  label(g, supervising ? "ALLOWED" : "BLOCKED", 30, TOP + 50, INK);
-  label(g, supervising ? "ANY BUTTON" : "HOLD START", 18, TOP + 72, INK_60);
-  label(g, supervising ? "STOPS IT" : "TO ALLOW", 18, TOP + 84, INK_60);
-
-  wheelsPanel(g, 126, 184, m);
-}
-
 void setupView(LGFX_Sprite &g, const UiModel &m) {
   panel(g, 10, TOP, 300, PANEL_H);
   label(g, "POINT THE BADGE AT DRIVE.PY", 22, TOP + 12, INK);

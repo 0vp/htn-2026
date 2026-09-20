@@ -36,7 +36,4 @@ bool monitoringButtons();
 /** True once after `shot` was typed; the main loop then dumps the frame. */
 bool takeShotRequest();
 
-/** Mode index (0 drive, 1 auto) once after `mode` was typed, else -1. */
-int takeModeRequest();
-
 }  // namespace settings
