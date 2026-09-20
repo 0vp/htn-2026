@@ -47,7 +47,10 @@ final class VoiceModel: ObservableObject {
          makePeer: (@MainActor () -> any VoiceTransport)? = nil,
          permission: @escaping () async -> Bool = { await AVAudioApplication.requestRecordPermission() }) {
         self.api = api; self.preferences = preferences; self.makePeer = makePeer ?? { api.transport() }; self.permission = permission
-        codexEnabled = preferences.object(forKey: "voiceCodexEnabled") as? Bool ?? true
+        // The robot is useless without its agent: every launch starts connected, even if an
+        // earlier build saved the switch as off. It can still be turned off for one session.
+        codexEnabled = true
+        preferences.set(true, forKey: "voiceCodexEnabled")
         interruption = NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)
             .sink { [weak self] notification in
                 guard let value = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
