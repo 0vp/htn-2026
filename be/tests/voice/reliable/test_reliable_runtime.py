@@ -24,7 +24,7 @@ def test_final_only_execution_and_no_replay(tmp_path, monkeypatch):
     async def scenario():
         journal = Journal(tmp_path / "audio.sqlite")
         journal.create("one", "room", "phone", "request", True)
-        journal.finalize("one", 0, 1, "pick up", "fragment")
+        journal.finalize("one", 0, 1, "robot pick up", "fragment")
         journal.finalize("one", 2, 3, "the blue bottle")
         calls = []
 
@@ -42,7 +42,7 @@ def test_final_only_execution_and_no_replay(tmp_path, monkeypatch):
             await done
             worker.tasks = [done, done]
             await worker.actions()
-        assert calls == ["Finalized user speech:\npick up the blue bottle"]
+        assert calls == ["Finalized user speech:\nrobot pick up the blue bottle"]
         assert journal.snapshot("one")[-1]["result"] == "confirmed result"
         journal.close()
 
@@ -77,7 +77,7 @@ def test_cancelled_command_is_not_replayed(tmp_path, monkeypatch):
     async def scenario():
         journal = Journal(tmp_path / "cancel.sqlite")
         journal.create("one", "room", "phone", "request", True)
-        journal.finalize("one", 0, 0, "go to the door")
+        journal.finalize("one", 0, 0, "robot, go to the door")
         started = asyncio.Event()
 
         async def run(*args, **kwargs):
@@ -103,7 +103,7 @@ def test_chatter_is_ignored_but_delegated_speech_runs(tmp_path, monkeypatch):
         journal = Journal(tmp_path / "gate.sqlite")
         journal.create("one", "room", "phone", "request", True)
         journal.finalize("one", 0, 0, "Okay, I'm on it.")  # The robot hearing its own voice.
-        journal.finalize("one", 1, 1, "Is he an elite hitter?")  # Live voice delegated this one.
+        journal.finalize("one", 1, 1, "Dude, did you see the game last night?")  # Table talk.
         calls = []
 
         async def run(room, text, **_):

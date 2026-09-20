@@ -44,13 +44,23 @@ away in your own lively words, one short sentence, keeping every fact. Never add
 were not in the commentary, and never claim a result before commentary reports it.
 """
 
-# Speech that must reach the agent even if the live voice did not delegate it.
-COMMAND_WORDS = re.compile(
-    r"\b(robot|astra|stop|halt|go|move|drive|come|follow|turn|spin|twirl|dance|scan|explore|"
-    r"find|look|search|where|see|back|forward|left|right|pick|grab|bring|take|get|put|push|"
-    r"check|status|show|tell)\b",
+# Safety net for requests the live voice failed to delegate: the robot's name plus an action
+# word, or a bare stop. Anything looser lets table talk ("did you see the game") drive the robot.
+WAKE_WORDS = re.compile(r"\b(robot|astra)\b", re.IGNORECASE)
+ACTION_WORDS = re.compile(
+    r"\b(go|move|drive|come|follow|turn|spin|twirl|dance|scan|explore|find|look|search|where|"
+    r"see|back|forward|left|right|pick|grab|bring|take|get|put|push|check|status|show)\b",
     re.IGNORECASE,
 )
+STOP_WORDS = re.compile(r"^\W*(stop|halt|freeze)\b", re.IGNORECASE)
+
+
+def is_command(text: str) -> bool:
+    if STOP_WORDS.search(text):
+        return True
+    return bool(WAKE_WORDS.search(text) and ACTION_WORDS.search(text))
+
+
 DELEGATION_FRESH_S = 25.0
 DELEGATION_WAIT_S = 3.0
 
@@ -287,7 +297,7 @@ class Runtime:
             if self.delegations:
                 return self.delegations.pop(0)[0]
             if now >= deadline:
-                return None if COMMAND_WORDS.search(command) else False
+                return None if is_command(command) else False
             await asyncio.sleep(0.1)
 
     async def actions(self):
